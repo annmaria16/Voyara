@@ -16,7 +16,7 @@ def check_category_match(title: str, expected_category: str) -> bool:
         return has_phone_kw and not is_accessory
     return True
 
-def extract_criteria_from_query(query: str) -> dict:
+def _extract_criteria_fallback(query: str) -> dict:
     q = query.lower()
     
     # 1. Category
@@ -143,6 +143,71 @@ def extract_criteria_from_query(query: str) -> dict:
         "currency": "INR"
     }
 
+def extract_criteria_from_query(query: str) -> dict:
+    fallback_res = _extract_criteria_fallback(query)
+    
+    try:
+        from services.agent.ai_provider import get_active_provider
+        import json
+        
+        provider = get_active_provider()
+        
+        system_prompt = (
+            "You are the VeriNova Query Parser.\n"
+            "Analyze the shopping or comparison query and extract structured criteria details.\n"
+            "Return ONLY valid JSON matching this schema:\n"
+            "{\n"
+            "  \"category\": \"laptop\" | \"phone\" | \"other\",\n"
+            "  \"brand\": string or null,\n"
+            "  \"model\": string or null,\n"
+            "  \"processor\": string or null,\n"
+            "  \"ram_gb\": integer size in GB or null,\n"
+            "  \"storage_gb\": integer size in GB or null,\n"
+            "  \"storage_type\": \"SSD\" | \"HDD\" | \"NVMe\" | null,\n"
+            "  \"gpu\": string or null,\n"
+            "  \"screen_size\": float size in inches or null,\n"
+            "  \"budget_max\": float budget in INR or null,\n"
+            "  \"currency\": \"INR\",\n"
+            "  \"allowed_brands\": list of strings or null,\n"
+            "  \"allowed_models\": list of strings or null\n"
+            "}\n"
+            "Rules:\n"
+            "- Convert RAM (e.g. '16GB' -> 16) and Storage (e.g. '512GB' -> 512, '1TB' -> 1024) to integers.\n"
+            "- Brand names should be normalized (e.g. 'asus' -> 'ASUS', 'apple' -> 'Apple', 'hp' -> 'HP').\n"
+            "- If multiple products are compared, list all their brands in allowed_brands and model identifiers in allowed_models.\n"
+            "- Do not output markdown fences or other text outside the JSON object."
+        )
+        
+        res = provider.generate([
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Extract criteria from query: '{query}'"}
+        ], response_format={"type": "json_object"})
+        
+        content = res["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+        
+        # Merge parsed results with defaults
+        final_res = {
+            "category": parsed.get("category") or fallback_res["category"],
+            "brand": parsed.get("brand") or fallback_res["brand"],
+            "model": parsed.get("model") or fallback_res["model"],
+            "processor": parsed.get("processor") or fallback_res["processor"],
+            "ram_gb": parsed.get("ram_gb") or fallback_res["ram_gb"],
+            "storage_gb": parsed.get("storage_gb") or fallback_res["storage_gb"],
+            "storage_type": parsed.get("storage_type") or fallback_res["storage_type"],
+            "gpu": parsed.get("gpu") or fallback_res["gpu"],
+            "screen_size": parsed.get("screen_size") or fallback_res["screen_size"],
+            "budget_max": parsed.get("budget_max") or fallback_res["budget_max"],
+            "currency": parsed.get("currency") or fallback_res["currency"],
+            "allowed_brands": parsed.get("allowed_brands") or ([fallback_res["brand"]] if fallback_res["brand"] else None),
+            "allowed_models": parsed.get("allowed_models") or ([fallback_res["model"]] if fallback_res["model"] else None)
+        }
+        return final_res
+    except Exception as e:
+        import logging
+        logging.getLogger("verinova.shopping.verifier").warning(f"Gemini criteria extraction failed: {str(e)}. Using fallback regex parser.")
+        return fallback_res
+
 def extract_product_attributes(title: str, price: float, url: str, seller: str) -> dict:
     t = title.lower()
     
@@ -249,6 +314,29 @@ def extract_product_attributes(title: str, price: float, url: str, seller: str) 
 
 def verify_product(product: dict, criteria: dict) -> dict:
     reasons = []
+
+    # Allowed brands verification (if specified)
+    if criteria.get("allowed_brands"):
+        matched_brand = False
+        p_brand = product.get("brand")
+        p_title = product.get("title", "").lower()
+        for b in criteria["allowed_brands"]:
+            if (p_brand and b.lower() == p_brand.lower()) or b.lower() in p_title:
+                matched_brand = True
+                break
+        if not matched_brand:
+            reasons.append(f"Brand mismatch (expected one of {criteria['allowed_brands']}, got {p_brand or 'None'})")
+
+    # Allowed models verification (if specified)
+    if criteria.get("allowed_models"):
+        matched_model = False
+        p_title = product.get("title", "").lower()
+        for m in criteria["allowed_models"]:
+            if re.search(r'\b' + re.escape(m.lower()) + r'\b', p_title) or m.lower() in p_title:
+                matched_model = True
+                break
+        if not matched_model:
+            reasons.append(f"Model mismatch (expected one of {criteria['allowed_models']})")
 
     # Category verification (mandatory)
     if criteria.get("category"):

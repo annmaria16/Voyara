@@ -90,12 +90,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${t.type === 'success' ? 'bg-[#22C55E]' : t.type === 'error' ? 'bg-red-500' : t.type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'}`} />
                 
                 <div className="shrink-0 mt-0.5">{icon}</div>
-                <div className="flex-grow text-sm text-gray-200 font-medium pr-4">
+                <div className="flex-grow text-sm text-dash-text font-medium pr-4">
                   {t.message}
                 </div>
                 <button
                   onClick={() => removeToast(t.id)}
-                  className="shrink-0 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                  className="shrink-0 text-dash-muted hover:text-dash-text transition-colors cursor-pointer"
                 >
                   <X size={14} />
                 </button>

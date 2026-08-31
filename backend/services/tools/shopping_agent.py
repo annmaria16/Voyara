@@ -44,16 +44,15 @@ def compare_shopping_offers(query: str) -> dict:
     criteria = extract_criteria_from_query(query)
     raw_offers = ShoppingProvider.search_offers(query)
     
-    # Separate candidates by source_type (LIVE vs DEMO)
-    live_offers = [o for o in raw_offers if o.get("source_type") == "LIVE"]
-    demo_offers = [o for o in raw_offers if o.get("source_type") == "DEMO"]
-    
-    # If live offers are available, only use live. Otherwise fall back to demo.
-    is_demo_mode = False
-    candidates = live_offers
+    # Since search_offers doesn't produce demo fallbacks, all raw_offers are live results.
+    candidates = [o for o in raw_offers if o.get("source_type") == "LIVE"]
     if not candidates:
-        candidates = demo_offers
-        is_demo_mode = True
+        return {
+            "success": False,
+            "error": "No verified product results are currently available from the configured sources.",
+            "results": [],
+            "excluded_results": []
+        }
         
     verified_products = []
     excluded_results = []
@@ -71,7 +70,7 @@ def compare_shopping_offers(query: str) -> dict:
         product["shipping"] = offer.get("shipping", 0)
         product["discount"] = offer.get("discount", 0)
         product["effective_price"] = product["price"] + product["shipping"] - product["discount"]
-        product["source_type"] = "DEMO" if is_demo_mode else "LIVE"
+        product["source_type"] = "LIVE"
         
         # Verify product against query criteria
         verification = verify_product(product, criteria)
@@ -159,7 +158,7 @@ def compare_shopping_offers(query: str) -> dict:
                 }
                 for o in sorted_offers
             ],
-            "source_type": "DEMO" if is_demo_mode else "LIVE"
+            "source_type": "LIVE"
         })
         
     # Sort final groups by best option price
@@ -171,5 +170,5 @@ def compare_shopping_offers(query: str) -> dict:
         "criteria": criteria,
         "results": comparison_results,
         "excluded_results": excluded_results,
-        "source_type": "DEMO" if is_demo_mode else "LIVE"
+        "source_type": "LIVE"
     }

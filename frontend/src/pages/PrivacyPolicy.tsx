@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
 
           <article className="prose prose-invert max-w-none flex flex-col gap-8 text-[14.5px] leading-relaxed text-dash-secondary font-medium">
             <p className="text-dash-text text-base font-semibold">
-              This Privacy Policy explains how VeriNova AI collects, uses, stores, and protects information when you use the VeriNova platform.
+              This Privacy Policy explains how VeriNova collects, uses, stores, and protects information when you use the VeriNova platform.
             </p>
 
             <section className="flex flex-col gap-3 text-left">
@@ -40,7 +40,7 @@ export default function PrivacyPolicy() {
                 1. Introduction
               </h2>
               <p>
-                VeriNova AI ("we", "our", or "us") provides a platform designed to analyze, verify, and check the outcomes of AI-generated content, documents, claims, and data payloads. We are committed to protecting your privacy and managing your data securely.
+                VeriNova ("we", "our", or "us") provides a platform designed to analyze, verify, and check the outcomes of AI-generated content, documents, claims, and data payloads. We are committed to protecting your privacy and managing your data securely.
               </p>
             </section>
 

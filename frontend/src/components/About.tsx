@@ -19,20 +19,20 @@ export default function About() {
             className="text-left"
           >
             <span className="text-dash-primary text-xs font-bold uppercase tracking-[0.2em]">
-              About VeriNova AI
+              About VeriNova
             </span>
             <h2 className="text-3xl sm:text-4xl font-black text-dash-text mt-3 leading-tight">
               Bridging the Trust Gap in AI Operations
             </h2>
             <div className="text-dash-secondary mt-6 text-base leading-relaxed font-semibold flex flex-col gap-5">
               <p>
-                VeriNova AI is designed to make AI-assisted decisions more trustworthy by adding a verification layer between generated outcomes and real-world decisions.
+                VeriNova is designed to make AI-assisted decisions more trustworthy by adding a verification layer between generated outcomes and real-world decisions.
               </p>
               <p>
                 As AI becomes part of everyday workflows, users need more than fast answers. They need a way to review evidence, understand confidence, and identify information that deserves further attention.
               </p>
               <p>
-                VeriNova AI helps bridge that gap by providing a structured environment for submitting information, analyzing evidence, reviewing verification results, and maintaining a history of verification activity.
+                VeriNova helps bridge that gap by providing a structured environment for submitting information, analyzing evidence, reviewing verification results, and maintaining a history of verification activity.
               </p>
             </div>
           </motion.div>

@@ -7,11 +7,9 @@ import api from "../services/api";
 import "../styles/UserDashboard.css";
 import Logo from "../components/Logo";
 import {
-  Activity,
   Bell,
   CheckCircle2,
   ChevronDown,
-  Clock3,
   HelpCircle,
   LayoutDashboard,
   Layers,
@@ -19,20 +17,20 @@ import {
   Menu,
   MessageSquare,
   Moon,
-  Plus,
   Play,
-  Search,
   Settings,
   ShieldCheck,
   Sun,
   User,
-  X,
   Send,
   CircleAlert,
   Loader2,
-  Globe,
   ExternalLink,
-  FileText,
+  ShoppingBag,
+  Calendar,
+  BookOpen,
+  ArrowRight,
+  ChevronRight
 } from "lucide-react";
 
 type TaskStatus = "received" | "parsing" | "executing" | "verifying" | "completed" | "failed" | "pending" | "running" | string;
@@ -74,68 +72,23 @@ type ContactMessage = {
   message: string;
   status: string;
   admin_reply?: string | null;
+  user_read?: boolean;
   created_at: string;
 };
 
-const formatEvidenceData = (ev: any) => {
-  if (!ev.evidence_data) return null;
-  let evidence = ev.evidence_data;
-  if (typeof evidence === "string") {
-    try {
-      evidence = JSON.parse(evidence);
-    } catch {
-      return <div style={{ marginTop: "4px", color: "var(--dash-secondary)", fontSize: "9px" }}>{evidence}</div>;
-    }
+const getProductImage = (title: string, category?: string) => {
+  const t = title.toLowerCase();
+  const c = category?.toLowerCase() || "";
+  if (t.includes("laptop") || t.includes("notebook") || t.includes("macbook") || t.includes("vivobook") || t.includes("ideapad") || c.includes("laptop")) {
+    return "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400&q=80";
   }
-  const data = evidence.data;
-  if (!data) return null;
-
-  if (ev.source_type === "calculator") {
-    return (
-      <div style={{ marginTop: "4px", color: "#10b981", fontSize: "9px" }}>
-        📊 <strong>Result:</strong> {data.expression} = {data.result}
-      </div>
-    );
+  if (t.includes("phone") || t.includes("iphone") || t.includes("samsung") || t.includes("pixel") || t.includes("oneplus") || c.includes("phone") || c.includes("mobile")) {
+    return "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80";
   }
-  if (ev.source_type === "web_search") {
-    const results = data.results || [];
-    return (
-      <div style={{ marginTop: "4px", color: "var(--dash-secondary)", fontSize: "9px" }}>
-        🌐 <strong>Found {results.length} search matches:</strong>
-        <ul style={{ margin: "2px 0 0", paddingLeft: "12px" }}>
-          {results.slice(0, 3).map((r: any, idx: number) => (
-            <li key={idx}>
-              <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--dash-primary)", textDecoration: "underline" }}>
-                {r.title || r.source || "Link"}
-              </a>: {r.snippet ? r.snippet.substring(0, 80) + "..." : ""}
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
+  if (t.includes("hotel") || t.includes("stay") || t.includes("resort") || t.includes("kochi") || c.includes("hotel") || c.includes("stay")) {
+    return "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80";
   }
-  if (ev.source_type === "web_fetch") {
-    return (
-      <div style={{ marginTop: "4px", color: "var(--dash-secondary)", fontSize: "9px" }}>
-        📄 <strong>Fetched URL text:</strong> {data.text ? data.text.substring(0, 100) + "..." : "No text"}
-      </div>
-    );
-  }
-  if (ev.source_type === "database_lookup") {
-    return (
-      <div style={{ marginTop: "4px", color: "var(--dash-secondary)", fontSize: "9px" }}>
-        🗄️ <strong>Lookup type:</strong> {data.operation}. Found {Array.isArray(data.data) ? data.data.length : 1} records.
-      </div>
-    );
-  }
-  if (ev.source_type === "verification") {
-    return (
-      <div style={{ marginTop: "4px", color: "#10b981", fontSize: "9px" }}>
-        🔍 <strong>Verification result:</strong> {data.verification_status} ({Number(data.confidence_score).toFixed(1)}% confidence)
-      </div>
-    );
-  }
-  return null;
+  return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80";
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -204,6 +157,15 @@ function formatTime(value?: string) {
   });
 }
 
+function formatBytes(bytes: number, decimals = 2) {
+  if (!bytes) return "0 Bytes";
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
 export default function UserDashboard() {
   const { user, logout, updateUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -213,22 +175,36 @@ export default function UserDashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [supportMessages, setSupportMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState("overview");
-  const [search, setSearch] = useState("");
+  const [activeSection, setActiveSection] = useState("home");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
-  const [taskStatusFilter, setTaskStatusFilter] = useState("all");
-  const [assistantOpen, setAssistantOpen] = useState(false);
-  const [activeTask, setActiveTask] = useState<TaskDetail | null>(null);
-  const [assistantLoading, setAssistantLoading] = useState(false);
-  const [messageInput, setMessageInput] = useState("");
-  const [creatingVerification, setCreatingVerification] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newTaskType, setNewTaskType] = useState("verification");
-  const [showPlanDetails, setShowPlanDetails] = useState(false);
 
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  // Active Workspace Task
+  const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
+  const [activeTask, setActiveTask] = useState<TaskDetail | null>(null);
+
+  const [messageInput, setMessageInput] = useState("");
+
+  // Form Profile Update
   const [profileName, setProfileName] = useState(user?.fullname ?? "");
   const [profileImage, setProfileImage] = useState(user?.profile_image ?? "");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -238,33 +214,230 @@ export default function UserDashboard() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
+  // Support Request
   const [supportSubject, setSupportSubject] = useState("");
   const [supportText, setSupportText] = useState("");
   const [sendingSupport, setSendingSupport] = useState(false);
 
-  const [agentTaskText, setAgentTaskText] = useState("");
-  const [generatingPlan, setGeneratingPlan] = useState(false);
-  const [agentPlanResult, setAgentPlanResult] = useState<any>(null);
-  const [executingPlan, setExecutingPlan] = useState(false);
-  const [taskExecutions, setTaskExecutions] = useState<any[]>([]);
-  const [taskEvidence, setTaskEvidence] = useState<any[]>([]);
+  // Natural Language inputs
+  const [homeQuery, setHomeQuery] = useState("");
+  const [agentQuery, setAgentQuery] = useState("");
+  const [shoppingQuery, setShoppingQuery] = useState("");
+  const [bookingQuery, setBookingQuery] = useState("");
+  const [researchQuery, setResearchQuery] = useState("");
+  const [comparisonQuery, setComparisonQuery] = useState("");
+
+  // Attachment states
+  const [attachment, setAttachment] = useState<{ filename: string; file_url: string; file_type: string; file_size: number } | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAttachmentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAttachment(true);
+    setAttachmentError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await api.post("/agent/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      setAttachment(response.data);
+      toast("File attached successfully.", "success");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "Unsupported file format or file too large.";
+      setAttachmentError(msg);
+      toast(msg, "error");
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
+
+  const removeAttachment = () => {
+    setAttachment(null);
+    setAttachmentError(null);
+    if (attachmentInputRef.current) {
+      attachmentInputRef.current.value = "";
+    }
+  };
+
+  const renderConversationalInput = (
+    placeholderText: string,
+    queryValue: string,
+    setQueryValue: (val: string) => void,
+    submitFn: () => void
+  ) => {
+    return (
+      <div className="flex flex-col gap-3 w-full">
+        {/* Attachment preview / status banner if uploading or attached */}
+        {(uploadingAttachment || attachment || attachmentError) && (
+          <div className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-dash-border/60 rounded-xl text-xs text-dash-text animate-pulse">
+            {uploadingAttachment && (
+              <>
+                <Loader2 className="animate-spin text-dash-primary" size={14} />
+                <span>Uploading attachment...</span>
+              </>
+            )}
+            {attachment && (
+              <div className="flex justify-between items-center w-full">
+                <span className="truncate font-semibold max-w-[200px]">
+                  📎 {attachment.filename} ({formatBytes(attachment.file_size)})
+                </span>
+                <button onClick={removeAttachment} className="text-red-500 hover:text-red-700 font-extrabold ml-2 border-0 bg-transparent cursor-pointer">
+                  Remove
+                </button>
+              </div>
+            )}
+            {attachmentError && (
+              <div className="flex justify-between items-center w-full text-red-500">
+                <span>⚠️ {attachmentError}</span>
+                <button onClick={removeAttachment} className="text-dash-secondary hover:text-dash-text ml-2 border-0 bg-transparent cursor-pointer">
+                  Dismiss
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Large Rounded Composer Box */}
+        <div className="query-box-container bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-dash-border/60 p-4 rounded-3xl shadow-md hover:shadow-lg transition-all duration-300 relative flex flex-col gap-3">
+          <textarea
+            className="query-box-textarea w-full min-h-[80px] p-2 bg-transparent border-0 outline-0 resize-none text-dash-text text-sm placeholder-dash-muted leading-relaxed"
+            placeholder={placeholderText}
+            value={queryValue}
+            onChange={(e) => setQueryValue(e.target.value)}
+            disabled={generatingPlan}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (queryValue.trim() && !generatingPlan) {
+                  submitFn();
+                }
+              }
+            }}
+          />
+
+          <div className="flex justify-between items-center pt-2 border-t border-dash-border/30">
+            {/* Left: Attachment Button */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="w-8 h-8 rounded-full border border-dash-border hover:bg-dash-border/50 text-dash-secondary hover:text-dash-text grid place-items-center cursor-pointer transition-all duration-200"
+                onClick={() => attachmentInputRef.current?.click()}
+                disabled={generatingPlan || uploadingAttachment}
+                title="Attach file/image"
+              >
+                <span className="text-lg font-bold leading-none">+</span>
+              </button>
+              <input
+                type="file"
+                ref={attachmentInputRef}
+                onChange={handleAttachmentUpload}
+                style={{ display: "none" }}
+                accept=".pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
+              />
+              <span className="text-[10px] text-dash-muted hidden sm:inline">Supports PDF, DOC, TXT, images</span>
+            </div>
+
+            {/* Right: Submit Button */}
+            <button
+              className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-bold rounded-full w-9 h-9 grid place-items-center cursor-pointer shadow-md shadow-orange-500/10 hover:scale-[1.05] active:scale-[0.95] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={generatingPlan || uploadingAttachment || !queryValue.trim()}
+              onClick={submitFn}
+            >
+              {generatingPlan ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <ArrowRight size={15} />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Shopping Filters
+  const [filterBudget, setFilterBudget] = useState("");
+  const [filterBrand, setFilterBrand] = useState("");
+  const [filterRAM, setFilterRAM] = useState("");
+  const [filterStorage, setFilterStorage] = useState("");
+  const [filterProcessor, setFilterProcessor] = useState("");
+
+  // Planning / Executing State
   const [activeAgentTaskId, setActiveAgentTaskId] = useState<number | null>(null);
+  const [generatingPlan, setGeneratingPlan] = useState(false);
+  const [executingPlan, setExecutingPlan] = useState(false);
   const [agentTaskLogs, setAgentTaskLogs] = useState<any[]>([]);
   const [agentTaskResultDetail, setAgentTaskResultDetail] = useState<any>(null);
   const [agentTaskDetail, setAgentTaskDetail] = useState<any>(null);
   const [agentPendingAction, setAgentPendingAction] = useState<any>(null);
+  const [confirmingActionId, setConfirmingActionId] = useState<number | null>(null);
+
+  // Analytics Calculations
+  const completedCount = useMemo(() => tasks.filter(t => t.status === "completed").length, [tasks]);
+  const inProgressCount = useMemo(() => tasks.filter(t => ["parsing", "executing", "verifying", "running", "queued", "received", "pending"].includes(t.status)).length, [tasks]);
+  const failedCount = useMemo(() => tasks.filter(t => t.status === "failed").length, [tasks]);
+  const successRate = useMemo(() => {
+    const totalFinished = completedCount + failedCount;
+    return totalFinished > 0 ? Math.round((completedCount / totalFinished) * 100) : 0;
+  }, [completedCount, failedCount]);
+
+  const trendData = useMemo(() => {
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split("T")[0];
+    }).reverse();
+
+    const counts = last7Days.map(dateStr => {
+      return tasks.filter(t => t.created_at && t.created_at.startsWith(dateStr)).length;
+    });
+
+    return { labels: last7Days.map(d => d.slice(5)), values: counts };
+  }, [tasks]);
+
+  const svgPoints = useMemo(() => {
+    const values = trendData.values;
+    const maxVal = Math.max(...values, 5); // ensure division by zero or low numbers scales nicely
+    const width = 500;
+    const height = 150;
+    const padding = 25;
+
+    const points = values.map((val, idx) => {
+      const x = padding + (idx * (width - 2 * padding)) / (values.length - 1);
+      const y = height - padding - (val * (height - 2 * padding)) / maxVal;
+      return { x, y, val };
+    });
+
+    const pathStr = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+    const areaStr = points.length > 0
+      ? `${pathStr} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`
+      : "";
+
+    return { points, pathStr, areaStr };
+  }, [trendData]);
+
+  const distributionData = useMemo(() => {
+    const total = tasks.length;
+    if (total === 0) return { completed: 0, inProgress: 0, failed: 0 };
+    return {
+      completed: Math.round((completedCount / total) * 100),
+      inProgress: Math.round((inProgressCount / total) * 100),
+      failed: Math.round((failedCount / total) * 100),
+    };
+  }, [tasks, completedCount, inProgressCount, failedCount]);
 
   const fetchTasks = async () => {
     const response = await api.get<Task[]>("/tasks");
     setTasks(response.data);
-    
-    // Auto-select latest research task to persist UI state on refresh
-    const latestResearch = response.data.find(
-      (t) => t.task_type !== "verification"
-    );
-    if (latestResearch && !activeAgentTaskId) {
-      setActiveAgentTaskId(latestResearch.id);
-    }
   };
 
   const fetchSupport = async () => {
@@ -282,7 +455,7 @@ export default function UserDashboard() {
       await Promise.all([fetchTasks(), fetchSupport()]);
     } catch (error) {
       console.error("Failed to load dashboard", error);
-      toast("Unable to load your dashboard data.", "error");
+      toast("Unable to load workspace data.", "error");
     } finally {
       setLoading(false);
     }
@@ -297,172 +470,85 @@ export default function UserDashboard() {
     setProfileImage(user?.profile_image ?? "");
   }, [user?.fullname, user?.profile_image]);
 
+  // Polling for active task executions & logs in workspace
   useEffect(() => {
-    if (!activeTask || !["received", "parsing", "executing", "verifying", "running", "pending"].includes(activeTask.status)) {
-      return;
-    }
+    const polledId = activeTaskId || activeAgentTaskId;
+    if (!polledId) return;
 
-    const timer = window.setInterval(async () => {
-      try {
-        const response = await api.get<TaskDetail>(`/tasks/${activeTask.id}`);
-        setActiveTask(response.data);
-        setTasks((current) =>
-          current.map((task) => (task.id === response.data.id ? response.data : task))
-        );
+    let isMounted = true;
+    let timer: number;
 
-        if (["completed", "verified", "failed", "rejected"].includes(response.data.status)) {
-          window.clearInterval(timer);
-        }
-      } catch (error) {
-        console.error("Failed to refresh verification", error);
-      }
-    }, 2000);
-
-  }, [activeTask?.id, activeTask?.status]);
-
-  useEffect(() => {
-    if (!activeAgentTaskId) {
-      setAgentTaskLogs([]);
-      setAgentTaskResultDetail(null);
-      setAgentTaskDetail(null);
-      return;
-    }
-
-    let timer: any;
-    
-    const pollTask = async () => {
+    const pollDetails = async () => {
       try {
         const [taskRes, logsRes] = await Promise.all([
-          api.get(`/tasks/${activeAgentTaskId}`),
-          api.get(`/tasks/${activeAgentTaskId}/executions`)
+          api.get(`/tasks/${polledId}`),
+          api.get(`/tasks/${polledId}/executions`) // logs and executions overlap
         ]);
-        
-        setAgentTaskDetail(taskRes.data);
+
+        if (!isMounted) return;
+
+        const currentTask = taskRes.data;
         setAgentTaskLogs(logsRes.data);
+        setAgentTaskDetail(currentTask);
 
-        const status = taskRes.data.status.toLowerCase();
+        if (activeTaskId) {
+          setActiveTask(currentTask);
+        }
 
+        const status = currentTask.status.toLowerCase();
+
+        // Check if pending action confirmation is needed
         if (status === "requires_confirmation") {
-          try {
-            const actionsRes = await api.get("/actions");
-            const pendingAction = actionsRes.data.actions?.find(
-              (a: any) => a.task_id === activeAgentTaskId && a.status === "PENDING"
-            );
-            setAgentPendingAction(pendingAction || null);
-          } catch (err) {
-            console.error("Failed to fetch pending action", err);
-          }
+          const actionsRes = await api.get("/actions");
+          const pendingAction = actionsRes.data.actions?.find(
+            (a: any) => a.task_id === polledId && a.status === "PENDING"
+          );
+          setAgentPendingAction(pendingAction || null);
         } else {
           setAgentPendingAction(null);
         }
 
-        if (["completed", "failed", "cancelled"].includes(status)) {
-          try {
-            const resultRes = await api.get(`/tasks/${activeAgentTaskId}/result`);
+        // Final result processing
+        if (["completed", "failed", "cancelled", "verified", "approved"].includes(status)) {
+          const resultRes = await api.get(`/tasks/${polledId}/result`);
+          if (isMounted) {
             setAgentTaskResultDetail(resultRes.data);
-          } catch (err) {
-            console.error("Failed to fetch task result", err);
           }
           window.clearInterval(timer);
           setExecutingPlan(false);
-          setAgentPendingAction(null);
-        } else if (["parsing", "received"].includes(status)) {
-          // Plan is ready or newly received, allow user to click Execute Plan
-          setExecutingPlan(false);
         } else {
-          // Keep executing state active if task is still running
           setExecutingPlan(true);
         }
       } catch (error) {
-        console.error("Error polling agent task", error);
+        console.error("Error polling task details", error);
       }
     };
 
-    pollTask();
-    timer = window.setInterval(pollTask, 1500);
-
-    return () => {
-      window.clearInterval(timer);
-      setAgentPendingAction(null);
-    };
-  }, [activeAgentTaskId]);
-
-  useEffect(() => {
-    if (!activeTask) {
-      setTaskExecutions([]);
-      setTaskEvidence([]);
-      return;
-    }
-
-    let isMounted = true;
-    const fetchLogsAndEvidence = async () => {
-      try {
-        const [execRes, evRes] = await Promise.all([
-          api.get(`/tasks/${activeTask.id}/executions`),
-          api.get(`/tasks/${activeTask.id}/evidence`)
-        ]);
-        if (isMounted) {
-          setTaskExecutions(execRes.data);
-          setTaskEvidence(evRes.data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch task secondary details", err);
-      }
-    };
-
-    fetchLogsAndEvidence();
+    pollDetails();
+    timer = window.setInterval(pollDetails, 1500);
 
     return () => {
       isMounted = false;
+      window.clearInterval(timer);
     };
-  }, [activeTask?.id, activeTask?.status]);
+  }, [activeTaskId, activeAgentTaskId]);
 
-
-
-  if (!user) return null;
-
-  const total = tasks.length;
-  const verified = tasks.filter((task) => ["completed", "verified"].includes(task.status)).length;
   const running = tasks.filter((task) => ["received", "parsing", "executing", "verifying", "running", "pending"].includes(task.status)).length;
-  const failed = tasks.filter((task) => ["failed", "rejected"].includes(task.status)).length;
-
-  const filteredTasks = useMemo(() => {
-    let result = tasks;
-    const query = search.trim().toLowerCase();
-    if (query) {
-      result = result.filter((task) =>
-        `${task.title} ${task.task_type} ${task.status}`.toLowerCase().includes(query)
-      );
-    }
-    if (taskStatusFilter === "active") {
-      result = result.filter((task) =>
-        ["received", "parsing", "executing", "verifying", "running", "pending"].includes(task.status.toLowerCase())
-      );
-    } else if (taskStatusFilter === "completed") {
-      result = result.filter((task) =>
-        ["completed", "verified"].includes(task.status.toLowerCase())
-      );
-    } else if (taskStatusFilter === "failed") {
-      result = result.filter((task) =>
-        ["failed", "rejected"].includes(task.status.toLowerCase())
-      );
-    } else if (taskStatusFilter === "cancelled") {
-      result = result.filter((task) =>
-        ["cancelled"].includes(task.status.toLowerCase())
-      );
-    }
-    return result;
-  }, [tasks, search, taskStatusFilter]);
-
-  const recentTasks = tasks.slice(0, 5);
-  const latestRunningTask = tasks.find((task) => ["received", "parsing", "executing", "verifying", "running", "pending"].includes(task.status));
 
   const openSection = (section: string) => {
     setActiveSection(section);
+    setActiveTaskId(null);
+    setActiveAgentTaskId(null);
     setMobileNav(false);
     setShowProfileMenu(false);
-    if (section === "agent") {
-      setAssistantOpen(false);
+    setAgentTaskLogs([]);
+    setAgentTaskResultDetail(null);
+    setAgentTaskDetail(null);
+
+    if (section === "support") {
+      void api.post("/contact/messages/read").then(() => {
+        setSupportMessages((msgs) => msgs.map((m) => ({ ...m, user_read: true })));
+      });
     }
   };
 
@@ -471,89 +557,126 @@ export default function UserDashboard() {
     navigate("/login", { replace: true });
   };
 
-  const openTask = async (taskId: number) => {
+  const isPlanningRef = useRef(false);
+
+  // Unified Query Submission Handler (One-step Plan & Execute)
+  const handleQuerySubmit = async (queryText: string) => {
+    if (isPlanningRef.current) return;
+    let text = queryText.trim();
+
+    // Append attachment context if available
+    if (attachment) {
+      text = `${text}\n\n[Attached File: ${attachment.filename} (URL: ${attachment.file_url})]`;
+    }
+
+    if (text.length < 5) {
+      toast("Please enter a longer query to begin research.", "error");
+      return;
+    }
+
     try {
-      setAssistantLoading(true);
-      const response = await api.get<TaskDetail>(`/tasks/${taskId}`);
-      if (response.data.task_type !== "verification") {
-        setActiveAgentTaskId(response.data.id);
-        setAgentPlanResult(null);
-        setAssistantOpen(false);
-        openSection("agent");
-        return;
+      isPlanningRef.current = true;
+      setGeneratingPlan(true);
+      setAgentTaskLogs([]);
+      setAgentTaskResultDetail(null);
+      setAgentTaskDetail(null);
+      setActiveTask(null);
+
+      // Clear the attachment
+      removeAttachment();
+
+      // 1. Generate plan
+      const res = await api.post("/agent/plan", { task_text: text });
+      const taskId = res.data.task_id;
+
+      setActiveAgentTaskId(taskId);
+      setActiveTaskId(taskId);
+      setHomeQuery("");
+      setAgentQuery("");
+      setShoppingQuery("");
+      setBookingQuery("");
+      setResearchQuery("");
+      setComparisonQuery("");
+      await fetchTasks();
+
+      // 2. Auto-Execute the plan
+      setExecutingPlan(true);
+      const executeRes = await api.post("/agent/execute", { task_id: taskId });
+      await fetchTasks();
+
+      if (executeRes.data.status === "requires_confirmation") {
+        toast("Action requires your confirmation.", "info");
+      } else {
+        toast("Task research initiated successfully!", "success");
       }
-      setActiveTask(response.data);
-      setAssistantOpen(true);
     } catch (error: any) {
-      toast(error.response?.data?.detail || "Unable to open verification.", "error");
+      let errorMsg = "AI execution failed.";
+      const responseData = error.response?.data;
+      if (responseData?.error?.code === "AI_RATE_LIMITED") {
+        errorMsg = "VeriNova is temporarily busy. Please wait a moment and try again.";
+      } else {
+        errorMsg = responseData?.error?.message || responseData?.detail || error.message || errorMsg;
+      }
+      toast(errorMsg, "error");
     } finally {
-      setAssistantLoading(false);
+      setGeneratingPlan(false);
+      isPlanningRef.current = false;
     }
   };
 
-  const startNewVerification = async () => {
-    const title = newTitle.trim();
-    const description = newDescription.trim();
 
-    if (title.length < 3) {
-      toast("Give your verification a clear title.", "error");
-      return;
-    }
-    if (description.length < 5) {
-      toast("Describe what you want Verinova to verify.", "error");
-      return;
-    }
 
+  const handleConfirmAction = async (actionId: number) => {
+    const taskId = activeTaskId || activeAgentTaskId;
+    if (!taskId) return;
     try {
-      setCreatingVerification(true);
-      const created = await api.post<Task>("/tasks", {
-        title,
-        description,
-        task_type: newTaskType,
+      setConfirmingActionId(actionId);
+      const res = await api.post("/agent/execute", {
+        task_id: taskId,
+        confirm_action_id: actionId
       });
-
-      const detail = await api.get<TaskDetail>(`/tasks/${created.data.id}`);
-      setTasks((current) => [created.data, ...current]);
-      setActiveTask(detail.data);
-      setAssistantOpen(true);
-      setCreatingVerification(false);
-      setNewTitle("");
-      setNewDescription("");
-      setNewTaskType("verification");
-      toast("Verification request created.", "success");
-
-      try {
-        await api.post(`/tasks/${created.data.id}/start`);
-        const refreshed = await api.get<TaskDetail>(`/tasks/${created.data.id}`);
-        setActiveTask(refreshed.data);
-        setTasks((current) =>
-          current.map((task) => (task.id === created.data.id ? refreshed.data : task))
-        );
-      } catch (error) {
-        console.error("Unable to start verification", error);
+      await fetchTasks();
+      if (res.data.status === "requires_confirmation") {
+        toast("Another action requires your confirmation.", "info");
+      } else {
+        toast("Action confirmed and executed.", "success");
       }
     } catch (error: any) {
-      setCreatingVerification(false);
-      toast(error.response?.data?.detail || "Unable to create verification.", "error");
+      toast(error.response?.data?.error?.message || error.response?.data?.detail || "Confirmation failed.", "error");
+    } finally {
+      setConfirmingActionId(null);
+    }
+  };
+
+  const handleCancelAction = async () => {
+    const taskId = activeTaskId || activeAgentTaskId;
+    if (!taskId) return;
+    try {
+      await api.post(`/tasks/${taskId}/cancel`);
+      await fetchTasks();
+      toast("Action cancelled successfully.", "info");
+    } catch (error) {
+      toast("Failed to cancel action.", "error");
     }
   };
 
   const sendVerificationMessage = async () => {
-    if (!activeTask || !messageInput.trim()) return;
+    const taskId = activeTaskId || activeAgentTaskId;
+    if (!taskId || !messageInput.trim()) return;
 
     const text = messageInput.trim();
     setMessageInput("");
 
     try {
       const response = await api.post<VerificationMessage>(
-        `/tasks/${activeTask.id}/messages`,
+        `/tasks/${taskId}/messages`,
         { message: text }
       );
-      setActiveTask((current) =>
-        current
-          ? { ...current, messages: [...current.messages, response.data] }
-          : current
-      );
+      if (activeTask) {
+        setActiveTask((current) =>
+          current ? { ...current, messages: [...current.messages, response.data] } : current
+        );
+      }
     } catch (error: any) {
       setMessageInput(text);
       toast(error.response?.data?.detail || "Unable to send message.", "error");
@@ -564,35 +687,17 @@ export default function UserDashboard() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      toast("Supported formats are JPG, JPEG, PNG, and WEBP.", "error");
-      return;
-    }
-
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast("Image size must be less than 5MB.", "error");
-      return;
-    }
-
     try {
       setUploadingImage(true);
       const formData = new FormData();
       formData.append("file", file);
 
       const response = await api.post("/user/profile-image", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" }
       });
       updateUser(response.data);
       setProfileImage(response.data.profile_image || "");
-      toast("Profile photo updated successfully.", "success");
+      toast("Profile photo updated.", "success");
     } catch (error: any) {
       toast(error.response?.data?.detail || "Failed to upload image.", "error");
     } finally {
@@ -624,7 +729,7 @@ export default function UserDashboard() {
 
   const changePassword = async () => {
     if (!currentPassword || newPassword.length < 8) {
-      toast("Enter your current password and a new password of at least 8 characters.", "error");
+      toast("Enter your current password and a new password (min 8 characters).", "error");
       return;
     }
 
@@ -661,159 +766,121 @@ export default function UserDashboard() {
       await fetchSupport();
       toast("Your message was sent to the Verinova team.", "success");
     } catch (error: any) {
-      toast(error.response?.data?.detail || "Unable to send your message.", "error");
+      toast(error.response?.data?.detail || "Unable to send message.", "error");
     } finally {
       setSendingSupport(false);
     }
   };
 
-  const handleGenerateAgentPlan = async () => {
-    const text = agentTaskText.trim();
-    if (text.length < 5) {
-      toast("Please provide a task description of at least 5 characters.", "error");
-      return;
+  // Helper parser for visual outcomes
+  const parsedData = useMemo(() => {
+    const rawAnswer = agentTaskResultDetail?.answer || activeTask?.final_result || agentTaskDetail?.final_result || "";
+    if (!rawAnswer) return { cleanText: "", offersList: [], comparisonData: null };
+
+    let offersList: any[] = [];
+    let comparisonData: any = null;
+    let cleanText = rawAnswer;
+
+    if (rawAnswer.includes("[PRODUCT_OFFERS:")) {
+      const startIdx = rawAnswer.indexOf("[PRODUCT_OFFERS:");
+      const endIdx = rawAnswer.lastIndexOf("]");
+      if (startIdx !== -1 && endIdx > startIdx) {
+        const jsonStr = rawAnswer.substring(startIdx + 16, endIdx);
+        try {
+          offersList = JSON.parse(jsonStr);
+          cleanText = rawAnswer.substring(0, startIdx) + rawAnswer.substring(endIdx + 1);
+        } catch (e) {
+          console.error("Failed to parse offers JSON", e);
+        }
+      }
     }
 
-    try {
-      setGeneratingPlan(true);
-      setAgentPlanResult(null);
-      setAgentTaskLogs([]);
-      setAgentTaskResultDetail(null);
-      setAgentTaskDetail(null);
-      
-      const res = await api.post("/agent/plan", { task_text: text });
-      setAgentPlanResult(res.data);
-      setActiveAgentTaskId(res.data.task_id);
-      setAgentTaskText("");
-      fetchTasks();
-      toast("Agent plan generated successfully.", "success");
-    } catch (error: any) {
-      toast(error.response?.data?.error?.message || error.response?.data?.detail || "Failed to generate agent plan.", "error");
-    } finally {
-      setGeneratingPlan(false);
+    if (rawAnswer.includes("[PRODUCT_COMPARISON:")) {
+      const startIdx = rawAnswer.indexOf("[PRODUCT_COMPARISON:");
+      const endIdx = rawAnswer.lastIndexOf("]");
+      if (startIdx !== -1 && endIdx > startIdx) {
+        const jsonStr = rawAnswer.substring(startIdx + 20, endIdx);
+        try {
+          comparisonData = JSON.parse(jsonStr);
+          cleanText = rawAnswer.substring(0, startIdx) + rawAnswer.substring(endIdx + 1);
+        } catch (e) {
+          console.error("Failed to parse comparison JSON", e);
+        }
+      }
     }
-  };
 
-  const [confirmingActionId, setConfirmingActionId] = useState<number | null>(null);
+    // Clean up technical mock lines from the displayed text
+    const technicalMockPatterns = [
+      /### Active AI Provider:[\s\S]*?(?=\*\*Facts\*\*|$)/i,
+      /This is a local development mock response\.[\s\S]*?(?=\*\*Facts\*\*|$)/i,
+      /\*\*Facts\*\*:\s*- System is offline\/local mode\..*$/im,
+      /- Task description:.*$/im,
+      /- Task was processed locally.*$/im,
+      /\*\*Inferences & Recommendations\*\*:.*$/im,
+      /- Development mode works.*$/im,
+      /- You can switch back.*$/im,
+      /\*\*Limitations & Unknowns\*\*:.*$/im,
+      /- The response is programmatically.*$/im,
+      /- Actual external service execution.*$/im,
+      /Response generated by Local Development AI Provider\./i
+    ];
+    technicalMockPatterns.forEach(pattern => {
+      cleanText = cleanText.replace(pattern, "").trim();
+    });
 
-  const handleExecuteAgentTask = async () => {
-    const taskId = agentPlanResult?.task_id || activeAgentTaskId;
-    if (!taskId) return;
+    return { cleanText, offersList, comparisonData };
+  }, [agentTaskResultDetail?.answer, activeTask?.final_result, agentTaskDetail?.final_result]);
 
-    try {
-      setExecutingPlan(true);
-      setAgentTaskResultDetail(null);
-      const res = await api.post("/agent/execute", { task_id: taskId });
-      setActiveAgentTaskId(taskId); // Ensure active taskId is set for polling
-      fetchTasks();
-
-      if (res.data.status === "requires_confirmation") {
-        toast("Action requires your confirmation in chat.", "info");
-        openTask(taskId);
-      } else {
-        toast("Agent task executed successfully.", "success");
-      }
-    } catch (error: any) {
-      toast(error.response?.data?.error?.message || error.response?.data?.detail || "Agent execution failed.", "error");
-    } finally {
-      setExecutingPlan(false);
-    }
-  };
-
-  const handleConfirmAction = async (actionId: number) => {
-    const taskId = activeTask?.id || activeAgentTaskId;
-    if (!taskId) return;
-    try {
-      setConfirmingActionId(actionId);
-      const res = await api.post("/agent/execute", {
-        task_id: taskId,
-        confirm_action_id: actionId
-      });
-      fetchTasks();
-      if (activeTask) {
-        await openTask(activeTask.id);
-      }
-      if (activeAgentTaskId) {
-        const [taskRes, logsRes] = await Promise.all([
-          api.get(`/tasks/${activeAgentTaskId}`),
-          api.get(`/tasks/${activeAgentTaskId}/executions`)
-        ]);
-        setAgentTaskDetail(taskRes.data);
-        setAgentTaskLogs(logsRes.data);
-      }
-
-      if (res.data.status === "requires_confirmation") {
-        toast("Another action requires your confirmation.", "info");
-      } else {
-        toast("Action confirmed and executed successfully.", "success");
-      }
-    } catch (error: any) {
-      toast(error.response?.data?.error?.message || error.response?.data?.detail || "Action execution failed.", "error");
-    } finally {
-      setConfirmingActionId(null);
-    }
-  };
-
-  const handleCancelAction = async () => {
-    const taskId = activeTask?.id || activeAgentTaskId;
-    if (!taskId) return;
-    try {
-      await api.post(`/tasks/${taskId}/cancel`);
-      fetchTasks();
-      if (activeTask) {
-        await openTask(activeTask.id);
-      }
-      if (activeAgentTaskId) {
-        const [taskRes, logsRes] = await Promise.all([
-          api.get(`/tasks/${activeAgentTaskId}`),
-          api.get(`/tasks/${activeAgentTaskId}/executions`)
-        ]);
-        setAgentTaskDetail(taskRes.data);
-        setAgentTaskLogs(logsRes.data);
-      }
-      toast("Task action cancelled successfully.", "info");
-    } catch (error: any) {
-      toast("Failed to cancel task action.", "error");
-    }
-  };
-
-  const renderStatusCard = (task: Task) => (
-    <span className={`user-status-badge ${statusClass(task.status)}`}>
-      {statusLabel(task.status)}
-    </span>
-  );
+  if (!user) return null;
 
   return (
     <div className="user-dashboard">
+
+      {/* Left Sidebar Menu */}
       <aside className={`dashboard-sidebar ${mobileNav ? "mobile-open" : ""}`}>
         <div className="dashboard-logo">
-          <Logo subtitle="Verification Workspace" size="sm" />
+          <Logo subtitle="Outcome Verification" size="sm" />
         </div>
 
         <nav className="dashboard-nav">
           <div className="dashboard-nav-section">
-            <div className="dashboard-nav-title">Workspace</div>
-            <button className={`nav-item ${activeSection === "overview" ? "active" : ""}`} onClick={() => openSection("overview")}>
+            <div className="dashboard-nav-title">MAIN</div>
+            <button className={`nav-item ${activeSection === "home" ? "active" : ""}`} onClick={() => openSection("home")}>
               <LayoutDashboard size={17} />
-              <span>Overview</span>
+              <span>Home</span>
             </button>
-            <button className={`nav-item ${activeSection === "verifications" ? "active" : ""}`} onClick={() => openSection("verifications")}>
-              <CheckCircle2 size={17} />
+            <button className={`nav-item ${activeSection === "history" ? "active" : ""}`} onClick={() => openSection("history")}>
+              <Layers size={17} />
               <span>My Verifications</span>
-              {running > 0 && <span className="nav-badge">{running}</span>}
-            </button>
-            <button className={`nav-item ${activeSection === "activity" ? "active" : ""}`} onClick={() => openSection("activity")}>
-              <Activity size={17} />
-              <span>Activity</span>
             </button>
             <button className={`nav-item ${activeSection === "agent" ? "active" : ""}`} onClick={() => openSection("agent")}>
-              <Activity size={17} className="text-dash-primary" />
+              <CheckCircle2 size={17} className="text-dash-primary" />
               <span>AI Agent</span>
             </button>
           </div>
 
           <div className="dashboard-nav-section">
-            <div className="dashboard-nav-title">Account</div>
+            <div className="dashboard-nav-title">TOOLS</div>
+            <button className={`nav-item ${activeSection === "shopping" ? "active" : ""}`} onClick={() => openSection("shopping")}>
+              <ShoppingBag size={17} />
+              <span>Shopping</span>
+            </button>
+            <button className={`nav-item ${activeSection === "comparison" ? "active" : ""}`} onClick={() => openSection("comparison")}>
+              <Layers size={17} />
+              <span>Comparison</span>
+            </button>
+            <button className={`nav-item ${activeSection === "booking" ? "active" : ""}`} onClick={() => openSection("booking")}>
+              <Calendar size={17} />
+              <span>Booking</span>
+            </button>
+            <button className={`nav-item ${activeSection === "research" ? "active" : ""}`} onClick={() => openSection("research")}>
+              <BookOpen size={17} />
+              <span>Research</span>
+            </button>
+          </div>
+
+          <div className="dashboard-nav-section">
+            <div className="dashboard-nav-title">ACCOUNT</div>
             <button className={`nav-item ${activeSection === "profile" ? "active" : ""}`} onClick={() => openSection("profile")}>
               <User size={17} />
               <span>Profile</span>
@@ -825,6 +892,11 @@ export default function UserDashboard() {
             <button className={`nav-item ${activeSection === "support" ? "active" : ""}`} onClick={() => openSection("support")}>
               <HelpCircle size={17} />
               <span>Support</span>
+              {supportMessages.filter((m) => m.status === "replied" && m.user_read === false).length > 0 && (
+                <span className="nav-badge">
+                  {supportMessages.filter((m) => m.status === "replied" && m.user_read === false).length}
+                </span>
+              )}
             </button>
           </div>
         </nav>
@@ -845,47 +917,41 @@ export default function UserDashboard() {
         </div>
       </aside>
 
+      {/* Main Panel */}
       <main className="dashboard-main">
+
+        {/* Top Header */}
         <header className="dashboard-topbar">
           <div className="topbar-left">
-            <button className="mobile-menu-button" onClick={() => setMobileNav((value) => !value)} aria-label="Menu">
+            <button className="mobile-menu-button" onClick={() => setMobileNav((v) => !v)} aria-label="Menu">
               <Menu size={19} />
             </button>
             <div>
-              <h1>{activeSection === "overview" ? "Verification workspace" : activeSection.replace("verifications", "My Verifications")}</h1>
-              <p>Secure, transparent verification powered by Verinova.</p>
+              <h1>{activeSection.toUpperCase()}</h1>
+              <p>An Outcome Verification Platform</p>
             </div>
           </div>
 
           <div className="topbar-actions">
-            <div className="dashboard-search">
-              <Search size={15} />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search verifications..."
-              />
-            </div>
-
             <button className="topbar-icon-button" onClick={toggleTheme} aria-label="Toggle theme">
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
-            <div className="topbar-dropdown-wrap">
-              <button className="topbar-icon-button" onClick={() => setShowNotifications((value) => !value)} aria-label="Notifications">
+            <div className="topbar-dropdown-wrap" ref={notificationsRef}>
+              <button className="topbar-icon-button" onClick={() => { setShowNotifications(!showNotifications); setShowProfileMenu(false); }} aria-label="Notifications">
                 <Bell size={16} />
                 {running > 0 && <span className="notification-dot" />}
               </button>
               {showNotifications && (
-                <div className="dashboard-dropdown notification-dropdown">
+                <div className="dashboard-dropdown">
                   <strong>Notifications</strong>
-                  <p>{running > 0 ? `${running} verification${running === 1 ? " is" : "s are"} currently processing.` : "You're all caught up."}</p>
+                  <p>{running > 0 ? `${running} task currently executing.` : "No active task updates."}</p>
                 </div>
               )}
             </div>
 
-            <div className="topbar-dropdown-wrap">
-              <button className="profile-trigger" onClick={() => setShowProfileMenu((value) => !value)}>
+            <div className="topbar-dropdown-wrap" ref={profileMenuRef}>
+              <button className="profile-trigger" onClick={() => { setShowProfileMenu(!showProfileMenu); setShowNotifications(false); }}>
                 <span className="profile-trigger-avatar">
                   {user.profile_image ? <img src={user.profile_image} alt="" /> : initials(user.fullname)}
                 </span>
@@ -893,1346 +959,1178 @@ export default function UserDashboard() {
                 <ChevronDown size={14} />
               </button>
               {showProfileMenu && (
-                <div className="dashboard-dropdown profile-dropdown">
-                  <button onClick={() => openSection("profile")}><User size={14} /> Profile</button>
-                  <button onClick={() => openSection("settings")}><Settings size={14} /> Settings</button>
-                  <button onClick={handleLogout}><LogOut size={14} /> Log out</button>
+                <div className="dashboard-dropdown text-left">
+                  <button onClick={() => { openSection("profile"); setShowProfileMenu(false); }}><User size={14} /> Profile</button>
+                  <button onClick={() => { openSection("settings"); setShowProfileMenu(false); }}><Settings size={14} /> Settings</button>
+                  <button onClick={() => { handleLogout(); setShowProfileMenu(false); }}><LogOut size={14} /> Log out</button>
                 </div>
               )}
             </div>
           </div>
         </header>
 
+        {/* Dynamic Section Contents */}
         <div className="dashboard-content">
-          {activeSection === "overview" && (
-            <>
-              <section className="dashboard-welcome">
-                <div>
-                  <div className="eyebrow">VERINOVA VERIFICATION CENTER</div>
-                  <h2>Good to see you, <span>{user.fullname.split(" ")[0]}</span>.</h2>
-                  <p>Tell Verinova what you need checked. Every request is stored securely and every status is traceable.</p>
-                </div>
-                <button className="admin-btn admin-btn-primary user-primary-action" onClick={() => openSection("verifications")}>
-                  <Plus size={15} /> Start Verification
+
+          {/* Active Workspace View Override */}
+          {((activeTaskId || activeAgentTaskId) && activeSection !== "home") ? (
+            <div className="workspace-container">
+              <div className="workspace-header">
+                <button className="workspace-back-btn" onClick={() => { setActiveTaskId(null); setActiveAgentTaskId(null); }}>
+                  <span>← Back to {activeSection}</span>
                 </button>
-              </section>
-
-              <section className="user-stats-grid">
-                <div className="user-stat-card">
-                  <div className="user-stat-top"><div className="user-stat-icon"><Layers size={18} /></div><span className="user-stat-caption">All time</span></div>
-                  <div className="user-stat-label">Total verifications</div>
-                  <div className="user-stat-value">{total}</div>
-                </div>
-                <div className="user-stat-card">
-                  <div className="user-stat-top"><div className="user-stat-icon"><ShieldCheck size={18} /></div><span className="user-stat-caption positive">Completed</span></div>
-                  <div className="user-stat-label">Verified</div>
-                  <div className="user-stat-value">{verified}</div>
-                </div>
-                <div className="user-stat-card">
-                  <div className="user-stat-top"><div className="user-stat-icon"><Clock3 size={18} /></div><span className="user-stat-caption">Live</span></div>
-                  <div className="user-stat-label">In progress</div>
-                  <div className="user-stat-value">{running}</div>
-                </div>
-                <div className="user-stat-card">
-                  <div className="user-stat-top"><div className="user-stat-icon danger"><CircleAlert size={18} /></div><span className="user-stat-caption">Attention</span></div>
-                  <div className="user-stat-label">Failed</div>
-                  <div className="user-stat-value">{failed}</div>
-                </div>
-              </section>
-
-              <section className="user-grid-two">
-                <div className="admin-card user-panel">
-                  <div className="admin-card-header">
-                    <div><h3 className="admin-card-title">Recent verifications</h3><p className="admin-card-subtitle">Your latest verification requests.</p></div>
-                    <button className="user-link-button" onClick={() => openSection("verifications")}>View all</button>
-                  </div>
-                  <div className="admin-card-body user-list-body">
-                    {loading ? <div className="user-empty"><div className="user-spinner" /></div> : recentTasks.length === 0 ? (
-                      <div className="user-empty"><ShieldCheck size={26} /><strong>No verifications yet</strong><span>Start your first verification to begin.</span><button className="admin-btn admin-btn-primary" onClick={() => openSection("verifications")}><Plus size={14} /> New verification</button></div>
-                    ) : recentTasks.map((task) => (
-                      <button className="verification-row" key={task.id} onClick={() => openTask(task.id)}>
-                        <div className="verification-row-icon"><ShieldCheck size={16} /></div>
-                        <div className="verification-row-main"><strong>{task.title}</strong><span>{task.task_type} · {formatDate(task.created_at)}</span></div>
-                        {renderStatusCard(task)}
-                        <div className="verification-row-arrow">›</div>
-                      </button>
-                    ))}
+                <div className="workspace-title-section">
+                  <h2>{activeTask?.title || agentTaskDetail?.title || "AI Verification Task"}</h2>
+                  <div className="workspace-meta">
+                    <span>Task #{activeTaskId || activeAgentTaskId}</span>
+                    <span>·</span>
+                    <span>Created {formatDate(activeTask?.created_at || agentTaskDetail?.created_at)}</span>
+                    {activeTask?.status && (
+                      <span className={`user-status-badge ${statusClass(activeTask.status)}`}>
+                        {statusLabel(activeTask.status)}
+                      </span>
+                    )}
                   </div>
                 </div>
-
-                <div className="admin-card user-panel verification-summary-card">
-                  <div className="admin-card-header"><div><h3 className="admin-card-title">Verification health</h3><p className="admin-card-subtitle">A quick view of your workspace.</p></div></div>
-                  <div className="admin-card-body">
-                    <div className="health-ring"><div><strong>{total ? Math.round((verified / total) * 100) : 0}%</strong><span>verified</span></div></div>
-                    <div className="health-list">
-                      <div><span className="health-dot verified" /> Verified <strong>{verified}</strong></div>
-                      <div><span className="health-dot pending" /> Processing <strong>{running}</strong></div>
-                      <div><span className="health-dot failed" /> Failed <strong>{failed}</strong></div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="admin-card user-panel quick-start-panel">
-                <div className="admin-card-header"><div><h3 className="admin-card-title">Quick actions</h3><p className="admin-card-subtitle">Continue working with Verinova.</p></div></div>
-                <div className="admin-card-body quick-start-grid">
-                  <button className="quick-start-card" onClick={() => openSection("verifications")}><span><Plus size={17} /></span><div><strong>New verification</strong><small>Start a new verification request.</small></div></button>
-                  <button className="quick-start-card" onClick={() => openSection("activity")}><span><Activity size={17} /></span><div><strong>View activity</strong><small>Review your recent workspace activity.</small></div></button>
-                  <button className="quick-start-card" onClick={() => openSection("profile")}><span><User size={17} /></span><div><strong>Update profile</strong><small>Keep your account information current.</small></div></button>
-                  <button className="quick-start-card" onClick={() => openSection("support")}><span><MessageSquare size={17} /></span><div><strong>Contact support</strong><small>Send a message to the Verinova team.</small></div></button>
-                </div>
-              </section>
-            </>
-          )}
-
-          {activeSection === "verifications" && (
-            <section>
-              <div className="section-heading-row">
-                <div><div className="eyebrow">VERIFICATION WORKSPACE</div><h2>My verifications</h2><p>Create a request and follow its progress from received to final result.</p></div>
-                <button className="admin-btn admin-btn-primary" onClick={() => setCreatingVerification(true)}><Plus size={15} /> New verification</button>
               </div>
 
-              {latestRunningTask && (
-                <button className="active-verification-banner" onClick={() => openTask(latestRunningTask.id)}>
-                  <span className="live-indicator" />
-                  <div><strong>Verification in progress</strong><small>{latestRunningTask.title} · {statusLabel(latestRunningTask.status)}</small></div>
-                  <span>Continue →</span>
-                </button>
-              )}
+              {/* Side-by-Side Unified Chat & Outcomes Panel Layout */}
+              <div className="workspace-content-grid">
 
-              <div className="admin-card user-panel">
-                <div className="admin-card-header"><div><h3 className="admin-card-title">Verification history</h3><p className="admin-card-subtitle">Only requests belonging to your account are shown here.</p></div></div>
-                <div className="admin-card-body verification-table-wrap">
-                  <div style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
-                    {[
-                      { key: "all", label: "All Tasks" },
-                      { key: "active", label: "Active" },
-                      { key: "completed", label: "Completed" },
-                      { key: "failed", label: "Failed" },
-                      { key: "cancelled", label: "Cancelled" }
-                    ].map((item) => (
-                      <button
-                        key={item.key}
-                        className={`admin-btn ${taskStatusFilter === item.key ? "admin-btn-primary" : "admin-btn-secondary"}`}
-                        style={{ padding: "4px 10px", fontSize: "10px", height: "auto", minWidth: "70px", borderRadius: "14px" }}
-                        onClick={() => setTaskStatusFilter(item.key)}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
+                {/* Left Panel: Chatbot Interface */}
+                <div className="chat-panel">
+                  <div className="chat-panel-header text-left">
+                    <h3>VeriNova Assistant</h3>
+                    {activeTask?.confidence_score != null && (
+                      <p>
+                        Confidence Score: <strong>{Number(activeTask.confidence_score).toFixed(1)}%</strong> ({activeTask.review_status || "Standard"})
+                      </p>
+                    )}
                   </div>
 
-                  {filteredTasks.length === 0 ? <div className="user-empty"><Search size={24} /><strong>No matching verifications</strong><span>Try a different search or create a new request.</span></div> : (
-                    <div className="verification-table">
-                      <div className="verification-table-head"><span>Verification</span><span>Type</span><span>Status</span><span>Confidence</span><span>Created</span><span /></div>
-                      {filteredTasks.map((task) => (
-                        <button className="verification-table-row" key={task.id} onClick={() => openTask(task.id)}>
-                          <span><strong>{task.title}</strong><small>#{task.id}</small></span>
-                          <span>{task.task_type}</span>
-                          <span>{renderStatusCard(task)}</span>
-                          <span>{task.confidence_score != null ? `${Number(task.confidence_score).toFixed(1)}%` : "—"}</span>
-                          <span>{formatDate(task.created_at)}</span>
-                          <span>›</span>
-                        </button>
-                      ))}
+                  <div className="chat-bubble-list">
+                    {/* Welcome message if conversation is empty */}
+                    {(!activeTask?.messages || activeTask.messages.length === 0) && (
+                      <div className="text-xs text-dash-muted italic p-4 text-center">
+                        Ask follow-up questions to refine the results or request specific details.
+                      </div>
+                    )}
+
+                    {activeTask?.messages?.map((msg) => {
+                      // Hide JSON tags from the chat bubbles themselves
+                      const text = msg.message
+                        .replace(/\[PRODUCT_OFFERS:[\s\S]*?\]/, "")
+                        .replace(/\[PRODUCT_COMPARISON:[\s\S]*?\]/, "")
+                        .replace(/\[REQUIRES_CONFIRMATION:[\s\S]*?\]/, "")
+                        .trim();
+
+                      if (!text) return null;
+
+                      return (
+                        <div key={msg.id} className={`chat-bubble-item ${msg.sender === "user" ? "user" : "assistant"}`}>
+                          <span className="chat-bubble-label">{msg.sender === "user" ? "You" : "VeriNova"}</span>
+                          <div className="chat-bubble-text">{text}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <form className="chat-composer" onSubmit={(e) => { e.preventDefault(); void sendVerificationMessage(); }}>
+                    <input
+                      className="chat-composer-input"
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      placeholder="Ask follow-up questions..."
+                    />
+                    <button type="submit" className="chat-composer-submit" disabled={!messageInput.trim()}>
+                      <Send size={14} />
+                    </button>
+                  </form>
+                </div>
+
+                {/* Right Panel: Outcomes Workspace Visualizer */}
+                <div className="outcome-panel">
+
+                  {/* Progress screen while executing */}
+                  {executingPlan && (
+                    <div className="progress-card">
+                      <div className="progress-header-status">
+                        <Loader2 className="animate-spin text-dash-primary" size={20} />
+                        <span>VeriNova is executing your request...</span>
+                      </div>
+
+                      <div className="progress-steps-list">
+                        <div className={`progress-step-item ${activeTask?.status || agentTaskDetail?.status ? "completed" : "active"}`}>
+                          <span className="progress-step-dot" />
+                          <span>Analyzing request</span>
+                        </div>
+                        <div className={`progress-step-item ${["parsing", "planning", "running", "executing", "verifying", "completed", "analyzing", "researching"].includes(activeTask?.status || agentTaskDetail?.status || "") ? "completed" : "pending"}`}>
+                          <span className="progress-step-dot" />
+                          <span>Creating plan</span>
+                        </div>
+                        <div className={`progress-step-item ${["running", "executing", "verifying", "completed", "analyzing", "researching"].includes(activeTask?.status || agentTaskDetail?.status || "") ? "completed" : "pending"}`}>
+                          <span className="progress-step-dot" />
+                          <span>Executing tools</span>
+                        </div>
+                        <div className={`progress-step-item ${["analyzing", "verifying", "completed"].includes(activeTask?.status || agentTaskDetail?.status || "") ? "completed" : "pending"}`}>
+                          <span className="progress-step-dot" />
+                          <span>Analyzing results</span>
+                        </div>
+                        <div className={`progress-step-item ${["verifying", "completed"].includes(activeTask?.status || agentTaskDetail?.status || "") ? "completed" : "pending"}`}>
+                          <span className="progress-step-dot" />
+                          <span>Verifying results</span>
+                        </div>
+                        <div className={`progress-step-item ${["completed"].includes(activeTask?.status || agentTaskDetail?.status || "") ? "completed" : "pending"}`}>
+                          <span className="progress-step-dot" />
+                          <span>Final answer</span>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </div>
-              </div>
-            </section>
-          )}
 
-          {activeSection === "activity" && (
-            <section>
-              <div className="section-heading-row"><div><div className="eyebrow">ACCOUNT ACTIVITY</div><h2>Activity</h2><p>A chronological view of your verification workspace.</p></div></div>
-              <div className="admin-card user-panel activity-panel">
-                <div className="admin-card-body">
-                  {tasks.length === 0 ? <div className="user-empty"><Activity size={24} /><strong>No activity yet</strong><span>Your verification activity will appear here.</span></div> : tasks.map((task) => (
-                    <button className="activity-row" key={task.id} onClick={() => openTask(task.id)}>
-                      <span className={`activity-status-icon ${statusClass(task.status)}`}><ShieldCheck size={15} /></span>
-                      <span className="activity-row-main"><strong>{task.title}</strong><small>Verification #{task.id} · {statusLabel(task.status)}</small></span>
-                      <span className="activity-row-date">{formatDate(task.updated_at)} {formatTime(task.updated_at)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {activeSection === "profile" && (
-            <section>
-              <div className="section-heading-row"><div><div className="eyebrow">ACCOUNT</div><h2>Your profile</h2><p>Manage the identity information associated with your Verinova account.</p></div></div>
-              <div style={{ maxWidth: "600px" }}>
-                <div className="admin-card user-panel profile-card-main">
-                  <div className="admin-card-header"><div><h3 className="admin-card-title">Profile information</h3><p className="admin-card-subtitle">Changes are saved directly to your account.</p></div></div>
-                  <div className="admin-card-body">
-                    <div
-                      className="profile-avatar-large"
-                      style={{ cursor: "pointer", position: "relative" }}
-                      onClick={() => fileInputRef.current?.click()}
-                      title="Click to upload a new profile picture"
-                    >
-                      {user.profile_image ? (
-                        <img src={user.profile_image} alt="" />
-                      ) : (
-                        initials(user.fullname)
-                      )}
-                      {uploadingImage && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            background: "rgba(0,0,0,0.5)",
-                            display: "grid",
-                            placeItems: "center",
-                            borderRadius: "18px",
-                          }}
+                  {/* Pending Action Approval Card */}
+                  {agentPendingAction && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-col gap-3 text-amber-600 text-left">
+                      <div className="flex items-center gap-2">
+                        <CircleAlert size={18} />
+                        <strong className="text-sm">Action Approval Required</strong>
+                      </div>
+                      <p className="text-xs text-dash-secondary">
+                        VeriNova needs permission to run: <code>{agentPendingAction.tool_name}</code>
+                      </p>
+                      <div className="flex gap-2.5">
+                        <button
+                          onClick={() => handleConfirmAction(agentPendingAction.id)}
+                          className="bg-amber-500 text-white rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-amber-600 cursor-pointer flex items-center gap-1.5"
+                          disabled={confirmingActionId === agentPendingAction.id}
                         >
-                          <Loader2 className="animate-spin text-white" size={24} />
+                          {confirmingActionId === agentPendingAction.id ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                          Confirm Action
+                        </button>
+                        <button
+                          onClick={handleCancelAction}
+                          className="bg-transparent border border-red-500 text-red-500 hover:bg-red-50 rounded-lg px-3 py-1.5 text-xs font-bold cursor-pointer"
+                        >
+                          Cancel Task
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Redesigned Visual Outcome Results */}
+                  {(!executingPlan && parsedData.cleanText) && (
+                    <div className="bg-white dark:bg-zinc-900 border border-dash-border rounded-xl p-6 shadow-sm flex flex-col gap-6">
+
+                      <div className="flex flex-col gap-3 text-left">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-dash-primary">VeriNova Result</span>
+                        <h3 className="text-xl font-black text-dash-text mt-1">Answer</h3>
+                        <div className="text-sm leading-relaxed text-dash-secondary mt-2 whitespace-pre-wrap bg-dash-bg p-4 rounded-xl border border-dash-border">
+                          {parsedData.cleanText}
+                        </div>
+                      </div>
+
+                      {/* Product Comparison View */}
+                      {parsedData.comparisonData && (
+                        <div className="flex flex-col gap-6 text-left border-t border-dash-border pt-6">
+                          <div>
+                            <span className="text-xs font-extrabold uppercase tracking-wider text-dash-primary">Outcome Verification Result</span>
+                            <h3 className="text-xl font-black text-dash-text mt-1">Comparison Results</h3>
+                            <p className="text-xs text-dash-secondary mt-1">Best matches based on your requirements</p>
+                          </div>
+
+                          {/* Product Cards Row (Mockup styling) */}
+                          <div className="product-card-grid">
+                            {parsedData.comparisonData.offers?.slice(0, 3).map((offer: any, idx: number) => {
+                              const isBestValue = offer.price === parsedData.comparisonData.best_value?.price;
+                              const isBestMatch = idx === 0;
+
+                              return (
+                                <div key={idx} className={`product-card ${isBestValue || isBestMatch ? "glow-border" : ""}`}>
+                                  {/* Top Left Rank Circle */}
+                                  <span className={`product-card-rank-badge ${idx === 0 ? "rank-1" : idx === 1 ? "rank-2" : "rank-3"}`}>
+                                    {idx + 1}
+                                  </span>
+
+                                  <div className="product-card-image">
+                                    <img src={offer.image_url || getProductImage(offer.title, parsedData.comparisonData.product_group)} alt="" />
+                                  </div>
+
+                                  <div className="product-card-details">
+                                    <strong className="product-card-name" title={offer.title}>{offer.title}</strong>
+                                    <span className="product-card-price">₹{Number(offer.price).toLocaleString()}</span>
+                                    {isBestValue && <span className="product-card-suitability-label">Best Value</span>}
+                                    {isBestMatch && !isBestValue && <span className="product-card-suitability-label">Best Match</span>}
+                                    {!isBestMatch && !isBestValue && <span className="product-card-suitability-label secondary">Candidate Match</span>}
+                                  </div>
+
+                                  <a href={offer.url} target="_blank" rel="noopener noreferrer" className="product-card-action">
+                                    <span>View Product</span>
+                                    <ExternalLink size={12} />
+                                  </a>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Comparison Table */}
+                          {parsedData.comparisonData.offers?.length > 0 && (
+                            <div className="flex flex-col gap-4">
+                              <h4 className="text-sm font-extrabold uppercase text-dash-secondary">Key Comparison</h4>
+                              <div className="comparison-table-container">
+                                <table className="comparison-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Feature</th>
+                                      {parsedData.comparisonData.offers.slice(0, 3).map((off: any, idx: number) => (
+                                        <th key={idx}>{off.brand || `Option ${idx + 1}`}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr>
+                                      <td>Processor</td>
+                                      {parsedData.comparisonData.offers.slice(0, 3).map((off: any, idx: number) => (
+                                        <td key={idx}>{off.processor || "—"}</td>
+                                      ))}
+                                    </tr>
+                                    <tr>
+                                      <td>RAM</td>
+                                      {parsedData.comparisonData.offers.slice(0, 3).map((off: any, idx: number) => (
+                                        <td key={idx}>{off.ram_gb ? `${off.ram_gb} GB` : "—"}</td>
+                                      ))}
+                                    </tr>
+                                    <tr>
+                                      <td>Storage</td>
+                                      {parsedData.comparisonData.offers.slice(0, 3).map((off: any, idx: number) => (
+                                        <td key={idx}>{off.storage_gb ? `${off.storage_gb} GB` : "—"}</td>
+                                      ))}
+                                    </tr>
+                                    <tr>
+                                      <td>Display</td>
+                                      {parsedData.comparisonData.offers.slice(0, 3).map((off: any, idx: number) => (
+                                        <td key={idx}>{off.display || "15.6\" FHD"}</td>
+                                      ))}
+                                    </tr>
+                                    <tr>
+                                      <td>Price</td>
+                                      {parsedData.comparisonData.offers.slice(0, 3).map((off: any, idx: number) => (
+                                        <td key={idx} style={{ color: "#10b981", fontWeight: 700 }}>
+                                          ₹{Number(off.price).toLocaleString()}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Best Value explanation */}
+                          {parsedData.comparisonData.best_value && (
+                            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 mt-2">
+                              <span className="text-xs font-black text-amber-600 uppercase tracking-wider block mb-1">Why this is the best choice</span>
+                              <strong className="text-sm block">Best Value — {parsedData.comparisonData.best_value.store}</strong>
+                              <p className="text-xs text-dash-secondary mt-1.5 leading-relaxed whitespace-pre-wrap">
+                                {parsedData.comparisonData.best_value.reason}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+
+                  {/* Sources Checked */}
+                  <div className="bg-white dark:bg-zinc-900 border border-dash-border rounded-xl p-6 shadow-sm flex flex-col gap-4 text-left">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-dash-primary">Sources</span>
+                    <div className="sources-grid">
+                      {agentTaskResultDetail?.sources?.map((src: any, idx: number) => (
+                        <a key={idx} href={src.url} target="_blank" rel="noopener noreferrer" className="source-card">
+                          <div className="source-info">
+                            <span className="source-domain">{src.domain}</span>
+                            <span className="source-title" title={src.title}>{src.title}</span>
+                          </div>
+                          <div className="source-badges">
+                            <span className="source-verified-badge">
+                              <ShieldCheck size={11} />
+                              Verified
+                            </span>
+                            <ExternalLink size={12} className="source-link-icon" />
+                          </div>
+                        </a>
+                      ))}
+                      {(!agentTaskResultDetail?.sources || agentTaskResultDetail.sources.length === 0) && (
+                        <span className="text-xs text-dash-muted italic">No external sources recorded.</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Collapsible details fold */}
+                  <details className="technical-fold">
+                    <summary className="technical-fold-summary">
+                      <span>View technical details</span>
+                      <ChevronDown size={14} />
+                    </summary>
+                    <div className="technical-fold-content">
+                      <strong>Agent Objective:</strong>
+                      <p className="text-dash-secondary m-0">{agentTaskDetail?.plan?.objective || "Outcome Research"}</p>
+
+                      <strong className="mt-2">Logs:</strong>
+                      {agentTaskLogs.map((log, idx) => (
+                        <div key={idx} className="border-b border-dash-border pb-1">
+                          <span className="text-dash-muted">{formatTime(log.created_at)}</span>
+                          <span className="ml-2 font-semibold capitalize">{log.step}:</span>
+                          <p className="m-0 text-dash-secondary">{log.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+
+                </div>
+              </div>
+            </div>
+          ) : (
+
+            /* Workspace Page Screens */
+            <>
+              {/* HOME SCREEN */}
+              {activeSection === "home" && (
+                <div className="flex flex-col gap-6 text-left">
+
+                  {/* Hello Header */}
+                  <div className="hello-card text-left p-6 bg-white dark:bg-zinc-900 border border-dash-border rounded-xl shadow-sm">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-dash-primary">VeriNova Workspace Overview</span>
+                    <h2 className="text-2xl font-black text-dash-text mt-1">Welcome back, {user.fullname.split(" ")[0]} 👋</h2>
+                    <p className="text-xs text-dash-secondary mt-1">Here is the real-time health and status of your automated verifications and outcome research.</p>
+                  </div>
+
+                  {/* Stat Cards Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white dark:bg-zinc-900 border border-dash-border p-5 rounded-xl shadow-sm flex flex-col gap-1.5">
+                      <span className="text-xs text-dash-secondary font-bold uppercase tracking-wider">Total Requests</span>
+                      <strong className="text-2xl font-black text-dash-text">{tasks.length}</strong>
+                      <span className="text-[10px] text-dash-muted">All active & finished requests</span>
+                    </div>
+
+                    <div className="bg-white dark:bg-zinc-900 border border-dash-border p-5 rounded-xl shadow-sm flex flex-col gap-1.5">
+                      <span className="text-xs text-dash-secondary font-bold uppercase tracking-wider">Completed</span>
+                      <strong className="text-2xl font-black text-emerald-600">{completedCount}</strong>
+                      <span className="text-[10px] text-dash-muted">Successfully verified outcomes</span>
+                    </div>
+
+                    <div className="bg-white dark:bg-zinc-900 border border-dash-border p-5 rounded-xl shadow-sm flex flex-col gap-1.5">
+                      <span className="text-xs text-dash-secondary font-bold uppercase tracking-wider">In Progress</span>
+                      <strong className="text-2xl font-black text-amber-500">{inProgressCount}</strong>
+                      <span className="text-[10px] text-dash-muted">Running execution workflows</span>
+                    </div>
+
+                    <div className="bg-white dark:bg-zinc-900 border border-dash-border p-5 rounded-xl shadow-sm flex flex-col gap-1.5">
+                      <span className="text-xs text-dash-secondary font-bold uppercase tracking-wider">Failed</span>
+                      <strong className="text-2xl font-black text-red-500">{failedCount}</strong>
+                      <span className="text-[10px] text-dash-muted">Errors or rate limits hit</span>
+                    </div>
+                  </div>
+
+                  {/* Charts Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    {/* Left: Trend line Chart */}
+                    <div className="bg-white dark:bg-zinc-900 border border-dash-border p-6 rounded-xl shadow-sm flex flex-col gap-4">
+                      <div>
+                        <h3 className="text-sm font-black text-dash-text uppercase tracking-wider">Verification Volume Trend</h3>
+                        <p className="text-[11px] text-dash-secondary">Workflow activity over the last 7 days</p>
+                      </div>
+
+                      {tasks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-40 text-dash-muted text-xs italic">
+                          <span>No verification data yet</span>
+                        </div>
+                      ) : (
+                        <div className="w-full">
+                          <svg viewBox="0 0 500 150" className="w-full h-40">
+                            <defs>
+                              <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#f97316" stopOpacity="0.3" />
+                                <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+                            <line x1="25" y1="25" x2="475" y2="25" stroke="#e4e4e7" strokeDasharray="3 3" />
+                            <line x1="25" y1="75" x2="475" y2="75" stroke="#e4e4e7" strokeDasharray="3 3" />
+                            <line x1="25" y1="125" x2="475" y2="125" stroke="#e4e4e7" />
+
+                            {svgPoints.areaStr && <path d={svgPoints.areaStr} fill="url(#chartGrad)" />}
+                            {svgPoints.pathStr && <path d={svgPoints.pathStr} fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" />}
+
+                            {svgPoints.points.map((p, idx) => (
+                              <g key={idx}>
+                                <circle cx={p.x} cy={p.y} r="4" fill="#ffffff" stroke="#f97316" strokeWidth="2" />
+                                {p.val > 0 && (
+                                  <text x={p.x} y={p.y - 8} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#71717a">
+                                    {p.val}
+                                  </text>
+                                )}
+                                <text x={p.x} y="142" textAnchor="middle" fontSize="9" fill="#a1a1aa">
+                                  {trendData.labels[idx]}
+                                </text>
+                              </g>
+                            ))}
+                          </svg>
                         </div>
                       )}
                     </div>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      style={{ display: "none" }}
-                      accept=".jpg,.jpeg,.png,.webp"
-                      onChange={handleImageUpload}
-                      disabled={uploadingImage}
-                    />
-                    <label className="admin-form-group">
-                      <span className="admin-form-label">Full name</span>
-                      <input
-                        className="admin-form-input"
-                        value={profileName}
-                        onChange={(event) => setProfileName(event.target.value)}
-                      />
-                    </label>
-                    <label className="admin-form-group">
-                      <span className="admin-form-label">Email</span>
-                      <input className="admin-form-input" value={user.email} readOnly style={{ opacity: 0.7, cursor: "not-allowed" }} />
-                    </label>
-                    <button className="admin-btn admin-btn-primary" disabled={savingProfile} onClick={saveProfile}>{savingProfile ? "Saving..." : "Save profile"}</button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
 
-          {activeSection === "settings" && (
-            <section>
-              <div className="section-heading-row"><div><div className="eyebrow">SECURITY</div><h2>Settings</h2><p>Protect your account and control your workspace preferences.</p></div></div>
-              <div className="settings-grid">
-                <div className="admin-card user-panel">
-                  <div className="admin-card-header"><div><h3 className="admin-card-title">Change password</h3><p className="admin-card-subtitle">Use a strong password you don't reuse elsewhere.</p></div></div>
-                  <div className="admin-card-body admin-form">
-                    <label className="admin-form-group"><span className="admin-form-label">Current password</span><input className="admin-form-input" type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
-                    <label className="admin-form-group"><span className="admin-form-label">New password</span><input className="admin-form-input" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
-                    <button className="admin-btn admin-btn-primary" disabled={savingPassword} onClick={changePassword}>{savingPassword ? "Updating..." : "Update password"}</button>
-                  </div>
-                </div>
-                <div className="admin-card user-panel">
-                  <div className="admin-card-header"><div><h3 className="admin-card-title">Appearance</h3><p className="admin-card-subtitle">Use the same VeriNova theme across the application.</p></div></div>
-                  <div className="admin-card-body appearance-setting">
-                    <div className="appearance-icon">{theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}</div>
-                    <div><strong>{theme === "dark" ? "Dark mode" : "Light mode"}</strong><span>Switch the dashboard appearance without changing the design system.</span></div>
-                    <button className="admin-btn admin-btn-secondary" onClick={toggleTheme}>{theme === "dark" ? "Use light" : "Use dark"}</button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {activeSection === "support" && (
-            <section>
-              <div className="section-heading-row"><div><div className="eyebrow">VERINOVA SUPPORT</div><h2>Contact support</h2><p>Only registered users can send support messages. Your conversation is visible to the Verinova admin team.</p></div></div>
-              <div className="support-layout">
-                <div className="admin-card user-panel">
-                  <div className="admin-card-header"><div><h3 className="admin-card-title">Send a message</h3><p className="admin-card-subtitle">We'll associate this message with your account automatically.</p></div></div>
-                  <div className="admin-card-body admin-form">
-                    <label className="admin-form-group"><span className="admin-form-label">Subject</span><input className="admin-form-input" value={supportSubject} onChange={(event) => setSupportSubject(event.target.value)} placeholder="How can we help?" /></label>
-                    <label className="admin-form-group"><span className="admin-form-label">Message</span><textarea className="admin-form-textarea" value={supportText} onChange={(event) => setSupportText(event.target.value)} placeholder="Describe your question or issue..." /></label>
-                    <button className="admin-btn admin-btn-primary" disabled={sendingSupport} onClick={sendSupportMessage}><Send size={14} /> {sendingSupport ? "Sending..." : "Send to Verinova"}</button>
-                  </div>
-                </div>
-                <div className="admin-card user-panel">
-                  <div className="admin-card-header"><div><h3 className="admin-card-title">Previous messages</h3><p className="admin-card-subtitle">Responses from the admin team appear here.</p></div></div>
-                  <div className="admin-card-body support-history">
-                    {supportMessages.length === 0 ? <div className="user-empty"><MessageSquare size={24} /><strong>No support messages</strong><span>Messages you send will appear here.</span></div> : supportMessages.map((message) => (
-                      <div className="support-message" key={message.id}>
-                        <div className="support-message-head"><strong>{message.subject}</strong><span>{message.status}</span></div>
-                        <p>{message.message}</p>
-                        {message.admin_reply && <div className="support-reply"><strong>Verinova Admin</strong><p>{message.admin_reply}</p></div>}
-                        <small>{formatDate(message.created_at)}</small>
+                    {/* Right: Distribution Indicators & Success Rate */}
+                    <div className="bg-white dark:bg-zinc-900 border border-dash-border p-6 rounded-xl shadow-sm flex flex-col gap-4">
+                      <div>
+                        <h3 className="text-sm font-black text-dash-text uppercase tracking-wider">Workflow Breakdown</h3>
+                        <p className="text-[11px] text-dash-secondary">Success rate and status distribution</p>
                       </div>
-                    ))}
+
+                      {tasks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-40 text-dash-muted text-xs italic">
+                          <span>No verification data yet</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-5 justify-center h-full">
+
+                          {/* Radial / Success highlight */}
+                          <div className="flex items-center gap-4 bg-dash-bg p-4 rounded-xl border border-dash-border">
+                            <div className="relative flex items-center justify-center w-14 h-14 rounded-full border-4 border-dash-primary/20">
+                              <span className="text-xs font-black text-dash-primary">{successRate}%</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-black text-dash-text">Verification Success Rate</span>
+                              <span className="text-[10px] text-dash-secondary mt-0.5">Ratio of completed tasks against failed ones</span>
+                            </div>
+                          </div>
+
+                          {/* Stat bars */}
+                          <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-1">
+                              <div className="flex justify-between text-[11px] font-bold">
+                                <span className="text-emerald-600">Completed</span>
+                                <span>{distributionData.completed}%</span>
+                              </div>
+                              <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${distributionData.completed}%` }} />
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <div className="flex justify-between text-[11px] font-bold">
+                                <span className="text-amber-500">In Progress</span>
+                                <span>{distributionData.inProgress}%</span>
+                              </div>
+                              <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${distributionData.inProgress}%` }} />
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <div className="flex justify-between text-[11px] font-bold">
+                                <span className="text-red-500">Failed</span>
+                                <span>{distributionData.failed}%</span>
+                              </div>
+                              <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-red-500 rounded-full" style={{ width: `${distributionData.failed}%` }} />
+                              </div>
+                            </div>
+                          </div>
+
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Recent Verifications & Insights */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                    {/* Left: Recent verifications table */}
+                    <div className="md:col-span-2 bg-white dark:bg-zinc-900 border border-dash-border p-6 rounded-xl shadow-sm flex flex-col gap-4 text-left">
+                      <h3 className="text-sm font-black text-dash-text uppercase tracking-wider">Recent Verifications</h3>
+
+                      {tasks.length === 0 ? (
+                        <div className="flex items-center justify-center p-8 text-dash-muted text-xs italic">
+                          <span>No verification data yet</span>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-left text-xs">
+                            <thead>
+                              <tr className="border-b border-dash-border text-dash-secondary font-bold font-extrabold uppercase tracking-wider">
+                                <th className="pb-2">Verification Objective</th>
+                                <th className="pb-2">Type</th>
+                                <th className="pb-2">Status</th>
+                                <th className="pb-2">Date</th>
+                                <th className="pb-2 text-right">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {tasks.slice(0, 5).map((task) => (
+                                <tr key={task.id} className="border-b border-dash-border last:border-0 hover:bg-zinc-50/50">
+                                  <td className="py-2.5 font-bold text-dash-text max-w-xs truncate" title={task.title}>
+                                    {task.title}
+                                  </td>
+                                  <td className="py-2.5 capitalize text-dash-secondary">
+                                    {task.task_type.replace(/_/g, " ")}
+                                  </td>
+                                  <td className="py-2.5">
+                                    <span className={`user-status-badge ${statusClass(task.status)}`}>
+                                      {statusLabel(task.status)}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 text-dash-secondary font-bold">
+                                    {formatDate(task.created_at)}
+                                  </td>
+                                  <td className="py-2.5 text-right">
+                                    <button
+                                      className="text-dash-primary font-bold hover:underline cursor-pointer"
+                                      onClick={() => {
+                                        setActiveSection("history");
+                                        setActiveTaskId(task.id);
+                                        setActiveAgentTaskId(task.id);
+                                      }}
+                                    >
+                                      View
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Workspace Insights */}
+                    <div className="bg-white dark:bg-zinc-900 border border-dash-border p-6 rounded-xl shadow-sm flex flex-col gap-4 text-left">
+                      <h3 className="text-sm font-black text-dash-text uppercase tracking-wider">Workspace Insights</h3>
+
+                      {tasks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-8 text-dash-muted text-xs italic">
+                          <span>No insights available</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-3.5">
+                          {failedCount === 0 && (
+                            <div className="flex items-start gap-2 text-xs">
+                              <ShieldCheck size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                              <p className="text-dash-secondary"><strong className="text-dash-text">All set!</strong> You have no failed verifications in your history.</p>
+                            </div>
+                          )}
+                          {successRate > 75 && (
+                            <div className="flex items-start gap-2 text-xs">
+                              <ShieldCheck size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                              <p className="text-dash-secondary"><strong className="text-dash-text">High Efficiency:</strong> Success rate is at {successRate}%. Excellent verification confidence.</p>
+                            </div>
+                          )}
+                          {inProgressCount > 0 ? (
+                            <div className="flex items-start gap-2 text-xs">
+                              <Loader2 size={16} className="text-amber-500 animate-spin shrink-0 mt-0.5" />
+                              <p className="text-dash-secondary"><strong className="text-dash-text">Active Queue:</strong> You currently have {inProgressCount} verification tasks executing in parallel.</p>
+                            </div>
+                          ) : (
+                            <div className="flex items-start gap-2 text-xs">
+                              <ShieldCheck size={16} className="text-dash-primary shrink-0 mt-0.5" />
+                              <p className="text-dash-secondary"><strong className="text-dash-text">Idle Status:</strong> No tasks running. Ready to analyze your next query.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+              {/* MY VERIFICATIONS SCREEN */}
+              {activeSection === "history" && (
+                <div className="flex flex-col gap-6 text-left">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-dash-primary">My History</span>
+                    <h2 className="text-2xl font-black text-dash-text mt-1">My Verifications</h2>
+                    <p className="text-xs text-dash-secondary mt-1">View and manage your previous VeriNova requests.</p>
+                  </div>
+
+                  <div className="history-list">
+                    {loading ? (
+                      <div className="flex justify-center p-8"><Loader2 className="animate-spin text-dash-primary" /></div>
+                    ) : tasks.length === 0 ? (
+                      <div className="user-empty">
+                        <ShieldCheck size={28} />
+                        <strong>No verifications recorded</strong>
+                        <span>Submit a query on the Home page to get started.</span>
+                      </div>
+                    ) : (
+                      tasks.map((task) => (
+                        <div key={task.id} className="history-item-card" onClick={() => { setActiveTaskId(task.id); setActiveAgentTaskId(task.id); }}>
+                          <div className="history-item-details">
+                            <strong className="history-item-title">{task.title}</strong>
+                            <div className="history-item-meta">
+                              <span>Type: <span className="capitalize">{task.task_type.replace(/_/g, " ")}</span></span>
+                              <span>·</span>
+                              <span>Date: {formatDate(task.created_at)}</span>
+                            </div>
+                          </div>
+                          <div className="history-item-actions">
+                            <span className={`user-status-badge ${statusClass(task.status)}`}>
+                              {statusLabel(task.status)}
+                            </span>
+                            <button className="history-view-btn">View Results</button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
-              </div>
-            </section>
-          )}
+              )}
 
-          {activeSection === "agent" && (
-            <div className="dashboard-grid-one-col text-left">
-              <section className="dashboard-panel full-width-panel">
-                <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h2>AI Research Agent</h2>
-                  {activeAgentTaskId && (
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <select
-                        className="admin-form-select"
-                        style={{ padding: "6px 12px", fontSize: "12px", width: "auto", margin: 0 }}
-                        value={activeAgentTaskId || ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val) {
-                            setActiveAgentTaskId(Number(val));
-                            setAgentPlanResult(null);
-                            setAgentTaskResultDetail(null);
-                          }
-                        }}
-                      >
-                        <option value="" disabled>Select past research task</option>
-                        {tasks.filter(t => t.task_type !== "verification").map(t => (
-                          <option key={t.id} value={t.id}>{t.title}</option>
-                        ))}
-                      </select>
-                    </div>
+              {/* AI AGENT SCREEN */}
+              {activeSection === "agent" && (
+                <div className="relative flex flex-col gap-8 text-left max-w-3xl mx-auto py-12 px-6">
+                  {/* Colorful Mesh Gradients Background (blurred layout decoration) */}
+                  <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-gradient-to-tr from-orange-500/10 to-purple-500/10 blur-3xl pointer-events-none" />
+                  <div className="absolute top-1/3 right-1/4 translate-x-1/2 w-64 h-64 rounded-full bg-gradient-to-br from-pink-500/5 to-amber-500/10 blur-3xl pointer-events-none" />
+
+                  <div className="text-center mb-6 relative">
+                    <span className="text-xs font-black uppercase tracking-wider text-dash-primary bg-orange-500/10 px-3 py-1 rounded-full">
+                      ⚡ VeriNova Automation Engine
+                    </span>
+                    <h2 className="text-4xl font-extrabold text-dash-text mt-3 tracking-tight bg-gradient-to-r from-orange-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                      VeriNova
+                    </h2>
+                    <p className="text-sm text-dash-secondary mt-2">
+                      Ask VeriNova to compare, verify, research, shop, or book.
+                    </p>
+                  </div>
+
+                  {renderConversationalInput(
+                    "What would you like to verify today? (e.g. Compare Vivo V40 and OnePlus Nord 4 prices)",
+                    agentQuery,
+                    setAgentQuery,
+                    () => handleQuerySubmit(agentQuery)
                   )}
+
+                  {/* Suggestion capsules */}
+                  <div className="flex flex-col gap-4 text-center mt-4">
+                    <span className="text-[11px] font-extrabold uppercase tracking-widest text-dash-secondary/80">Suggested Actions</span>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      <button
+                        onClick={() => setAgentQuery("Compare Vivo V40 and OnePlus Nord 4 prices")}
+                        className="px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-violet-500/5 to-indigo-500/5 hover:from-violet-500/10 hover:to-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shadow-sm cursor-pointer transition-all flex items-center gap-2 hover:scale-[1.02]"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 shrink-0" />
+                        <span>Compare Mobiles</span>
+                      </button>
+
+                      <button
+                        onClick={() => setAgentQuery("Book a flight from Delhi to Kochi under ₹6,000")}
+                        className="px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-cyan-500/5 to-teal-500/5 hover:from-cyan-500/10 hover:to-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 shadow-sm cursor-pointer transition-all flex items-center gap-2 hover:scale-[1.02]"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 shrink-0" />
+                        <span>Book Flights</span>
+                      </button>
+
+                      <button
+                        onClick={() => setAgentQuery("Research benefits of AI in healthcare")}
+                        className="px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-amber-500/5 to-pink-500/5 hover:from-amber-500/10 hover:to-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-500/20 shadow-sm cursor-pointer transition-all flex items-center gap-2 hover:scale-[1.02]"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 shrink-0" />
+                        <span>Research Topic</span>
+                      </button>
+
+                      <button
+                        onClick={() => setAgentQuery("Verify whether the specs for Samsung S24 Ultra are correct")}
+                        className="px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-emerald-500/5 to-teal-500/5 hover:from-emerald-500/10 hover:to-teal-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-sm cursor-pointer transition-all flex items-center gap-2 hover:scale-[1.02]"
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 shrink-0" />
+                        <span>Verify Specs</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="panel-body" style={{ marginTop: "15px" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "25px" }}>
-                    
-                    {/* Left Column: Input Form & Plan Steps */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                      <div className="admin-card user-panel" style={{ padding: "20px", border: "1px solid var(--dash-border)", borderRadius: "14px" }}>
-                        <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "10px" }}>New Research Goal</h3>
-                        <p className="panel-subtitle" style={{ fontSize: "12px", color: "var(--dash-secondary)", marginBottom: "15px" }}>
-                          Enter a natural-language query to start real-time web research, product comparisons, and analysis.
-                        </p>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                          <textarea
-                            placeholder="e.g. Compare prices for iPhone 15 128GB under ₹60,000 across Flipkart and Meesho, tell me which is the best value, and show me the sources."
-                            value={agentTaskText}
-                            onChange={(e) => setAgentTaskText(e.target.value)}
-                            className="admin-form-textarea"
-                            style={{ minHeight: "100px", padding: "12px", fontSize: "13px" }}
-                            disabled={generatingPlan}
-                          />
-                          <button
-                            onClick={handleGenerateAgentPlan}
-                            className="admin-btn admin-btn-primary"
-                            style={{ alignSelf: "flex-start", padding: "10px 20px", display: "flex", alignItems: "center", gap: "8px", height: "auto" }}
-                            disabled={generatingPlan}
+              )}
+
+              {/* SHOPPING SCREEN */}
+              {activeSection === "shopping" && (
+                <div className="relative flex flex-col gap-8 text-left max-w-4xl mx-auto py-12 px-6">
+                  {/* Colorful Mesh Gradients Background (blurred layout decoration) */}
+                  <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-gradient-to-tr from-orange-500/10 to-purple-500/10 blur-3xl pointer-events-none" />
+                  <div className="absolute top-1/3 right-1/4 translate-x-1/2 w-64 h-64 rounded-full bg-gradient-to-br from-pink-500/5 to-amber-500/10 blur-3xl pointer-events-none" />
+
+                  <div className="text-center mb-6 relative">
+                    <span className="text-xs font-black uppercase tracking-wider text-dash-primary bg-orange-500/10 px-3 py-1 rounded-full">
+                      🛒 Smart Shopping Companion
+                    </span>
+                    <h2 className="text-4xl font-extrabold text-dash-text mt-3 tracking-tight bg-gradient-to-r from-orange-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                      Shopping
+                    </h2>
+                    <p className="text-sm text-dash-secondary mt-2">
+                      Find and compare products using your requirements.
+                    </p>
+                  </div>
+
+                  <div className="shopping-layout">
+                    {/* Filters sidebar */}
+                    <div className="filters-panel">
+                      <span className="filters-title">Filter Search</span>
+
+                      <div className="admin-form-group">
+                        <label className="admin-form-label">Budget Limit (₹)</label>
+                        <input className="admin-form-input" value={filterBudget} onChange={(e) => setFilterBudget(e.target.value)} placeholder="e.g. 60000" />
+                      </div>
+
+                      <div className="admin-form-group">
+                        <label className="admin-form-label">Brand</label>
+                        <input className="admin-form-input" value={filterBrand} onChange={(e) => setFilterBrand(e.target.value)} placeholder="ASUS, HP, etc." />
+                      </div>
+
+                      <div className="admin-form-group">
+                        <label className="admin-form-label">RAM (GB)</label>
+                        <input className="admin-form-input" value={filterRAM} onChange={(e) => setFilterRAM(e.target.value)} placeholder="16" />
+                      </div>
+
+                      <div className="admin-form-group">
+                        <label className="admin-form-label">Storage (GB)</label>
+                        <input className="admin-form-input" value={filterStorage} onChange={(e) => setFilterStorage(e.target.value)} placeholder="512" />
+                      </div>
+
+                      <div className="admin-form-group">
+                        <label className="admin-form-label">Processor</label>
+                        <input className="admin-form-input" value={filterProcessor} onChange={(e) => setFilterProcessor(e.target.value)} placeholder="Intel i5" />
+                      </div>
+                    </div>
+
+                    {/* Search query box and examples */}
+                    <div className="flex flex-col gap-4 flex-1">
+                      {renderConversationalInput(
+                        "Tell VeriNova what you want to buy. (e.g. Find the best laptop under ₹60,000 with 16GB RAM)",
+                        shoppingQuery,
+                        setShoppingQuery,
+                        () => {
+                          let finalQuery = shoppingQuery.trim();
+                          if (!finalQuery) {
+                            finalQuery = `Find ${filterBrand || "laptops"} under ₹${filterBudget || "60000"}`;
+                          }
+                          const filterParts = [];
+                          if (filterRAM) filterParts.push(`${filterRAM}GB RAM`);
+                          if (filterStorage) filterParts.push(`${filterStorage}GB Storage`);
+                          if (filterProcessor) filterParts.push(`${filterProcessor} Processor`);
+                          if (filterParts.length > 0) {
+                            finalQuery += ` with ${filterParts.join(", ")}`;
+                          }
+                          handleQuerySubmit(finalQuery);
+                        }
+                      )}
+
+                      <div className="examples-section">
+                        <span className="examples-title">Try Laptop Examples</span>
+                        <div className="examples-grid">
+                          <div className="example-card" onClick={() => handleQuerySubmit("Find a 16GB RAM laptop under ₹60,000")}>
+                            <div className="example-card-meta">
+                              <strong className="example-card-text">Find 16GB RAM laptop under 60k</strong>
+                            </div>
+                          </div>
+                          <div className="example-card" onClick={() => handleQuerySubmit("Find lightweight laptops with 512GB SSD under ₹50,000")}>
+                            <div className="example-card-meta">
+                              <strong className="example-card-text">Lightweight SSD laptop under 50k</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* COMPARISON SCREEN */}
+              {activeSection === "comparison" && (
+                <div className="relative flex flex-col gap-8 text-left max-w-3xl mx-auto py-12 px-6">
+                  {/* Colorful Mesh Gradients Background (blurred layout decoration) */}
+                  <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-gradient-to-tr from-orange-500/10 to-purple-500/10 blur-3xl pointer-events-none" />
+                  <div className="absolute top-1/3 right-1/4 translate-x-1/2 w-64 h-64 rounded-full bg-gradient-to-br from-pink-500/5 to-amber-500/10 blur-3xl pointer-events-none" />
+
+                  <div className="text-center mb-6 relative">
+                    <span className="text-xs font-black uppercase tracking-wider text-dash-primary bg-orange-500/10 px-3 py-1 rounded-full">
+                      ⚖️ Direct Specs Comparison
+                    </span>
+                    <h2 className="text-4xl font-extrabold text-dash-text mt-3 tracking-tight bg-gradient-to-r from-orange-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                      Comparison
+                    </h2>
+                    <p className="text-sm text-dash-secondary mt-2">
+                      Compare specifications, prices, and matches side-by-side.
+                    </p>
+                  </div>
+
+                  {renderConversationalInput(
+                    "What would you like to compare? (e.g. Compare iPhone 15 and Samsung S24 on price, camera and battery)",
+                    comparisonQuery,
+                    setComparisonQuery,
+                    () => handleQuerySubmit(comparisonQuery)
+                  )}
+
+                  <div className="examples-section">
+                    <span className="examples-title">Try comparison</span>
+                    <div className="examples-grid">
+                      <div className="example-card" onClick={() => handleQuerySubmit("Compare iPhone 15 and Samsung S24 on price, camera and battery")}>
+                        <div className="example-card-meta">
+                          <strong className="example-card-text">Compare iPhone 15 and Samsung S24</strong>
+                        </div>
+                      </div>
+                      <div className="example-card" onClick={() => handleQuerySubmit("Compare Vivo V40 and OnePlus Nord 4 specifications and value")}>
+                        <div className="example-card-meta">
+                          <strong className="example-card-text">Compare Vivo V40 and OnePlus Nord 4</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="history-list mt-6">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-dash-muted block mb-4">Past Comparisons</span>
+                    {loading ? (
+                      <div className="flex justify-center p-8"><Loader2 className="animate-spin text-dash-primary" /></div>
+                    ) : tasks.filter(t => t.description?.toLowerCase().includes("compare")).length === 0 ? (
+                      <div className="user-empty">
+                        <ShieldCheck size={28} />
+                        <strong>No comparison tasks found</strong>
+                        <span>Submit a comparison query above to get started.</span>
+                      </div>
+                    ) : (
+                      tasks.filter(t => t.description?.toLowerCase().includes("compare")).map((task) => (
+                        <div key={task.id} className="history-item-card" onClick={() => { setActiveTaskId(task.id); setActiveAgentTaskId(task.id); }}>
+                          <div className="history-item-details">
+                            <strong className="history-item-title">{task.title}</strong>
+                            <div className="history-item-meta">
+                              <span>Date: {formatDate(task.created_at)}</span>
+                            </div>
+                          </div>
+                          <div className="history-item-actions">
+                            <span className={`user-status-badge ${statusClass(task.status)}`}>
+                              {statusLabel(task.status)}
+                            </span>
+                            <button className="history-view-btn">View comparison</button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* BOOKING SCREEN */}
+              {activeSection === "booking" && (
+                <div className="relative flex flex-col gap-8 text-left max-w-3xl mx-auto py-12 px-6">
+                  {/* Colorful Mesh Gradients Background (blurred layout decoration) */}
+                  <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-gradient-to-tr from-orange-500/10 to-purple-500/10 blur-3xl pointer-events-none" />
+                  <div className="absolute top-1/3 right-1/4 translate-x-1/2 w-64 h-64 rounded-full bg-gradient-to-br from-pink-500/5 to-amber-500/10 blur-3xl pointer-events-none" />
+
+                  <div className="text-center mb-6 relative">
+                    <span className="text-xs font-black uppercase tracking-wider text-dash-primary bg-orange-500/10 px-3 py-1 rounded-full">
+                      ✈️ Travel & Reservation Planner
+                    </span>
+                    <h2 className="text-4xl font-extrabold text-dash-text mt-3 tracking-tight bg-gradient-to-r from-orange-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                      Booking
+                    </h2>
+                    <p className="text-sm text-dash-secondary mt-2">
+                      What would you like to book?
+                    </p>
+                  </div>
+
+                  {/* Booking specific progress visual */}
+                  <div className="booking-progress-bar">
+                    <div className="booking-progress-step active">
+                      <span className="booking-progress-number">1</span>
+                      <span>Search</span>
+                    </div>
+                    <div className="booking-progress-step">
+                      <span className="booking-progress-number">2</span>
+                      <span>Recommendation</span>
+                    </div>
+                    <div className="booking-progress-step">
+                      <span className="booking-progress-number">3</span>
+                      <span>Confirmation</span>
+                    </div>
+                    <div className="booking-progress-step">
+                      <span className="booking-progress-number">4</span>
+                      <span>Completed</span>
+                    </div>
+                  </div>
+
+                  {renderConversationalInput(
+                    "What would you like to book? (e.g. Find a hotel in Kochi for 2 people this weekend)",
+                    bookingQuery,
+                    setBookingQuery,
+                    () => handleQuerySubmit(bookingQuery)
+                  )}
+
+                  <div className="examples-section">
+                    <span className="examples-title">Travel examples</span>
+                    <div className="examples-grid">
+                      <div className="example-card" onClick={() => handleQuerySubmit("Find a hotel in Kochi under ₹5,000")}>
+                        <div className="example-card-meta">
+                          <strong className="example-card-text">"Find a hotel in Kochi under ₹5,000"</strong>
+                        </div>
+                      </div>
+                      <div className="example-card" onClick={() => handleQuerySubmit("Find flights from Kochi to Delhi")}>
+                        <div className="example-card-meta">
+                          <strong className="example-card-text">"Find flights from Kochi to Delhi"</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* RESEARCH SCREEN */}
+              {activeSection === "research" && (
+                <div className="relative flex flex-col gap-8 text-left max-w-3xl mx-auto py-12 px-6">
+                  {/* Colorful Mesh Gradients Background (blurred layout decoration) */}
+                  <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-gradient-to-tr from-orange-500/10 to-purple-500/10 blur-3xl pointer-events-none" />
+                  <div className="absolute top-1/3 right-1/4 translate-x-1/2 w-64 h-64 rounded-full bg-gradient-to-br from-pink-500/5 to-amber-500/10 blur-3xl pointer-events-none" />
+
+                  <div className="text-center mb-6 relative">
+                    <span className="text-xs font-black uppercase tracking-wider text-dash-primary bg-orange-500/10 px-3 py-1 rounded-full">
+                      🔬 Synthesized Web Research
+                    </span>
+                    <h2 className="text-4xl font-extrabold text-dash-text mt-3 tracking-tight bg-gradient-to-r from-orange-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                      Research
+                    </h2>
+                    <p className="text-sm text-dash-secondary mt-2">
+                      Ask VeriNova to research a topic and organize the findings.
+                    </p>
+                  </div>
+
+                  {renderConversationalInput(
+                    "What would you like VeriNova to research? (e.g. Research the benefits and risks of AI in healthcare)",
+                    researchQuery,
+                    setResearchQuery,
+                    () => handleQuerySubmit(researchQuery)
+                  )}
+
+                  <div className="examples-section">
+                    <span className="examples-title">Research templates</span>
+                    <div className="examples-grid">
+                      <div className="example-card" onClick={() => handleQuerySubmit("Research the benefits and risks of AI in healthcare")}>
+                        <div className="example-card-meta">
+                          <strong className="example-card-text">Benefits and risks of AI in healthcare</strong>
+                        </div>
+                      </div>
+                      <div className="example-card" onClick={() => handleQuerySubmit("Research the history of cybersecurity frameworks")}>
+                        <div className="example-card-meta">
+                          <strong className="example-card-text">History of cybersecurity frameworks</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PROFILE SCREEN */}
+              {activeSection === "profile" && (
+                <div className="flex flex-col gap-6 text-left">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-dash-primary">Account Details</span>
+                    <h2 className="text-2xl font-black text-dash-text mt-1">Your Profile</h2>
+                    <p className="text-xs text-dash-secondary mt-1">Manage the identity information associated with your Verinova account.</p>
+                  </div>
+
+                  <div style={{ maxWidth: "600px" }}>
+                    <div className="admin-card user-panel">
+                      <div className="admin-card-header">
+                        <div>
+                          <h3 className="admin-card-title">Profile Information</h3>
+                          <p className="admin-card-subtitle">Changes are saved directly to your account.</p>
+                        </div>
+                      </div>
+                       <div className="admin-card-body flex flex-col md:flex-row gap-8 items-start">
+                        {/* Left: Avatar */}
+                        <div className="flex flex-col items-center gap-2 shrink-0">
+                          <div
+                            className="profile-avatar-large cursor-pointer relative"
+                            onClick={() => fileInputRef.current?.click()}
+                            title="Click to upload a new profile photo"
                           >
-                            {generatingPlan ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                            <span>{generatingPlan ? "Generating Plan..." : "Generate Plan"}</span>
+                            {user.profile_image ? (
+                              <img src={user.profile_image} alt="" />
+                            ) : (
+                              initials(user.fullname)
+                            )}
+                            {uploadingImage && (
+                              <div className="absolute inset-0 bg-black/50 grid place-items-center rounded-full">
+                                <Loader2 className="animate-spin text-white" size={24} />
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-dash-secondary font-bold hover:underline cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                            Change Photo
+                          </span>
+                        </div>
+
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          style={{ display: "none" }}
+                          accept=".jpg,.jpeg,.png,.webp"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                        />
+
+                        {/* Right: Info Fields */}
+                        <div className="flex-1 flex flex-col gap-4 w-full">
+                          <div className="admin-form-group">
+                            <span className="admin-form-label">Full Name</span>
+                            <input
+                              className="admin-form-input"
+                              value={profileName}
+                              onChange={(e) => setProfileName(e.target.value)}
+                            />
+                          </div>
+                          <div className="admin-form-group">
+                            <span className="admin-form-label">Email</span>
+                            <input className="admin-form-input opacity-70 cursor-not-allowed" value={user.email} readOnly />
+                          </div>
+                          <button className="admin-btn admin-btn-primary w-fit" disabled={savingProfile} onClick={saveProfile}>
+                            {savingProfile ? "Saving..." : "Save Profile"}
                           </button>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                      {/* Display Plan details if available */}
-                      {(agentPlanResult?.plan || agentTaskDetail?.plan) && (
-                        <div className="admin-card user-panel" style={{ padding: "20px", border: "1px solid var(--dash-border)", borderRadius: "14px" }}>
-                          <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "15px" }}>Structured Execution Plan</h3>
-                          
-                          <div style={{ background: "var(--dash-bg)", padding: "12px", borderRadius: "10px", border: "1px solid var(--dash-border)", marginBottom: "15px" }}>
-                            <p style={{ margin: 0, fontSize: "12px" }}><strong>Objective:</strong> {agentPlanResult?.plan?.objective || agentTaskDetail?.plan?.objective || agentTaskDetail?.title}</p>
-                            <p style={{ margin: "6px 0 0", fontSize: "12px" }}><strong>Task Type:</strong> <span className="status-pill pending" style={{ textTransform: "uppercase", fontSize: "9px" }}>{agentPlanResult?.plan?.task_type || agentTaskDetail?.plan?.task_type || "research"}</span></p>
-                          </div>
+              {/* SETTINGS SCREEN */}
+              {activeSection === "settings" && (
+                <div className="flex flex-col gap-6 text-left">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-dash-primary">Privacy & Settings</span>
+                    <h2 className="text-2xl font-black text-dash-text mt-1">Settings</h2>
+                    <p className="text-xs text-dash-secondary mt-1">Protect your account and control your workspace preferences.</p>
+                  </div>
 
-                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                            {(agentPlanResult?.plan?.steps || agentTaskDetail?.plan?.steps || []).map((step: any, idx: number) => (
-                              <div key={idx} style={{ display: "flex", gap: "10px", background: "var(--brand-card)", padding: "10px", borderRadius: "10px", border: "1px solid var(--dash-border)" }}>
-                                <div style={{ background: "var(--dash-primary)", color: "white", width: "20px", height: "20px", borderRadius: "50%", display: "grid", placeItems: "center", fontSize: "10px", fontWeight: 800, flexShrink: 0 }}>
-                                  {step.step_number || step.step_id || (idx + 1)}
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                                  <p style={{ margin: 0, fontSize: "12px", fontWeight: 650 }}>{step.description}</p>
-                                  <p style={{ margin: 0, fontSize: "10px", color: "var(--dash-secondary)" }}>
-                                    <strong>Tool:</strong> <code>{step.tool}</code>
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
-                            <button
-                              onClick={handleExecuteAgentTask}
-                              className="admin-btn admin-btn-primary"
-                              style={{ padding: "8px 16px", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", height: "auto" }}
-                              disabled={executingPlan}
-                            >
-                              {executingPlan ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                              <span>
-                                {executingPlan 
-                                  ? (agentTaskDetail?.description?.toLowerCase().includes("compare") 
-                                      ? "Comparing products..." 
-                                      : "Executing Plan...") 
-                                  : "Execute Plan"}
-                              </span>
-                            </button>
-                            {(agentPlanResult?.task_id || activeAgentTaskId) && (
-                              <button
-                                onClick={() => openTask(agentPlanResult?.task_id || activeAgentTaskId!)}
-                                className="admin-btn admin-btn-secondary"
-                                style={{ padding: "8px 16px", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}
-                              >
-                                <MessageSquare size={14} />
-                                <span>Open Workspace Chat</span>
-                              </button>
-                            )}
-                          </div>
+                  <div className="settings-grid">
+                    <div className="admin-card user-panel">
+                      <div className="admin-card-header">
+                        <div>
+                          <h3 className="admin-card-title">Change Password</h3>
+                          <p className="admin-card-subtitle">Use a strong password of at least 8 characters.</p>
                         </div>
-                      )}
+                      </div>
+                      <div className="admin-card-body flex flex-col gap-4">
+                        <div className="admin-form-group">
+                          <span className="admin-form-label">Current Password</span>
+                          <input className="admin-form-input" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                        </div>
+                        <div className="admin-form-group">
+                          <span className="admin-form-label">New Password</span>
+                          <input className="admin-form-input" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                        </div>
+                        <button className="admin-btn admin-btn-primary w-fit" disabled={savingPassword} onClick={changePassword}>
+                          {savingPassword ? "Updating..." : "Update Password"}
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Right Column: Execution Live State, Timeline & Results */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                      {activeAgentTaskId ? (
-                        <div className="admin-card user-panel" style={{ padding: "20px", border: "1px solid var(--dash-border)", borderRadius: "14px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-                            <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0 }}>Research Workspace</h3>
-                            {agentTaskDetail && (
-                              <span className={`user-status-badge ${statusClass(agentTaskDetail.status)}`} style={{ fontSize: "10px" }}>
-                                {agentTaskDetail.execution_status || agentTaskDetail.status.toUpperCase()}
-                              </span>
-                            )}
+                    <div className="admin-card user-panel">
+                      <div className="admin-card-header">
+                        <div>
+                          <h3 className="admin-card-title">Appearance</h3>
+                          <p className="admin-card-subtitle">Use the same VeriNova theme across the application.</p>
+                        </div>
+                      </div>
+                      <div className="admin-card-body appearance-setting">
+                        <div className="appearance-icon">{theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}</div>
+                        <div className="flex flex-col flex-1">
+                          <strong>{theme === "dark" ? "Dark Mode" : "Light Mode"}</strong>
+                          <span className="text-xs text-dash-muted mt-1 leading-snug">Toggle the workspace style theme.</span>
+                        </div>
+                        <button className="admin-btn admin-btn-secondary" onClick={toggleTheme}>
+                          {theme === "dark" ? "Use Light" : "Use Dark"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUPPORT SCREEN */}
+              {activeSection === "support" && (
+                <div className="flex flex-col gap-6 text-left">
+                  <div>
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-dash-primary">VeriNova Help Center</span>
+                    <h2 className="text-2xl font-black text-dash-text mt-1">Contact Support</h2>
+                    <p className="text-xs text-dash-secondary mt-1">Send a secure message directly to the Verinova team.</p>
+                  </div>
+
+                  <div className="support-layout">
+                    <div className="admin-card user-panel">
+                      <div className="admin-card-header">
+                        <div>
+                          <h3 className="admin-card-title">Send a Message</h3>
+                          <p className="admin-card-subtitle">We will respond as soon as possible.</p>
+                        </div>
+                      </div>
+                      <div className="admin-card-body flex flex-col gap-4">
+                        <div className="admin-form-group">
+                          <span className="admin-form-label">Subject</span>
+                          <input className="admin-form-input" value={supportSubject} onChange={(e) => setSupportSubject(e.target.value)} placeholder="Topic of your request" />
+                        </div>
+                        <div className="admin-form-group">
+                          <span className="admin-form-label">Message</span>
+                          <textarea className="admin-form-textarea" value={supportText} onChange={(e) => setSupportText(e.target.value)} placeholder="Describe your question in detail..." />
+                        </div>
+                        <button className="admin-btn admin-btn-primary w-fit" disabled={sendingSupport} onClick={sendSupportMessage}>
+                          <Send size={13} />
+                          <span>{sendingSupport ? "Sending..." : "Send to VeriNova"}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="admin-card user-panel">
+                      <div className="admin-card-header">
+                        <div>
+                          <h3 className="admin-card-title">Previous Messages</h3>
+                          <p className="admin-card-subtitle">Conversations with support team</p>
+                        </div>
+                      </div>
+                      <div className="admin-card-body support-history">
+                        {supportMessages.length === 0 ? (
+                          <div className="user-empty">
+                            <MessageSquare size={24} />
+                            <strong>No support messages</strong>
+                            <span>Your support ticket history will show here.</span>
                           </div>
-
-                          <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                            {/* Original Request Info */}
-                            {agentTaskDetail?.description && (
-                              <div style={{ background: "var(--dash-bg)", padding: "12px", borderRadius: "10px", border: "1px solid var(--dash-border)" }}>
-                                <span style={{ fontSize: "10px", color: "var(--dash-secondary)", fontWeight: 700, textTransform: "uppercase" }}>Original Request</span>
-                                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--dash-text)" }}>{agentTaskDetail.description}</p>
+                        ) : (
+                          supportMessages.map((msg) => (
+                            <div className="support-message pb-4 border-b border-dash-border last:border-b-0 last:pb-0" key={msg.id}>
+                              <div className="support-message-head">
+                                <strong>{msg.subject}</strong>
+                                <span className={`status-pill ${msg.status === "replied" ? "verified" : msg.status === "closed" ? "failed" : "pending"}`}>
+                                  {msg.status === "replied" ? "Replied" : msg.status === "closed" ? "Closed" : "Open"}
+                                </span>
                               </div>
-                            )}
-
-                            {/* Action Confirmation Banner */}
-                            {agentPendingAction && (
-                              <div style={{
-                                padding: "15px",
-                                background: "rgba(245, 158, 11, 0.1)",
-                                border: "1px solid #f59e0b",
-                                borderRadius: "12px",
-                                color: "#f59e0b",
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "10px"
-                              }}>
-                                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                                  <span style={{ fontSize: "16px" }}>⚠️</span>
-                                  <div>
-                                    <strong style={{ fontSize: "12px", display: "block" }}>Action Confirmation Required</strong>
-                                    <span style={{ fontSize: "11px", color: "var(--dash-secondary)" }}>
-                                      Tool <code>{agentPendingAction.tool_name}</code> requires your approval before proceeding.
-                                    </span>
-                                  </div>
-                                </div>
-                                <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-                                  <button
-                                    onClick={() => handleConfirmAction(agentPendingAction.id)}
-                                    className="admin-btn"
-                                    style={{
-                                      padding: "6px 12px",
-                                      fontSize: "11px",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                      background: "#f59e0b",
-                                      borderColor: "#f59e0b",
-                                      color: "#fff",
-                                      height: "auto",
-                                      minHeight: "auto",
-                                      cursor: "pointer"
-                                    }}
-                                    disabled={confirmingActionId === agentPendingAction.id}
-                                  >
-                                    {confirmingActionId === agentPendingAction.id ? (
-                                      <Loader2 size={12} className="animate-spin" />
-                                    ) : (
-                                      <Play size={12} />
-                                    )}
-                                    <span>Approve & Continue</span>
-                                  </button>
-                                  <button
-                                    onClick={handleCancelAction}
-                                    className="admin-btn"
-                                    style={{
-                                      padding: "6px 12px",
-                                      fontSize: "11px",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                      background: "rgba(239, 68, 68, 0.1)",
-                                      borderColor: "#ef4444",
-                                      color: "#ef4444",
-                                      height: "auto",
-                                      minHeight: "auto",
-                                      cursor: "pointer"
-                                    }}
-                                    disabled={confirmingActionId === agentPendingAction.id}
-                                  >
-                                    <X size={12} />
-                                    <span>Reject & Cancel</span>
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Execution Timeline */}
-                            <div>
-                              <h4 style={{ fontSize: "13px", fontWeight: 700, marginBottom: "10px" }}>Execution Timeline</h4>
-                              {agentTaskLogs.length === 0 ? (
-                                <p style={{ fontSize: "12px", color: "var(--dash-secondary)", fontStyle: "italic" }}>Awaiting execution to start...</p>
-                              ) : (
-                                <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderLeft: "2px solid var(--dash-border)", paddingLeft: "15px", marginLeft: "8px" }}>
-                                  {agentTaskLogs.map((log: any) => {
-                                    let statusColor = "var(--dash-primary)";
-                                    if (log.status === "failed") statusColor = "#ef4444";
-                                    else if (log.status === "running") statusColor = "#3b82f6";
-                                    else if (log.status === "completed") statusColor = "#10b981";
-
-                                    return (
-                                      <div key={log.id} style={{ position: "relative", display: "flex", flexDirection: "column", gap: "2px" }}>
-                                        <div style={{
-                                          position: "absolute",
-                                          left: "-22px",
-                                          top: "4px",
-                                          width: "10px",
-                                          height: "10px",
-                                          borderRadius: "50%",
-                                          background: statusColor,
-                                          border: "2px solid var(--brand-card)"
-                                        }} />
-                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                          <span style={{ fontSize: "12px", fontWeight: 600 }}>{log.message}</span>
-                                          <span style={{ fontSize: "10px", color: "var(--dash-secondary)" }}>{formatTime(log.created_at)}</span>
-                                        </div>
-                                        {log.duration_ms > 0 && (
-                                          <span style={{ fontSize: "10px", color: "var(--dash-secondary)" }}>Duration: {log.duration_ms}ms</span>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
+                              <p className="text-xs text-dash-secondary mt-1">{msg.message}</p>
+                              {msg.admin_reply && (
+                                <div className="support-reply mt-3 p-3 bg-dash-bg rounded-lg border-l-4 border-dash-primary">
+                                  <strong className="text-[10px] text-dash-primary uppercase block mb-1">Verinova Admin</strong>
+                                  <p className="text-xs m-0">{msg.admin_reply}</p>
                                 </div>
                               )}
+                              <small className="text-[9px] text-dash-muted block mt-2">{formatDate(msg.created_at)}</small>
                             </div>
-
-                            {/* Final synthesized answer / outcome */}
-                            {(() => {
-                              const finalAnswerRaw = agentTaskResultDetail?.answer || agentTaskDetail?.final_result || "";
-                              if (!finalAnswerRaw) return null;
-
-                              let finalOffersList: any[] = [];
-                              let finalComparisonData: any = null;
-                              let finalAnswerClean = finalAnswerRaw;
-
-                              if (finalAnswerRaw.includes("[PRODUCT_OFFERS:")) {
-                                const startIdx = finalAnswerRaw.indexOf("[PRODUCT_OFFERS:");
-                                const endIdx = finalAnswerRaw.lastIndexOf("]");
-                                if (startIdx !== -1 && endIdx > startIdx) {
-                                  const jsonStr = finalAnswerRaw.substring(startIdx + 16, endIdx);
-                                  try {
-                                    finalOffersList = JSON.parse(jsonStr);
-                                    finalAnswerClean = finalAnswerRaw.substring(0, startIdx) + finalAnswerRaw.substring(endIdx + 1);
-                                  } catch (e) {
-                                    console.error("Failed to parse offers JSON", e);
-                                  }
-                                }
-                              }
-
-                              if (finalAnswerRaw.includes("[PRODUCT_COMPARISON:")) {
-                                const startIdx = finalAnswerRaw.indexOf("[PRODUCT_COMPARISON:");
-                                const endIdx = finalAnswerRaw.lastIndexOf("]");
-                                if (startIdx !== -1 && endIdx > startIdx) {
-                                  const jsonStr = finalAnswerRaw.substring(startIdx + 20, endIdx);
-                                  try {
-                                    finalComparisonData = JSON.parse(jsonStr);
-                                    finalAnswerClean = finalAnswerRaw.substring(0, startIdx) + finalAnswerRaw.substring(endIdx + 1);
-                                  } catch (e) {
-                                    console.error("Failed to parse comparison JSON", e);
-                                  }
-                                }
-                              }
-
-                              return (
-                                <div style={{ marginTop: "15px", borderTop: "1px solid var(--dash-border)", paddingTop: "15px" }}>
-                                  <div style={{ display: "flex", gap: "6px", alignItems: "center", marginBottom: "10px", color: "var(--dash-primary)" }}>
-                                    <FileText size={16} />
-                                    <h4 style={{ fontSize: "14px", fontWeight: 700, margin: 0 }}>Research Summary Answer</h4>
-                                  </div>
-
-                                  <div 
-                                    className="research-answer-box"
-                                    style={{
-                                      background: "var(--brand-card)",
-                                      padding: "15px",
-                                      borderRadius: "12px",
-                                      border: "1px solid var(--dash-border)",
-                                      fontSize: "13px",
-                                      lineHeight: "1.6",
-                                      whiteSpace: "pre-wrap"
-                                    }}
-                                  >
-                                    {finalAnswerClean}
-
-                                    {finalOffersList.length > 0 && (
-                                      <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                                        {finalOffersList.map((offer: any, idx: number) => (
-                                          <div key={idx} style={{ background: "var(--brand-card)", padding: "12px", borderRadius: "10px", border: "1px solid var(--dash-border)", display: "flex", gap: "10px", alignItems: "center" }}>
-                                            <div style={{ width: "36px", height: "36px", background: "var(--dash-bg)", borderRadius: "4px", display: "grid", placeItems: "center", fontSize: "16px", flexShrink: 0 }}>🛍️</div>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                              <h4 style={{ margin: 0, fontSize: "12px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{offer.title}</h4>
-                                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
-                                                <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--dash-primary)" }}>₹{Number(offer.price).toLocaleString()}</span>
-                                                <span className="status-pill pending" style={{ fontSize: "8px", textTransform: "uppercase" }}>{offer.provider}</span>
-                                              </div>
-                                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px", fontSize: "10px", color: "var(--dash-secondary)" }}>
-                                                <span>{offer.availability === "in_stock" ? "🟢 In Stock" : "🔴 Out of Stock"}</span>
-                                                <a href={offer.url} target="_blank" rel="noopener noreferrer" className="admin-link" style={{ fontWeight: 700 }}>View on {offer.provider}</a>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-
-                                    {finalComparisonData && (
-                                       <div style={{ marginTop: "12px", background: "var(--dash-bg)", padding: "12px", borderRadius: "10px", border: "1px solid var(--dash-border)", fontSize: "12px" }}>
-                                         <h4 style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: 800 }}>Verified Product Comparison</h4>
-                                         <div style={{ fontSize: "11px", color: "var(--dash-secondary)", marginBottom: "10px" }}>
-                                           Product Group: {finalComparisonData.product_group}
-                                         </div>
-
-                                         {/* Demo Mode Banner */}
-                                         {finalComparisonData.source_type === "DEMO" && (
-                                           <div style={{ padding: "8px 12px", background: "rgba(245, 158, 11, 0.1)", border: "1px solid #f59e0b", borderRadius: "8px", color: "#f59e0b", display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
-                                             <span style={{ fontSize: "14px" }}>⚠️</span>
-                                             <span style={{ fontSize: "11px", fontWeight: 700 }}>Demo Mode active: Showing simulated fallback products.</span>
-                                           </div>
-                                         )}
-
-                                         {/* Extracted Criteria Pillbox */}
-                                         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
-                                           <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                             Category: {finalComparisonData.criteria?.category || "Any"}
-                                           </span>
-                                           {finalComparisonData.criteria?.brand && (
-                                             <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                               Brand: {finalComparisonData.criteria.brand}
-                                             </span>
-                                           )}
-                                           {finalComparisonData.criteria?.ram_gb && (
-                                             <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                               RAM: ≥ {finalComparisonData.criteria.ram_gb}GB
-                                             </span>
-                                           )}
-                                           {finalComparisonData.criteria?.storage_gb && (
-                                             <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                               Storage: ≥ {finalComparisonData.criteria.storage_gb}GB {finalComparisonData.criteria.storage_type || ""}
-                                             </span>
-                                           )}
-                                           {finalComparisonData.criteria?.processor && (
-                                             <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                               CPU: {finalComparisonData.criteria.processor}
-                                             </span>
-                                           )}
-                                           {finalComparisonData.criteria?.gpu && (
-                                             <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                               GPU: {finalComparisonData.criteria.gpu}
-                                             </span>
-                                           )}
-                                           {finalComparisonData.criteria?.budget_max && (
-                                             <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                               Budget: ≤ ₹{finalComparisonData.criteria.budget_max.toLocaleString()}
-                                             </span>
-                                           )}
-                                         </div>
-
-                                         {(!finalComparisonData.offers || finalComparisonData.offers.length === 0) ? (
-                                           <div style={{ padding: "15px", background: "rgba(239, 68, 68, 0.05)", border: "1px solid #ef4444", borderRadius: "8px", color: "#ef4444" }}>
-                                             <strong style={{ fontSize: "13px", display: "block", marginBottom: "6px" }}>No verified products found</strong>
-                                             <p style={{ margin: 0, fontSize: "11px", color: "var(--dash-secondary)" }}>
-                                               We analyzed candidate listings, but none successfully satisfied all of your requested filter specifications.
-                                             </p>
-                                             <ul style={{ margin: "8px 0 0", paddingLeft: "15px", fontSize: "11px", color: "var(--dash-secondary)" }}>
-                                               <li>Try relaxing the max budget constraints.</li>
-                                               <li>Try removing explicit RAM/Storage constraints.</li>
-                                             </ul>
-                                           </div>
-                                         ) : (
-                                           <>
-                                             <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "10px" }}>
-                                               <thead>
-                                                 <tr style={{ borderBottom: "1px solid var(--dash-border)" }}>
-                                                   <th style={{ textAlign: "left", padding: "4px 0", color: "var(--dash-secondary)" }}>Store</th>
-                                                   <th style={{ textAlign: "right", padding: "4px 0", color: "var(--dash-secondary)" }}>Price</th>
-                                                   <th style={{ textAlign: "right", padding: "4px 0", color: "var(--dash-secondary)" }}>Availability</th>
-                                                   <th style={{ textAlign: "right", padding: "4px 0", color: "var(--dash-secondary)" }}>Link</th>
-                                                 </tr>
-                                               </thead>
-                                               <tbody>
-                                                 {finalComparisonData.offers.map((off: any, idx: number) => (
-                                                   <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                                                     <td style={{ padding: "6px 0" }}>
-                                                       <div style={{ fontWeight: 700, textTransform: "capitalize" }}>{off.provider}</div>
-                                                       {off.title && (
-                                                         <div style={{ fontSize: "10px", color: "var(--dash-secondary)", maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={off.title}>
-                                                           {off.title}
-                                                         </div>
-                                                       )}
-                                                     </td>
-                                                     <td style={{ padding: "6px 0", textAlign: "right", fontWeight: 800, color: "var(--dash-primary)" }}>₹{Number(off.price).toLocaleString()}</td>
-                                                     <td style={{ padding: "6px 0", textAlign: "right", color: (off.availability || "available").toLowerCase() === "out_of_stock" ? "#ef4444" : "#10b981" }}>
-                                                       {off.availability || "Available"}
-                                                     </td>
-                                                     <td style={{ padding: "6px 0", textAlign: "right" }}>
-                                                       <a href={off.url} target="_blank" rel="noopener noreferrer" className="admin-link">View</a>
-                                                     </td>
-                                                   </tr>
-                                                 ))}
-                                               </tbody>
-                                             </table>
-
-                                             {finalComparisonData.price_difference > 0 && (
-                                               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontWeight: 700 }}>
-                                                 <span>Price Difference:</span>
-                                                 <span style={{ color: "var(--dash-primary)" }}>₹{Number(finalComparisonData.price_difference).toLocaleString()}</span>
-                                               </div>
-                                             )}
-
-                                             {finalComparisonData.best_value && (
-                                               <div style={{ background: "rgba(255,255,255,0.03)", padding: "10px", borderRadius: "8px", marginTop: "10px", border: "1px solid var(--dash-border)" }}>
-                                                 <strong style={{ fontSize: "10px", display: "block", marginBottom: "4px", color: "var(--dash-primary)" }}>⭐ BEST VALUE RECOMMENDATION</strong>
-                                                 <span style={{ fontSize: "12px", fontWeight: 700 }}>
-                                                   {finalComparisonData.best_value.store} — ₹{Number(finalComparisonData.best_value.price).toLocaleString()}
-                                                 </span>
-                                                 {finalComparisonData.best_value.reason && (
-                                                   <p style={{ margin: "6px 0 0", fontSize: "11px", color: "var(--dash-secondary)", whiteSpace: "pre-wrap", lineHeight: "1.4" }}>
-                                                     {finalComparisonData.best_value.reason}
-                                                   </p>
-                                                 )}
-                                               </div>
-                                             )}
-                                           </>
-                                         )}
-
-                                         {/* Excluded Candidates Summary */}
-                                         {finalComparisonData.excluded_results && finalComparisonData.excluded_results.length > 0 && (
-                                           <details style={{ marginTop: "15px", borderTop: "1px solid var(--dash-border)", paddingTop: "10px" }}>
-                                             <summary style={{ cursor: "pointer", fontWeight: 700, color: "var(--dash-secondary)", fontSize: "11px", outline: "none" }}>
-                                               🔍 {finalComparisonData.excluded_results.length} listings excluded during validation (Click to view)
-                                             </summary>
-                                             <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                                               {finalComparisonData.excluded_results.map((ex: any, idx: number) => (
-                                                 <div key={idx} style={{ background: "rgba(255,255,255,0.02)", padding: "8px", borderRadius: "6px", fontSize: "11px", display: "flex", justifyContent: "space-between", alignItems: "start", border: "1px solid rgba(255,255,255,0.03)" }}>
-                                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                                     <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ex.title}</div>
-                                                     <div style={{ color: "#ef4444", fontSize: "10px", marginTop: "2px" }}>Reject Reason: {ex.reason}</div>
-                                                   </div>
-                                                   <span style={{ fontSize: "10px", opacity: 0.6, flexShrink: 0, marginLeft: "10px" }}>{ex.store}</span>
-                                                 </div>
-                                               ))}
-                                             </div>
-                                           </details>
-                                         )}
-
-                                         {finalComparisonData.sources && finalComparisonData.sources.length > 0 && (
-                                           <div style={{ marginTop: "12px", fontSize: "11px" }}>
-                                             <strong style={{ display: "block", fontSize: "10px", color: "var(--dash-secondary)", marginBottom: "4px" }}>Checked Sources</strong>
-                                             <ul style={{ margin: 0, paddingLeft: "15px", color: "var(--dash-secondary)" }}>
-                                               {finalComparisonData.sources.map((src: string, idx: number) => (
-                                                 <li key={idx}>{src}</li>
-                                               ))}
-                                             </ul>
-                                           </div>
-                                         )}
-                                       </div>
-                                     )}
-
-                                  </div>
-                                </div>
-                              );
-                            })()}
-
-                            {/* Clickable Grounding Sources */}
-                            {agentTaskResultDetail?.sources && agentTaskResultDetail.sources.length > 0 && (
-                              <div style={{ marginTop: "15px" }}>
-                                <div style={{ display: "flex", gap: "6px", alignItems: "center", marginBottom: "10px" }}>
-                                  <Globe size={16} />
-                                  <h4 style={{ fontSize: "14px", fontWeight: 700, margin: 0 }}>Sources & Grounding References ({agentTaskResultDetail.sources.length})</h4>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                  {agentTaskResultDetail.sources.map((src: any, idx: number) => (
-                                    <a
-                                      key={idx}
-                                      href={src.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{
-                                        display: "block",
-                                        background: "var(--dash-bg)",
-                                        padding: "10px 12px",
-                                        borderRadius: "10px",
-                                        border: "1px solid var(--dash-border)",
-                                        textDecoration: "none",
-                                        color: "inherit",
-                                        transition: "transform 0.2s, border-color 0.2s"
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.borderColor = "var(--dash-primary)";
-                                        e.currentTarget.style.transform = "translateY(-1px)";
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.borderColor = "var(--dash-border)";
-                                        e.currentTarget.style.transform = "translateY(0)";
-                                      }}
-                                    >
-                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                                        <strong style={{ fontSize: "12px", color: "var(--dash-primary)" }}>{src.title}</strong>
-                                        <ExternalLink size={12} style={{ color: "var(--dash-secondary)" }} />
-                                      </div>
-                                      <span style={{ fontSize: "10px", color: "var(--dash-secondary)", display: "block", wordBreak: "break-all" }}>{src.domain}</span>
-                                      {src.snippet && (
-                                        <p style={{ margin: "4px 0 0", fontSize: "11px", color: "var(--dash-secondary)" }}>{src.snippet}</p>
-                                      )}
-                                    </a>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Execution metrics details */}
-                            {agentTaskResultDetail && (
-                              <div 
-                                style={{
-                                  marginTop: "15px",
-                                  borderTop: "1px solid var(--dash-border)",
-                                  paddingTop: "12px",
-                                  display: "flex",
-                                  gap: "20px",
-                                  flexWrap: "wrap",
-                                  fontSize: "11px",
-                                  color: "var(--dash-secondary)"
-                                }}
-                              >
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <Clock3 size={12} />
-                                  <span>Duration: {agentTaskLogs.reduce((acc, curr) => acc + (curr.duration_ms || 0), 0)} ms</span>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <Globe size={12} />
-                                  <span>Sources: {agentTaskResultDetail.sources.length}</span>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                  <ShieldCheck size={12} />
-                                  <span>Status: COMPLETED</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="admin-card user-panel" style={{ padding: "30px", border: "1px solid var(--dash-border)", borderRadius: "14px", display: "grid", placeItems: "center", height: "100%" }}>
-                          <div style={{ textAlign: "center", color: "var(--dash-secondary)" }}>
-                            <Globe size={32} style={{ margin: "0 auto 10px" }} />
-                            <h3 style={{ fontSize: "14px", fontWeight: 700, margin: 0 }}>No Task Selected</h3>
-                            <p style={{ fontSize: "12px", margin: "4px 0 0" }}>Generate a plan or select a past task to start research.</p>
-                          </div>
-                        </div>
-                      )}
+                          ))
+                        )}
+                      </div>
                     </div>
-
                   </div>
                 </div>
-              </section>
-            </div>
+              )}
+            </>
           )}
+
         </div>
       </main>
-
-      {creatingVerification && (
-        <div className="verification-overlay" onMouseDown={(event) => event.target === event.currentTarget && setCreatingVerification(false)}>
-          <div className="verification-create-panel">
-            <div className="verification-create-header">
-              <div><span className="assistant-kicker">VERINOVA ASSISTANT</span><h3>Start a verification</h3><p>Tell us what you want checked. You can continue the conversation after the request is created.</p></div>
-              <button className="admin-icon-button" onClick={() => setCreatingVerification(false)}><X size={16} /></button>
-            </div>
-            <div className="verification-create-body">
-              <label className="admin-form-group"><span className="admin-form-label">Verification title</span><input className="admin-form-input" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="Example: Verify this business claim" /></label>
-              <label className="admin-form-group"><span className="admin-form-label">What should Verinova verify?</span><textarea className="admin-form-textarea verification-description" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} placeholder="Explain the claim, information, document or situation you want checked." /></label>
-              <label className="admin-form-group"><span className="admin-form-label">Verification type</span><select className="admin-form-select" value={newTaskType} onChange={(event) => setNewTaskType(event.target.value)}><option value="verification">General verification</option><option value="identity">Identity</option><option value="document">Document</option><option value="business">Business</option><option value="claim">Claim / information</option></select></label>
-            </div>
-            <div className="verification-create-footer"><button className="admin-btn admin-btn-secondary" onClick={() => setCreatingVerification(false)}>Cancel</button><button className="admin-btn admin-btn-primary" disabled={creatingVerification === true && newTitle.trim().length < 3} onClick={startNewVerification}><ShieldCheck size={14} /> Create & start</button></div>
-          </div>
-        </div>
-      )}
-
-      {assistantOpen && (
-        <div className="assistant-overlay" onMouseDown={(event) => event.target === event.currentTarget && setAssistantOpen(false)}>
-          <aside className="verification-assistant-panel">
-            <header className="assistant-header">
-              <div className="assistant-brand">
-                <div className="assistant-brand-icon"><ShieldCheck size={19} /></div>
-                <div><strong>Verinova Assistant</strong><span><i /> Secure verification workspace</span></div>
-              </div>
-              <button className="admin-icon-button" onClick={() => setAssistantOpen(false)}><X size={16} /></button>
-            </header>
-
-            {activeTask && (
-              <>
-                <div className="assistant-task-summary">
-                  <div><span>VERIFICATION #{activeTask.id}</span><h3>{activeTask.title}</h3></div>
-                  {renderStatusCard(activeTask)}
-                </div>
-
-                <div className="assistant-progress">
-                  {[
-                    ["received", "Received"],
-                    ["planning", "Planning"],
-                    ["running", "Running"],
-                    ["verifying", "Verifying"],
-                    ["completed", "Completed"],
-                  ].map(([key, label], index) => {
-                    const completedIndex = ["completed", "verified", "approved", "rejected", "inconclusive", "failed", "partially_completed"].includes(activeTask.status)
-                      ? 4
-                      : activeTask.status === "verifying"
-                        ? 3
-                        : ["running", "executing"].includes(activeTask.status)
-                          ? 2
-                          : ["planning", "parsing"].includes(activeTask.status)
-                            ? 1
-                            : 0;
-                    return <div className={index <= completedIndex ? "progress-step complete" : "progress-step"} key={key}><span>{index < completedIndex ? "✓" : index === completedIndex ? "●" : index + 1}</span><small>{label}</small></div>;
-                  })}
-                </div>
-
-                {activeTask.plan && (
-                  <div style={{ padding: "10px 15px", background: "rgba(255,107,0,0.03)", borderBottom: "1px solid var(--dash-border)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setShowPlanDetails(!showPlanDetails)}>
-                      <strong style={{ fontSize: "11px", color: "var(--dash-primary)", display: "flex", alignItems: "center", gap: "6px" }}>
-                        📋 AI Agent Plan ({activeTask.plan.steps?.length || 0} steps)
-                      </strong>
-                      <span style={{ fontSize: "10px", color: "var(--dash-secondary)" }}>{showPlanDetails ? "Hide Plan ▲" : "Show Plan ▼"}</span>
-                    </div>
-                    {showPlanDetails && (
-                      <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <p style={{ margin: "0 0 4px", fontSize: "10px", color: "var(--dash-text)" }}><strong>Objective:</strong> {activeTask.plan.objective}</p>
-                        {activeTask.plan.steps?.map((step: any) => (
-                          <div key={step.step_number} style={{ display: "flex", gap: "8px", background: "var(--brand-card)", padding: "6px 8px", borderRadius: "6px", border: "1px solid var(--dash-border)", fontSize: "10px" }}>
-                            <span style={{
-                              display: "grid",
-                              placeItems: "center",
-                              width: "16px",
-                              height: "16px",
-                              background: "var(--dash-primary)",
-                              color: "white",
-                              borderRadius: "50%",
-                              fontSize: "9px",
-                              fontWeight: 800,
-                              flexShrink: 0
-                            }}>
-                              {step.step_number}
-                            </span>
-                            <div style={{ minWidth: 0 }}>
-                              <strong style={{ display: "block" }}>{step.description}</strong>
-                              <span style={{ color: "var(--dash-secondary)", fontSize: "9px" }}>Tool: <code>{step.tool}</code></span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ padding: "12px 15px", background: "var(--brand-card)", borderBottom: "1px solid var(--dash-border)", fontSize: "11px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                  <div>
-                    <span style={{ color: "var(--dash-secondary)", display: "block", fontSize: "9px", textTransform: "uppercase" }}>Verification Status</span>
-                    <strong style={{ color: activeTask.verification_status === 'VERIFIED' ? '#10b981' : activeTask.verification_status === 'CONFLICTED' ? '#ef4444' : 'var(--dash-text)' }}>
-                      {activeTask.verification_status || 'NOT_STARTED'}
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ color: "var(--dash-secondary)", display: "block", fontSize: "9px", textTransform: "uppercase" }}>Confidence Score</span>
-                    <strong>{activeTask.confidence_score != null ? `${Number(activeTask.confidence_score).toFixed(1)}%` : '—'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: "var(--dash-secondary)", display: "block", fontSize: "9px", textTransform: "uppercase" }}>Evidence Sources</span>
-                    <strong>{activeTask.reference_count || 0} sources checked</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: "var(--dash-secondary)", display: "block", fontSize: "9px", textTransform: "uppercase" }}>Admin Review</span>
-                    <strong>{activeTask.review_status === 'NOT_REQUIRED' ? 'Not Required' : activeTask.review_status === 'REQUIRED' ? 'Required' : activeTask.review_status || 'Not Required'}</strong>
-                  </div>
-                </div>
-
-                {taskExecutions.length > 0 && (
-                  <div style={{ padding: "10px 15px", borderBottom: "1px solid var(--dash-border)", background: "var(--brand-card)" }}>
-                    <strong style={{ fontSize: "11px", color: "var(--dash-primary)", display: "block", marginBottom: "8px" }}>
-                      ⚙️ Tool Execution Activity
-                    </strong>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {taskExecutions.map((log) => (
-                        <div key={log.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", background: "rgba(255,255,255,0.02)", padding: "6px 8px", borderRadius: "6px", border: "1px solid var(--dash-border)", fontSize: "10px" }}>
-                          <div style={{ minWidth: 0, paddingRight: "8px" }}>
-                            <span style={{ fontWeight: 700, textTransform: "capitalize", color: "var(--dash-text)", display: "block" }}>
-                              {log.step.replace(/_/g, " ")} ({log.duration_ms}ms)
-                            </span>
-                            <span style={{ color: "var(--dash-secondary)", display: "block", fontSize: "9px", marginTop: "2px" }}>
-                              {log.message}
-                            </span>
-                          </div>
-                          <span className={`status-pill ${log.status === "completed" ? "verified" : log.status === "failed" ? "failed" : "pending"}`} style={{ fontSize: "8px", textTransform: "uppercase", padding: "2px 4px" }}>
-                            {log.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {taskEvidence.length > 0 && (
-                  <div style={{ padding: "10px 15px", borderBottom: "1px solid var(--dash-border)", background: "var(--brand-card)" }}>
-                    <strong style={{ fontSize: "11px", color: "var(--dash-primary)", display: "block", marginBottom: "8px" }}>
-                      🔍 Captured Evidence ({taskEvidence.length})
-                    </strong>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {taskEvidence.map((ev) => (
-                        <div key={ev.id} style={{ background: "rgba(255,255,255,0.02)", padding: "6px 8px", borderRadius: "6px", border: "1px solid var(--dash-border)", fontSize: "10px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                            <span style={{ fontWeight: 700, color: "var(--dash-text)" }}>
-                              Source: {ev.source_name}
-                            </span>
-                            <span style={{ fontSize: "8px", color: "var(--dash-secondary)" }}>
-                              {new Date(ev.collected_at).toLocaleTimeString()}
-                            </span>
-                          </div>
-                          <p style={{ margin: 0, color: "var(--dash-secondary)", fontSize: "9px" }}>
-                            {ev.description}
-                          </p>
-                          {formatEvidenceData(ev)}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {["planning", "running", "verifying"].includes(activeTask.status) && (
-                  <div style={{ padding: "12px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", margin: "10px 15px", border: "1px dashed var(--dash-border)" }}>
-                    <div style={{ fontSize: "11px", color: "var(--dash-secondary)", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <div className="user-spinner" style={{ width: "10px", height: "10px" }} />
-                      Verinova is processing request...
-                    </div>
-                    <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "11px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <li style={{ color: activeTask.status === "planning" ? "var(--dash-primary)" : "var(--dash-secondary)" }}>
-                        {activeTask.status === "planning" ? "●" : "✓"} 1. Understanding & planning request
-                      </li>
-                      <li style={{ color: activeTask.status === "running" ? "var(--dash-primary)" : "var(--dash-secondary)" }}>
-                        {activeTask.status === "running" ? "●" : ["verifying", "completed"].includes(activeTask.status) ? "✓" : "○"} 2. Executing plan steps & gathering evidence
-                      </li>
-                      <li style={{ color: activeTask.status === "verifying" ? "var(--dash-primary)" : "var(--dash-secondary)" }}>
-                        {activeTask.status === "verifying" ? "●" : ["completed"].includes(activeTask.status) ? "✓" : "○"} 3. Verification engine validation & confidence assessment
-                      </li>
-                    </ul>
-                  </div>
-                )}
-
-                <div className="assistant-messages">
-                  {activeTask.messages?.length ? activeTask.messages.map((message) => {
-                    const match = message.message.match(/\[REQUIRES_CONFIRMATION:(\d+)\]/);
-                    const actionId = match ? parseInt(match[1]) : null;
-                    const cleanMessage = match ? message.message.replace(/\[REQUIRES_CONFIRMATION:\d+\]/, "") : message.message;
-
-                    let offersList: any[] = [];
-                    let comparisonData: any = null;
-                    let textMessage = cleanMessage;
-
-                    if (cleanMessage.includes("[PRODUCT_OFFERS:")) {
-                      const startIdx = cleanMessage.indexOf("[PRODUCT_OFFERS:");
-                      const endIdx = cleanMessage.lastIndexOf("]");
-                      if (startIdx !== -1 && endIdx > startIdx) {
-                        const jsonStr = cleanMessage.substring(startIdx + 16, endIdx);
-                        try {
-                          offersList = JSON.parse(jsonStr);
-                          textMessage = cleanMessage.substring(0, startIdx) + cleanMessage.substring(endIdx + 1);
-                        } catch (e) {
-                          console.error("Failed to parse offers JSON", e);
-                        }
-                      }
-                    }
-
-                    if (cleanMessage.includes("[PRODUCT_COMPARISON:")) {
-                      const startIdx = cleanMessage.indexOf("[PRODUCT_COMPARISON:");
-                      const endIdx = cleanMessage.lastIndexOf("]");
-                      if (startIdx !== -1 && endIdx > startIdx) {
-                        const jsonStr = cleanMessage.substring(startIdx + 20, endIdx);
-                        try {
-                          comparisonData = JSON.parse(jsonStr);
-                          textMessage = cleanMessage.substring(0, startIdx) + cleanMessage.substring(endIdx + 1);
-                        } catch (e) {
-                          console.error("Failed to parse comparison JSON", e);
-                        }
-                      }
-                    }
-
-                    return (
-                      <div className={`assistant-message ${message.sender}`} key={message.id}>
-                        <div className="assistant-message-label">{message.sender === "user" ? "You" : message.sender === "system" ? "System" : "Verinova"}</div>
-                        <div className="assistant-bubble">
-                          <div style={{ whiteSpace: "pre-wrap" }}>{textMessage}</div>
-
-                          {offersList.length > 0 && (
-                            <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                              {offersList.map((offer: any, idx: number) => (
-                                <div key={idx} style={{ background: "var(--brand-card)", padding: "12px", borderRadius: "10px", border: "1px solid var(--dash-border)", display: "flex", gap: "10px", alignItems: "center" }}>
-                                  <div style={{ width: "36px", height: "36px", background: "var(--dash-bg)", borderRadius: "4px", display: "grid", placeItems: "center", fontSize: "16px", flexShrink: 0 }}>🛍️</div>
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <h4 style={{ margin: 0, fontSize: "12px", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{offer.title}</h4>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
-                                      <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--dash-primary)" }}>₹{Number(offer.price).toLocaleString()}</span>
-                                      <span className="status-pill pending" style={{ fontSize: "8px", textTransform: "uppercase" }}>{offer.provider}</span>
-                                    </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px", fontSize: "10px", color: "var(--dash-secondary)" }}>
-                                      <span>{offer.availability === "in_stock" ? "🟢 In Stock" : "🔴 Out of Stock"}</span>
-                                      <a href={offer.url} target="_blank" rel="noopener noreferrer" className="admin-link" style={{ fontWeight: 700 }}>View on {offer.provider}</a>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                           {comparisonData && (
-                             <div style={{ marginTop: "12px", background: "var(--dash-bg)", padding: "12px", borderRadius: "10px", border: "1px solid var(--dash-border)", fontSize: "12px" }}>
-                               <h4 style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: 800 }}>Verified Product Comparison</h4>
-                               <div style={{ fontSize: "11px", color: "var(--dash-secondary)", marginBottom: "10px" }}>
-                                 Product Group: {comparisonData.product_group}
-                               </div>
-
-                               {/* Demo Mode Banner */}
-                               {comparisonData.source_type === "DEMO" && (
-                                 <div style={{ padding: "8px 12px", background: "rgba(245, 158, 11, 0.1)", border: "1px solid #f59e0b", borderRadius: "8px", color: "#f59e0b", display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
-                                   <span style={{ fontSize: "14px" }}>⚠️</span>
-                                   <span style={{ fontSize: "11px", fontWeight: 700 }}>Demo Mode active: Showing simulated fallback products.</span>
-                                 </div>
-                               )}
-
-                               {/* Extracted Criteria Pillbox */}
-                               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
-                                 <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                   Category: {comparisonData.criteria?.category || "Any"}
-                                 </span>
-                                 {comparisonData.criteria?.brand && (
-                                   <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                     Brand: {comparisonData.criteria.brand}
-                                   </span>
-                                 )}
-                                 {comparisonData.criteria?.ram_gb && (
-                                   <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                     RAM: ≥ {comparisonData.criteria.ram_gb}GB
-                                   </span>
-                                 )}
-                                 {comparisonData.criteria?.storage_gb && (
-                                   <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                     Storage: ≥ {comparisonData.criteria.storage_gb}GB {comparisonData.criteria.storage_type || ""}
-                                   </span>
-                                 )}
-                                 {comparisonData.criteria?.processor && (
-                                   <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                     CPU: {comparisonData.criteria.processor}
-                                   </span>
-                                 )}
-                                 {comparisonData.criteria?.gpu && (
-                                   <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                     GPU: {comparisonData.criteria.gpu}
-                                   </span>
-                                 )}
-                                 {comparisonData.criteria?.budget_max && (
-                                   <span className="status-pill" style={{ background: "rgba(255,255,255,0.05)", color: "var(--dash-primary)", fontSize: "10px", padding: "4px 8px" }}>
-                                     Budget: ≤ ₹{comparisonData.criteria.budget_max.toLocaleString()}
-                                   </span>
-                                 )}
-                               </div>
-
-                               {(!comparisonData.offers || comparisonData.offers.length === 0) ? (
-                                 <div style={{ padding: "15px", background: "rgba(239, 68, 68, 0.05)", border: "1px solid #ef4444", borderRadius: "8px", color: "#ef4444" }}>
-                                   <strong style={{ fontSize: "13px", display: "block", marginBottom: "6px" }}>No verified products found</strong>
-                                   <p style={{ margin: 0, fontSize: "11px", color: "var(--dash-secondary)" }}>
-                                     We analyzed candidate listings, but none successfully satisfied all of your requested filter specifications.
-                                   </p>
-                                   <ul style={{ margin: "8px 0 0", paddingLeft: "15px", fontSize: "11px", color: "var(--dash-secondary)" }}>
-                                     <li>Try relaxing the max budget constraints.</li>
-                                     <li>Try removing explicit RAM/Storage constraints.</li>
-                                   </ul>
-                                 </div>
-                               ) : (
-                                 <>
-                                   <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "10px" }}>
-                                     <thead>
-                                       <tr style={{ borderBottom: "1px solid var(--dash-border)" }}>
-                                         <th style={{ textAlign: "left", padding: "4px 0", color: "var(--dash-secondary)" }}>Store</th>
-                                         <th style={{ textAlign: "right", padding: "4px 0", color: "var(--dash-secondary)" }}>Price</th>
-                                         <th style={{ textAlign: "right", padding: "4px 0", color: "var(--dash-secondary)" }}>Availability</th>
-                                         <th style={{ textAlign: "right", padding: "4px 0", color: "var(--dash-secondary)" }}>Link</th>
-                                       </tr>
-                                     </thead>
-                                     <tbody>
-                                       {comparisonData.offers.map((off: any, idx: number) => (
-                                         <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                                           <td style={{ padding: "6px 0" }}>
-                                             <div style={{ fontWeight: 700, textTransform: "capitalize" }}>{off.provider}</div>
-                                             {off.title && (
-                                               <div style={{ fontSize: "10px", color: "var(--dash-secondary)", maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={off.title}>
-                                                 {off.title}
-                                               </div>
-                                             )}
-                                           </td>
-                                           <td style={{ padding: "6px 0", textAlign: "right", fontWeight: 800, color: "var(--dash-primary)" }}>₹{Number(off.price).toLocaleString()}</td>
-                                           <td style={{ padding: "6px 0", textAlign: "right", color: (off.availability || "available").toLowerCase() === "out_of_stock" ? "#ef4444" : "#10b981" }}>
-                                             {off.availability || "Available"}
-                                           </td>
-                                           <td style={{ padding: "6px 0", textAlign: "right" }}>
-                                             <a href={off.url} target="_blank" rel="noopener noreferrer" className="admin-link">View</a>
-                                           </td>
-                                         </tr>
-                                       ))}
-                                     </tbody>
-                                   </table>
-
-                                   {comparisonData.price_difference > 0 && (
-                                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontWeight: 700 }}>
-                                       <span>Price Difference:</span>
-                                       <span style={{ color: "var(--dash-primary)" }}>₹{Number(comparisonData.price_difference).toLocaleString()}</span>
-                                     </div>
-                                   )}
-
-                                   {comparisonData.best_value && (
-                                     <div style={{ background: "rgba(255,255,255,0.03)", padding: "10px", borderRadius: "8px", marginTop: "10px", border: "1px solid var(--dash-border)" }}>
-                                       <strong style={{ fontSize: "10px", display: "block", marginBottom: "4px", color: "var(--dash-primary)" }}>⭐ BEST VALUE RECOMMENDATION</strong>
-                                       <span style={{ fontSize: "12px", fontWeight: 700 }}>
-                                         {comparisonData.best_value.store} — ₹{Number(comparisonData.best_value.price).toLocaleString()}
-                                       </span>
-                                       {comparisonData.best_value.reason && (
-                                         <p style={{ margin: "6px 0 0", fontSize: "11px", color: "var(--dash-secondary)", whiteSpace: "pre-wrap", lineHeight: "1.4" }}>
-                                           {comparisonData.best_value.reason}
-                                         </p>
-                                       )}
-                                     </div>
-                                   )}
-                                 </>
-                               )}
-
-                               {/* Excluded Candidates Summary */}
-                               {comparisonData.excluded_results && comparisonData.excluded_results.length > 0 && (
-                                 <details style={{ marginTop: "15px", borderTop: "1px solid var(--dash-border)", paddingTop: "10px" }}>
-                                   <summary style={{ cursor: "pointer", fontWeight: 700, color: "var(--dash-secondary)", fontSize: "11px", outline: "none" }}>
-                                     🔍 {comparisonData.excluded_results.length} listings excluded during validation (Click to view)
-                                   </summary>
-                                   <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                                     {comparisonData.excluded_results.map((ex: any, idx: number) => (
-                                       <div key={idx} style={{ background: "rgba(255,255,255,0.02)", padding: "8px", borderRadius: "6px", fontSize: "11px", display: "flex", justifyContent: "space-between", alignItems: "start", border: "1px solid rgba(255,255,255,0.03)" }}>
-                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                           <div style={{ fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ex.title}</div>
-                                           <div style={{ color: "#ef4444", fontSize: "10px", marginTop: "2px" }}>Reject Reason: {ex.reason}</div>
-                                         </div>
-                                         <span style={{ fontSize: "10px", opacity: 0.6, flexShrink: 0, marginLeft: "10px" }}>{ex.store}</span>
-                                       </div>
-                                     ))}
-                                   </div>
-                                 </details>
-                               )}
-
-                               {comparisonData.sources && comparisonData.sources.length > 0 && (
-                                 <div style={{ marginTop: "12px", fontSize: "11px" }}>
-                                   <strong style={{ display: "block", fontSize: "10px", color: "var(--dash-secondary)", marginBottom: "4px" }}>Checked Sources</strong>
-                                   <ul style={{ margin: 0, paddingLeft: "15px", color: "var(--dash-secondary)" }}>
-                                     {comparisonData.sources.map((src: string, idx: number) => (
-                                       <li key={idx}>{src}</li>
-                                     ))}
-                                   </ul>
-                                 </div>
-                               )}
-                             </div>
-                           )}
-
-                          {actionId && (
-                            <div style={{ marginTop: "12px", display: "flex", gap: "10px", borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: "8px" }}>
-                              <button
-                                type="button"
-                                onClick={() => handleConfirmAction(actionId)}
-                                className="admin-btn admin-btn-primary"
-                                style={{ padding: "6px 12px", fontSize: "11px", display: "flex", alignItems: "center", gap: "4px", height: "auto", minHeight: "auto" }}
-                                disabled={confirmingActionId === actionId}
-                              >
-                                {confirmingActionId === actionId ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-                                <span>Confirm</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleCancelAction()}
-                                className="admin-btn admin-btn-secondary"
-                                style={{ padding: "6px 12px", fontSize: "11px", height: "auto", minHeight: "auto" }}
-                                disabled={confirmingActionId === actionId}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        <time>{formatTime(message.created_at)}</time>
-                      </div>
-                    );
-                  }) : (
-                    <div className="assistant-welcome"><div className="assistant-welcome-icon"><ShieldCheck size={24} /></div><h3>Let's verify this carefully.</h3><p>Verinova will keep the request, processing state and final assessment connected to your account.</p></div>
-                  )}
-
-                  {(activeTask.status === "completed" || activeTask.status === "verified" || activeTask.status === "approved") && (
-                    <div className="assistant-result-card"><div className="result-icon"><CheckCircle2 size={19} /></div><div><span>VERIFICATION COMPLETE</span><strong>{activeTask.confidence_score != null ? `${Number(activeTask.confidence_score).toFixed(1)}% confidence` : "Assessment available"}</strong><p>{activeTask.final_result || "The verification process has completed. Review the final assessment recorded for this request."}</p></div></div>
-                  )}
-
-                  {(activeTask.status === "needs_review" || activeTask.status === "awaiting_admin_review") && (
-                    <div className="assistant-result-card warning" style={{ background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.25)" }}>
-                      <div className="result-icon" style={{ color: "#f59e0b" }}><CircleAlert size={19} /></div>
-                      <div>
-                        <span style={{ color: "#f59e0b" }}>REVIEW REQUIRED</span>
-                        <strong>Verinova found information that requires human review.</strong>
-                        <p>{activeTask.final_result || "We encountered conflicting evidence or low confidence. An administrator has been notified to perform a manual review."}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTask.status === "inconclusive" && (
-                    <div className="assistant-result-card warning" style={{ background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.25)" }}>
-                      <div className="result-icon" style={{ color: "#f59e0b" }}><CircleAlert size={19} /></div>
-                      <div>
-                        <span style={{ color: "#f59e0b" }}>VERIFICATION INCONCLUSIVE</span>
-                        <strong>Evidence is insufficient or conflicting</strong>
-                        <p>{activeTask.final_result || "The verification could not verify this request with high confidence due to conflicting sources or lack of evidence."}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeTask.status === "failed" && (
-                    <div className="assistant-result-card failed"><div className="result-icon"><CircleAlert size={19} /></div><div><span>VERIFICATION NEEDS ATTENTION</span><strong>Processing could not be completed</strong><p>{activeTask.final_result || "Verinova could not complete this verification. You can continue the conversation or contact support."}</p></div></div>
-                  )}
-                </div>
-
-                <form className="assistant-composer" onSubmit={(event) => { event.preventDefault(); void sendVerificationMessage(); }}>
-                  <input value={messageInput} onChange={(event) => setMessageInput(event.target.value)} placeholder="Ask Verinova about this verification..." />
-                  <button type="submit" disabled={!messageInput.trim()} aria-label="Send message"><Send size={16} /></button>
-                </form>
-                <div className="assistant-disclaimer">Verification status is based on the data and processing recorded by Verinova. Results should be reviewed before making consequential decisions.</div>
-              </>
-            )}
-          </aside>
-        </div>
-      )}
-
-      {assistantLoading && <div className="assistant-loading"><div className="user-spinner" /></div>}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Optional, List, Dict, Union
 import secrets
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -37,6 +38,7 @@ import auth
 import core_models
 import models
 import schemas
+from services.agent.ai_provider import GeminiRateLimitError
 
 
 # ============================================================
@@ -96,7 +98,7 @@ FRONTEND_URL = os.getenv(
 
 BACKEND_URL = os.getenv(
     "BACKEND_URL",
-    "http://localhost:8001"
+    "http://localhost:8000"
 )
 
 GOOGLE_REDIRECT_URI = os.getenv(
@@ -205,6 +207,7 @@ def startup_db():
             conn.execute(text("ALTER TABLE user_memories ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
             conn.execute(text("ALTER TABLE user_memories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
             conn.execute(text("ALTER TABLE user_memories ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;"))
+            conn.execute(text("ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS user_read BOOLEAN DEFAULT TRUE;"))
             conn.commit()
             logger.info("Database columns migration completed successfully.")
     except Exception as e:
@@ -865,6 +868,84 @@ def upload_profile_image(
     return current_user
 
 
+@app.post(
+    "/api/agent/upload",
+    status_code=status.HTTP_200_OK
+)
+def upload_agent_file(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Save an attachment file to the uploads directory for AI agent context."""
+    allowed_extensions = {
+        ".pdf", ".doc", ".docx", ".txt", ".csv",
+        ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".webp"
+    }
+    filename = file.filename or ""
+    _, ext = os.path.splitext(filename.lower())
+
+    if ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file format. Supported: {', '.join(allowed_extensions)}"
+        )
+
+    # 10MB Limit
+    max_size = 10 * 1024 * 1024
+    try:
+        content = file.file.read(max_size + 1)
+        if len(content) > max_size:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File size exceeds the 10MB limit."
+            )
+        file.file.seek(0)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Error validating file size."
+        )
+
+    # Generate unique filename
+    clean_ext = ext.lstrip(".")
+    unique_filename = f"{current_user.id}_{uuid.uuid4().hex}.{clean_ext}"
+
+    upload_dir = os.path.join(os.path.dirname(__file__), "uploads", "attachments")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    file_path = os.path.join(upload_dir, unique_filename)
+
+    # Safety check against path traversal
+    real_upload_dir = os.path.realpath(upload_dir)
+    real_file_path = os.path.realpath(file_path)
+    if not real_file_path.startswith(real_upload_dir):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename."
+        )
+
+    # Save
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        logger.error(f"Failed to save uploaded attachment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not save file."
+        )
+
+    db_relative_path = f"/uploads/attachments/{unique_filename}"
+    return {
+        "filename": filename,
+        "file_url": db_relative_path,
+        "file_type": file.content_type or ext,
+        "file_size": len(content)
+    }
+
+
 # ============================================================
 # ACCEPT TERMS AND PRIVACY POLICY
 # ============================================================
@@ -896,9 +977,19 @@ def accept_legal_documents(
     return current_user
 
 
-# ============================================================
-# CHANGE USER PASSWORD
-# ============================================================
+def validate_password_strength(password: str):
+    if (
+        len(password) < 8
+        or not re.search(r"[A-Z]", password)
+        or not re.search(r"[a-z]", password)
+        or not re.search(r"[0-9]", password)
+        or not re.search(r"[^A-Za-z0-9]", password)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+        )
+
 
 @app.put("/api/user/password")
 def change_user_password(
@@ -921,12 +1012,24 @@ def change_user_password(
             detail="Current password is incorrect."
         )
 
+    if password_in.current_password == password_in.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from your current password."
+        )
+
+    validate_password_strength(password_in.new_password)
+
     current_user.password = auth.get_password_hash(
         password_in.new_password
     )
+
+    # Invalidate active sessions
+    db.query(models.UserSession).filter(models.UserSession.user_id == current_user.id).delete()
+
     db.commit()
 
-    return {"message": "Password changed successfully."}
+    return {"message": "Password updated successfully."}
 
 
 # ============================================================
@@ -1951,6 +2054,7 @@ def get_task_messages(
 def create_task_message(
     task_id: int,
     message_in: schemas.VerificationMessageCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
@@ -1983,6 +2087,74 @@ def create_task_message(
     task.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(message)
+
+    # Trigger background assistant follow-up response generation
+    def run_assistant_reply_in_background(tid: int, uid: int):
+        from database import SessionLocal
+        local_db = SessionLocal()
+        try:
+            from services.agent.ai_provider import get_active_provider
+            import json
+
+            t = local_db.query(core_models.Task).filter(core_models.Task.id == tid).first()
+            if not t:
+                return
+
+            msgs = (
+                local_db.query(models.VerificationMessage)
+                .filter(models.VerificationMessage.task_id == tid)
+                .order_by(models.VerificationMessage.created_at.asc())
+                .all()
+            )
+
+            api_messages = []
+            api_messages.append({
+                "role": "system",
+                "content": (
+                    "You are VeriNova, a professional outcome verification assistant.\n"
+                    f"Initial Task Goal: {t.description}\n"
+                    f"Task Outcome/Execution Result: {t.final_result or 'No execution outcomes recorded yet.'}\n\n"
+                    "Help the user by answering their follow-up questions using the task details and previous messages."
+                )
+            })
+
+            for m in msgs:
+                api_messages.append({
+                    "role": "user" if m.sender == "user" else "assistant",
+                    "content": m.message
+                })
+
+            provider = get_active_provider()
+            response = provider.generate(api_messages, task_id=tid, user_id=uid, db=local_db)
+            content = response["choices"][0]["message"]["content"]
+
+            reply = models.VerificationMessage(
+                task_id=tid,
+                user_id=uid,
+                sender="assistant",
+                message=content,
+                message_type="text"
+            )
+            local_db.add(reply)
+            local_db.commit()
+        except Exception as e:
+            logger.error(f"Failed to generate follow-up reply: {str(e)}")
+            try:
+                err_reply = models.VerificationMessage(
+                    task_id=tid,
+                    user_id=uid,
+                    sender="assistant",
+                    message="VeriNova couldn't complete this request right now. Please try again in a moment.",
+                    message_type="text"
+                )
+                local_db.add(err_reply)
+                local_db.commit()
+            except:
+                pass
+        finally:
+            local_db.close()
+
+    background_tasks.add_task(run_assistant_reply_in_background, task.id, current_user.id)
 
     return message
 
@@ -2350,6 +2522,19 @@ def get_user_contact_messages(
     return messages
 
 
+@app.post("/api/contact/messages/read")
+def mark_user_contact_messages_read(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    db.query(models.ContactMessage).filter(
+        models.ContactMessage.user_id == current_user.id,
+        models.ContactMessage.user_read == False
+    ).update({"user_read": True})
+    db.commit()
+    return {"message": "Messages marked as read."}
+
+
 # ============================================================
 # ADMIN - GET CONTACT MESSAGES
 # ============================================================
@@ -2426,6 +2611,7 @@ def admin_reply_contact_message(
 
     msg.admin_reply = reply_in.admin_reply
     msg.status = "replied"
+    msg.user_read = False
     db.commit()
     db.refresh(msg)
 
@@ -2490,6 +2676,29 @@ def admin_delete_contact_message(
     return {"message": "Contact message deleted successfully."}
 
 
+from fastapi.responses import JSONResponse
+
+def classify_ai_exception(e: Exception):
+    err_str = str(e).lower()
+    
+    if isinstance(e, GeminiRateLimitError):
+        return status.HTTP_429_TOO_MANY_REQUESTS, "AI_RATE_LIMITED", str(e), getattr(e, "retry_delay_seconds", None)
+        
+    if "rate limit" in err_str or "429" in err_str or "resource_exhausted" in err_str:
+        return status.HTTP_429_TOO_MANY_REQUESTS, "AI_RATE_LIMITED", "AI service is temporarily rate-limited. Please try again shortly.", None
+        
+    if "auth" in err_str or "unauthorized" in err_str or "401" in err_str or "403" in err_str or "permission" in err_str or "key is missing" in err_str:
+        return status.HTTP_401_UNAUTHORIZED, "AI_AUTH_ERROR", "AI authentication failed or permission was denied.", None
+        
+    if "bad request" in err_str or "400" in err_str or "rejected request" in err_str:
+        return status.HTTP_400_BAD_REQUEST, "AI_BAD_REQUEST", f"AI rejected the request parameters: {str(e)}", None
+        
+    if "network" in err_str or "timeout" in err_str or "getaddrinfo" in err_str or "dns" in err_str or "connection" in err_str:
+        return status.HTTP_504_GATEWAY_TIMEOUT, "AI_PROVIDER_UNAVAILABLE", "AI service is temporarily offline or unreachable.", None
+        
+    return status.HTTP_502_BAD_GATEWAY, "AI_PROVIDER_ERROR", f"AI provider returned an error: {str(e)}", None
+
+
 # ============================================================
 # AGENT - GENERATE PLAN
 # ============================================================
@@ -2525,6 +2734,14 @@ def create_agent_plan(
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    request_id = f"task_{task.id}"
+    logger.info(f"[AGENT REQUEST] request_id={request_id} received")
+    logger.info(f"[AGENT REQUEST] request_id={request_id} planner_started")
+
+    # Set context variables for request logging alignment
+    from services.agent.ai_provider import request_id_ctx
+    ctx_token = request_id_ctx.set(request_id)
 
     # Log step 1: task_received
     log_received = core_models.TaskExecutionLog(
@@ -2592,45 +2809,60 @@ def create_agent_plan(
         db.add(initial_msg)
         db.commit()
 
+        logger.info(f"[AGENT REQUEST] request_id={request_id} planner_finished")
+
         return {
             "task_id": task.id,
             "plan": plan_data
         }
 
     except Exception as e:
-        # Update task status to failed on planner error
+        # Classify the error type
+        status_code, err_code, err_msg, retry_seconds = classify_ai_exception(e)
+
         task.status = "failed"
         task.execution_status = "FAILED"
-        task.final_result = str(e)
+        task.final_result = err_msg
         
-        # Add failure message to chat conversation
         fail_msg = models.VerificationMessage(
             task_id=task.id,
             user_id=current_user.id,
             sender="assistant",
-            message=f"I failed to plan the task: {str(e)}",
+            message=f"I failed to plan the task: {err_msg}",
             message_type="status"
         )
         db.add(fail_msg)
         db.commit()
 
         duration = int((time.time() - start_time) * 1000)
-        # Log failure step
         log_failed = core_models.TaskExecutionLog(
             task_id=task.id,
             step="planning_failed",
-            message=f"Failed to generate structured plan: {str(e)}",
+            message=f"Failed to generate structured plan: {err_msg}",
             status="failed",
             duration_ms=duration
         )
         db.add(log_failed)
         db.commit()
-        logger.error(f"Planning failed: {str(e)}")
+        logger.error(f"[AGENT REQUEST] request_id={request_id} planning failed ({err_code}): {err_msg}")
 
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Agent planner failed: {str(e)}"
+        headers = {}
+        if retry_seconds:
+            headers["Retry-After"] = str(int(retry_seconds))
+
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "success": False,
+                "error": {
+                    "code": err_code,
+                    "message": err_msg
+                }
+            },
+            headers=headers
         )
+    finally:
+        request_id_ctx.reset(ctx_token)
 
 
 # ============================================================
@@ -2736,6 +2968,155 @@ def execute_agent_task(
         "status": "planning",
         "result": "Task execution queued successfully in the background worker."
     }
+
+
+# ============================================================
+# AGENT - RUN WORKFLOW VIA N8N
+# ============================================================
+
+@app.post(
+    "/api/agent/run",
+    response_model=schemas.AgentRunResponse,
+    status_code=status.HTTP_200_OK
+)
+def run_agent_workflow(
+    req: schemas.AgentRunRequest,
+    db: Session = Depends(get_db)
+):
+    n8n_webhook_url = os.getenv("N8N_WEBHOOK_URL", "").strip()
+    if not n8n_webhook_url:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="n8n webhook URL is not configured. Please set N8N_WEBHOOK_URL in environment variables."
+        )
+
+    payload = {
+        "message": req.message,
+        "conversation_id": req.conversation_id or f"conv_{uuid.uuid4().hex[:8]}",
+        "task_id": req.task_id,
+        "user_id": req.user_id
+    }
+
+    n8n_api_key = os.getenv("N8N_API_KEY", "").strip()
+    headers = {
+        "Content-Type": "application/json"
+    }
+    if n8n_api_key:
+        headers["X-N8N-API-KEY"] = n8n_api_key
+
+    import urllib.request
+    import urllib.parse
+    import json
+    
+    req_data = json.dumps(payload).encode("utf-8")
+    http_req = urllib.request.Request(
+        n8n_webhook_url,
+        data=req_data,
+        headers=headers,
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(http_req, timeout=60) as response:
+            res_data = response.read().decode("utf-8")
+            if not res_data:
+                raise ValueError("Received empty response from n8n webhook.")
+            res_json = json.loads(res_data)
+            
+            return {
+                "success": res_json.get("success", True),
+                "task": res_json.get("task"),
+                "answer": res_json.get("answer", ""),
+                "results": res_json.get("results"),
+                "sources": res_json.get("sources"),
+                "verification": res_json.get("verification"),
+                "tools_used": res_json.get("tools_used"),
+                "requires_confirmation": res_json.get("requires_confirmation", False)
+            }
+    except Exception as e:
+        logger.error(f"Error calling n8n workflow: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"n8n AI agent connection failed: {str(e)}"
+        )
+
+
+# ============================================================
+# AGENT - SECURE TOOL EXECUTION FOR N8N
+# ============================================================
+
+@app.post(
+    "/api/agent/tool/execute",
+    status_code=status.HTTP_200_OK
+)
+def execute_agent_tool_for_n8n(
+    req: dict,
+    db: Session = Depends(get_db)
+):
+    tool_name = req.get("tool_name")
+    tool_args = req.get("tool_args", {})
+    user_id = req.get("user_id")
+    task_id = req.get("task_id")
+
+    if not tool_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing required field 'tool_name' in request payload."
+        )
+
+    from services.agent.tool_registry import get_tool
+    tool = get_tool(tool_name)
+    if not tool:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tool '{tool_name}' not found in VeriNova registry."
+        )
+
+    try:
+        import inspect
+        sig = inspect.signature(tool.func)
+        kwargs = {}
+        validated_args = tool.input_schema(**tool_args)
+        kwargs = validated_args.model_dump() if hasattr(validated_args, "model_dump") else validated_args.dict()
+        
+        if "db" in sig.parameters:
+            kwargs["db"] = db
+        if "current_user" in sig.parameters and user_id:
+            user = db.query(models.User).filter(models.User.id == user_id).first()
+            kwargs["current_user"] = user
+
+        raw_result = tool.func(**kwargs)
+        return {
+            "success": True,
+            "tool": tool_name,
+            "data": raw_result
+        }
+    except Exception as e:
+        logger.error(f"Tool {tool_name} execution failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Tool execution failed: {str(e)}"
+        )
+
+
+@app.post("/api/test/n8n")
+def test_n8n_connection(
+    payload: dict,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Test n8n connectivity by sending a request payload and returning the result."""
+    from services.n8n_service import N8NService
+    try:
+        res = N8NService.call_webhook(payload)
+        return {
+            "success": True,
+            "response": res
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"n8n test connection failed: {str(e)}"
+        )
 
 
 @app.post("/api/tasks/{task_id}/cancel")

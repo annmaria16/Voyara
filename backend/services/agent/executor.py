@@ -171,6 +171,75 @@ def _execute_tool_with_retries(tool, tool_name, tool_args, validated_args, task,
     return tool_success, normalized_result, duration, last_error
 
 
+def _execute_tool_via_n8n_webhook(n8n_url: str, task: str, tool_name: str, parameters: dict, task_id: int, user_id: int):
+    import urllib.request
+    import json
+    import time
+
+    start_time = time.time()
+    payload = {
+        "task": task,
+        "tool": tool_name,
+        "parameters": parameters,
+        "user_id": str(user_id),
+        "task_id": str(task_id)
+    }
+
+    n8n_api_key = os.getenv("N8N_API_KEY", "").strip()
+    headers = {
+        "Content-Type": "application/json"
+    }
+    if n8n_api_key:
+        headers["X-N8N-API-KEY"] = n8n_api_key
+
+    req_data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(n8n_url, data=req_data, headers=headers, method="POST")
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            res_data = response.read().decode("utf-8")
+            duration = int((time.time() - start_time) * 1000)
+            if not res_data:
+                raise ValueError("n8n webhook returned empty response.")
+
+            res_json = json.loads(res_data)
+            success = res_json.get("success", False)
+            error = res_json.get("error")
+            data = res_json.get("data")
+            
+            if not success:
+                raise ValueError(error or "n8n tool execution indicated success=False.")
+
+            normalized_result = {
+                "success": True,
+                "tool": tool_name,
+                "data": data,
+                "error": None,
+                "metadata": {
+                    "durationMs": duration,
+                    "source": "n8n"
+                }
+            }
+            return True, normalized_result, duration, None
+    except Exception as e:
+        duration = int((time.time() - start_time) * 1000)
+        logger.error(f"Failed to execute tool {tool_name} via n8n: {str(e)}")
+        normalized_result = {
+            "success": False,
+            "tool": tool_name,
+            "data": None,
+            "error": {
+                "code": "N8N_EXECUTION_FAILED",
+                "message": str(e)
+            },
+            "metadata": {
+                "durationMs": duration,
+                "source": "n8n"
+            }
+        }
+        return False, normalized_result, duration, e
+
+
 def run_agent_loop(
     task: core_models.Task,
     db: Session,
@@ -377,9 +446,15 @@ def run_agent_loop(
             db.commit()
             raise ValueError(action_record.error_message)
 
-        tool_success, normalized_result, duration, last_error = _execute_tool_with_retries(
-            tool, action_record.tool_name, action_record.input_data, validated_args, task, db, current_user
-        )
+        n8n_url = os.getenv("N8N_WEBHOOK_URL", "").strip()
+        if n8n_url:
+            tool_success, normalized_result, duration, last_error = _execute_tool_via_n8n_webhook(
+                n8n_url, task.description, action_record.tool_name, action_record.input_data, task.id, task.user_id
+            )
+        else:
+            tool_success, normalized_result, duration, last_error = _execute_tool_with_retries(
+                tool, action_record.tool_name, action_record.input_data, validated_args, task, db, current_user
+            )
 
         redacted_args = redact_sensitive_data(action_record.input_data)
         if tool_success:
@@ -832,9 +907,15 @@ def run_agent_loop(
                 thread_db.commit()
 
                 # Execute tool
-                tool_success, normalized_result, duration, last_error = _execute_tool_with_retries(
-                    tool, step_ref["tool"], tool_args, validated_args, thread_task, thread_db, thread_user
-                )
+                n8n_url = os.getenv("N8N_WEBHOOK_URL", "").strip()
+                if n8n_url:
+                    tool_success, normalized_result, duration, last_error = _execute_tool_via_n8n_webhook(
+                        n8n_url, thread_task.description, step_ref["tool"], tool_args, thread_task.id, thread_task.user_id
+                    )
+                else:
+                    tool_success, normalized_result, duration, last_error = _execute_tool_with_retries(
+                        tool, step_ref["tool"], tool_args, validated_args, thread_task, thread_db, thread_user
+                    )
 
                 if tool_success:
                     # Record tool success in health check
@@ -961,12 +1042,16 @@ def run_agent_loop(
     any_failed = any(s["status"] == "FAILED" for s in steps)
     if any_failed:
         failed_step = next(s for s in steps if s["status"] == "FAILED")
-        err_msg = f"Step {failed_step['step_id']} failed: {failed_step['error']}"
+        err_msg = failed_step.get("error", "Unknown error")
+        if "429" in err_msg or "rate limit" in err_msg.lower() or "too many requests" in err_msg.lower() or "circuit breaker" in err_msg.lower():
+            friendly_msg = "Live search is temporarily unavailable. We could not verify current prices from external sources."
+        else:
+            friendly_msg = f"Step {failed_step['step_id']} failed: {err_msg}"
         task.execution_status = "FAILED"
         task.status = "failed"
         db.commit()
-        _log_failure(task, db, err_msg)
-        return f"Execution failed: {err_msg}"
+        _log_failure(task, db, friendly_msg)
+        return f"Execution failed: {friendly_msg}"
 
     # Set task status to analyzing (Section 12)
     task.status = "analyzing"
@@ -994,10 +1079,12 @@ def run_agent_loop(
         "- **Inferences & Recommendations**: Logical deductions and suggested choices.\n"
         "- **Limitations & Unknowns**: Factors that could not be verified or variables that remain uncertain."
     )
+    from services.agent.ai_provider import truncate_large_values
+    truncated_summary = truncate_large_values(completed_steps_summary)
     prompt_final = (
         f"Task Goal: {task.description}\n"
         f"{mem_context}"
-        f"Executed Steps Results: {json.dumps(completed_steps_summary)}\n\n"
+        f"Executed Steps Results: {json.dumps(truncated_summary)}\n\n"
         f"Generate the final answer response."
     )
 
@@ -1054,7 +1141,8 @@ def run_agent_loop(
                             "storage_gb": o.get("storage_gb"),
                             "processor": o.get("processor"),
                             "gpu": o.get("gpu"),
-                            "verification_status": o.get("verification_status") or "VERIFIED"
+                            "verification_status": o.get("verification_status") or "VERIFIED",
+                            "image_url": o.get("image_url")
                         })
 
                 prices = [off["price"] for off in offers if off["price"] is not None]

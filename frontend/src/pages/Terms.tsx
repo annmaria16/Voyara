@@ -32,7 +32,7 @@ export default function Terms() {
 
           <article className="prose prose-invert max-w-none flex flex-col gap-8 text-[14.5px] leading-relaxed text-dash-secondary font-medium">
             <p className="text-dash-text text-base font-semibold">
-              These Terms & Conditions explain the rules, terms, and guidelines for using the VeriNova AI outcome verification platform.
+              These Terms & Conditions explain the rules, terms, and guidelines for using the VeriNova outcome verification platform.
             </p>
 
             <section className="flex flex-col gap-3 text-left">
@@ -40,7 +40,7 @@ export default function Terms() {
                 1. Acceptance of Terms
               </h2>
               <p>
-                By registering an account or accessing VeriNova AI, you agree to comply with and be bound by these Terms & Conditions. If you do not agree, you must not create an account or use our platform services.
+                By registering an account or accessing VeriNova, you agree to comply with and be bound by these Terms & Conditions. If you do not agree, you must not create an account or use our platform services.
               </p>
             </section>
 
@@ -49,7 +49,7 @@ export default function Terms() {
                 2. Description of VeriNova
               </h2>
               <p>
-                VeriNova AI is an automated outcome verification platform. The platform allows users to submit claims, details, or documents to verify their authenticity and truth value before trusting them.
+                VeriNova is an automated outcome verification platform. The platform allows users to submit claims, details, or documents to verify their authenticity and truth value before trusting them.
               </p>
             </section>
 
@@ -94,7 +94,7 @@ export default function Terms() {
                 7. AI Verification Results
               </h2>
               <p>
-                VeriNova AI utilizes advanced artificial intelligence models to check and analyze outcome claims. Results are output as confidence scores, reports, and statuses (pending, verified, rejected).
+                VeriNova utilizes advanced artificial intelligence models to check and analyze outcome claims. Results are output as confidence scores, reports, and statuses (pending, verified, rejected).
               </p>
             </section>
 
@@ -112,7 +112,7 @@ export default function Terms() {
                 9. Intellectual Property
               </h2>
               <p>
-                All elements of the VeriNova platform, including frontend code, designs, logos, backend systems, and automated checking algorithms, are the property of VeriNova AI and protected by intellectual property laws.
+                All elements of the VeriNova platform, including frontend code, designs, logos, backend systems, and automated checking algorithms, are the property of VeriNova and protected by intellectual property laws.
               </p>
             </section>
 
@@ -157,7 +157,7 @@ export default function Terms() {
                 14. Limitation of Liability
               </h2>
               <p>
-                To the maximum extent permitted by law, VeriNova AI shall not be liable for any direct, indirect, incidental, or consequential damages resulting from your use of, or inability to use, verification outcomes or services.
+                To the maximum extent permitted by law, VeriNova shall not be liable for any direct, indirect, incidental, or consequential damages resulting from your use of, or inability to use, verification outcomes or services.
               </p>
             </section>
 

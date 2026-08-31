@@ -27,7 +27,7 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
           </div>
           <div className="text-left">
             <h1 className="text-xl font-black text-dash-text tracking-wide leading-none group-hover:text-dash-primary transition-colors">
-              VeriNova AI
+              VeriNova
             </h1>
             <p className="text-dash-secondary text-[10px] tracking-[0.15em] font-bold uppercase mt-1">
               Outcome Verification

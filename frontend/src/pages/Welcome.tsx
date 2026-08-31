@@ -56,7 +56,7 @@ export default function Welcome() {
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black text-dash-text tracking-tight">
-            Welcome to VeriNova AI
+            Welcome to VeriNova
           </h2>
           <p className="text-dash-primary text-sm mt-2 font-bold tracking-wide">
             You are successfully signed in.

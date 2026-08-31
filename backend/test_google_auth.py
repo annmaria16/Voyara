@@ -11,13 +11,16 @@ sys.path.append("c:/Users/HP/Documents/verinova/backend")
 os.environ["TAVILY_API_KEY"] = "dummy_tavily_key"
 os.environ["GOOGLE_CLIENT_ID"] = "test_google_client_id"
 os.environ["GOOGLE_CLIENT_SECRET"] = "test_google_client_secret"
-os.environ["GOOGLE_REDIRECT_URI"] = "http://localhost:8001/api/auth/google/callback"
+os.environ["GOOGLE_REDIRECT_URI"] = "http://localhost:8000/api/auth/google/callback"
 
 from main import app, get_db
 import main
 main.GOOGLE_CLIENT_ID = "test_google_client_id"
 main.GOOGLE_CLIENT_SECRET = "test_google_client_secret"
-main.GOOGLE_REDIRECT_URI = "http://localhost:8001/api/auth/google/callback"
+main.GOOGLE_REDIRECT_URI = "http://localhost:8000/api/auth/google/callback"
+os.environ["GOOGLE_CLIENT_ID"] = "test_google_client_id"
+os.environ["GOOGLE_CLIENT_SECRET"] = "test_google_client_secret"
+os.environ["GOOGLE_REDIRECT_URI"] = "http://localhost:8000/api/auth/google/callback"
 import models
 
 class TestGoogleAuth(unittest.TestCase):
@@ -39,7 +42,7 @@ class TestGoogleAuth(unittest.TestCase):
         location = response.headers.get("location", "")
         self.assertIn("accounts.google.com", location)
         self.assertIn("client_id=test_google_client_id", location)
-        self.assertIn("redirect_uri=http%3A%2F%2Flocalhost%3A8001%2Fapi%2Fauth%2Fgoogle%2Fcallback", location)
+        self.assertIn("redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fapi%2Fauth%2Fgoogle%2Fcallback", location)
 
     @patch("main.make_http_request")
     def test_google_callback_success(self, mock_make_request):

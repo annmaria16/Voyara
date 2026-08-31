@@ -233,6 +233,7 @@ class ContactMessageResponse(BaseModel):
     message: str
     status: str
     admin_reply: Optional[str] = None
+    user_read: bool = True
     created_at: datetime
     updated_at: datetime
 
@@ -403,3 +404,21 @@ class ActionConfirmRequest(BaseModel):
     confirmation_id: str = Field(..., min_length=1, max_length=50)
     tool_id: str = Field(..., min_length=1, max_length=50)
     arguments: dict = Field(..., description="Action parameter arguments to verify hash integrity.")
+
+
+class AgentRunRequest(BaseModel):
+    message: str = Field(..., min_length=1)
+    conversation_id: Optional[str] = None
+    task_id: Optional[int] = None
+    user_id: Optional[int] = None
+
+
+class AgentRunResponse(BaseModel):
+    success: bool
+    task: Optional[dict] = None
+    answer: str
+    results: Optional[list] = None
+    sources: Optional[list] = None
+    verification: Optional[dict] = None
+    tools_used: Optional[list] = None
+    requires_confirmation: bool

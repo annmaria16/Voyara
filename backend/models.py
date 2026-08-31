@@ -358,6 +358,13 @@ class ContactMessage(Base):
         nullable=True
     )
 
+    user_read = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true"
+    )
+
     created_at = Column(
         DateTime,
         nullable=False,

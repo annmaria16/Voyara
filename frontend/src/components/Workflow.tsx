@@ -13,7 +13,7 @@ export default function Workflow() {
     },
     {
       title: "Analyze",
-      desc: "VeriNova AI analyzes the submitted information and evaluates the available evidence.",
+      desc: "VeriNova analyzes the submitted information and evaluates the available evidence.",
       icon: Search,
     },
     {
@@ -55,7 +55,7 @@ export default function Workflow() {
             Operational Flow
           </span>
           <h2 className="text-3xl sm:text-4xl font-black text-dash-text mt-3 leading-tight">
-            How VeriNova AI Works
+            How VeriNova Works
           </h2>
           <p className="text-dash-secondary mt-4 text-base leading-relaxed font-semibold">
             Verify information in a simple, structured workflow.

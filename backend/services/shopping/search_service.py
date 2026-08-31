@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import cast, String
 
 import core_models
 from services.shopping.providers.amazon import AmazonProvider
@@ -38,7 +39,7 @@ def execute_product_search(
         db.query(core_models.ProductSearch)
         .filter(
             core_models.ProductSearch.query == query,
-            core_models.ProductSearch.filters == filters_json,
+            cast(core_models.ProductSearch.filters, String) == filters_json,
             core_models.ProductSearch.created_at >= cache_cutoff
         )
         .order_by(core_models.ProductSearch.created_at.desc())

@@ -169,7 +169,7 @@ export default function Contact() {
               Let's Talk
             </h2>
             <p className="text-dash-secondary mt-5 text-base leading-relaxed font-semibold">
-              Have questions about integrating VeriNova AI into your workflows, or want to learn how we can help you build trust in your AI-driven operations? Get in touch with our team.
+              Have questions about integrating VeriNova into your workflows, or want to learn how we can help you build trust in your AI-driven operations? Get in touch with our team.
             </p>
 
             <div className="mt-8 flex flex-col gap-5">

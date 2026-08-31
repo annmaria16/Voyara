@@ -21,7 +21,7 @@ export default function Logo({ subtitle = "Outcome Verification", to = "/", size
       </div>
       <div className="text-left">
         <h1 className={`${titleClass} text-dash-text group-hover:text-dash-primary transition-colors`}>
-          VeriNova AI
+          VeriNova
         </h1>
         <p className={`${subtitleClass} text-dash-secondary`}>
           {subtitle}

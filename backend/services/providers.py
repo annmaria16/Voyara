@@ -399,7 +399,7 @@ class ShoppingProvider:
             offers.append({
                 "id": len(offers) + 1,
                 "title": title,
-                "price": price if price is not None else 59999,  # Default if not found
+                "price": price,
                 "shipping": 0 if idx % 2 == 0 else 150,
                 "discount": 1500 if idx == 0 else 0,
                 "availability": "IN_STOCK" if idx < 4 else "OUT_OF_STOCK",
@@ -407,44 +407,6 @@ class ShoppingProvider:
                 "seller": seller,
                 "source_type": "LIVE"
             })
-
-        # 3. For any requested store, if not present or missing a price, generate a clearly identified demo fallback
-        for store in stores:
-            has_store = any(o["seller"].lower() == store.lower() for o in offers)
-            if not has_store:
-                if "iphone 15" in query.lower():
-                    price = 57999 if store == "Flipkart" else (58499 if store == "Amazon" else 59499)
-                elif "laptop" in query.lower():
-                    price = 54999 if store == "Flipkart" else (55999 if store == "Amazon" else 58999)
-                else:
-                    price = (budget - 2000) if budget else 25000
-                    if store == "Amazon":
-                        price += 500
-                    elif store == "Meesho":
-                        price += 1500
-
-                # Build a realistic title that matches query requirements so the demo data can be verified
-                fallback_title = product_title
-                if "laptop" in query.lower() and "laptop" not in fallback_title.lower():
-                    fallback_title += " Laptop"
-                elif "phone" in query.lower() and "phone" not in fallback_title.lower() and "iphone" not in fallback_title.lower():
-                    fallback_title += " Phone"
-                    
-                for spec in ["16gb ram", "8gb ram", "32gb ram", "512gb ssd", "256gb ssd", "1tb ssd", "core i5", "core i7", "core i3", "ryzen 5", "ryzen 7", "rtx 3050", "rtx 4060"]:
-                    if spec in query.lower() and spec not in fallback_title.lower():
-                        fallback_title += f" {spec.upper()}"
-
-                offers.append({
-                    "id": len(offers) + 1,
-                    "title": f"{fallback_title} (Demo Fallback)",
-                    "price": price,
-                    "shipping": 0,
-                    "discount": 0,
-                    "availability": "IN_STOCK",
-                    "url": f"https://www.{store.lower()}.com/search?q={urllib.parse.quote(product_title)}",
-                    "seller": f"{store} (Demo Fallback)",
-                    "source_type": "DEMO"
-                })
 
         return offers
 
@@ -465,3 +427,4 @@ class TravelProvider:
             {"flight_number": "6E-205", "airline": "IndiGo", "price": 4750, "duration": "2h 30m"},
             {"flight_number": "QP-409", "airline": "Akasa Air", "price": 4200, "duration": "2h 45m"}
         ]
+

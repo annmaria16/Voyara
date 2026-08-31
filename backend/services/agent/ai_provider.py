@@ -5,7 +5,39 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 from services.openai_service import call_openai_chat, OpenAIServiceError
 
+import threading
+import contextvars
 logger = logging.getLogger("verinova.ai_provider")
+gemini_concurrency_limiter = threading.Semaphore(2)
+request_id_ctx = contextvars.ContextVar("request_id", default=None)
+
+class GeminiRateLimitError(Exception):
+    def __init__(self, message: str, retry_delay_seconds: float = None):
+        super().__init__(message)
+        self.retry_delay_seconds = retry_delay_seconds
+
+def truncate_large_values(data, max_len=1500):
+    if isinstance(data, dict):
+        new_dict = {}
+        for k, v in data.items():
+            if k in ("content", "html", "raw_html", "text", "body") and isinstance(v, str) and len(v) > max_len:
+                new_dict[k] = v[:max_len] + f"... [truncated {len(v) - max_len} chars]"
+            else:
+                new_dict[k] = truncate_large_values(v, max_len)
+        return new_dict
+    elif isinstance(data, list):
+        if len(data) > 6:
+            truncated_list = [truncate_large_values(item, max_len) for item in data[:6]]
+            truncated_list.append(f"... [truncated {len(data) - 6} items]")
+            return truncated_list
+        else:
+            return [truncate_large_values(item, max_len) for item in data]
+    elif isinstance(data, str):
+        if len(data) > max_len:
+            return data[:max_len] + f"... [truncated {len(data) - max_len} chars]"
+        return data
+    else:
+        return data
 
 class AIProviderInterface:
     def generate(self, messages: list, response_format: dict = None, task_id: int = None, user_id: int = None, db = None) -> dict:
@@ -537,154 +569,123 @@ class GeminiProvider(AIProviderInterface):
             method="POST"
         )
 
+        logger.info(f"Gemini generate content: sending request to model={model}...")
+
         # ---------------------------------------------------------
-        # 6. Call Gemini with retry/backoff
+        # 6. Call Gemini with retry/backoff & Concurrency Limiter
         # ---------------------------------------------------------
+        import uuid
+        ctx_id = request_id_ctx.get()
+        request_id = ctx_id if ctx_id else (f"task_{task_id}" if task_id else f"req_{uuid.uuid4().hex[:6]}")
+
+        # Concurrency Limiter: Wait up to 15 seconds. If busy, raise GeminiRateLimitError.
+        acquired = gemini_concurrency_limiter.acquire(timeout=15.0)
+        if not acquired:
+            raise GeminiRateLimitError("AI service is busy handling other requests. Please try again shortly.", retry_delay_seconds=15)
 
         import time
         import random
 
-        MAX_RETRIES = 4
+        MAX_ATTEMPTS = 3
+        res_json = None
 
-        for attempt in range(MAX_RETRIES):
-            try:
-                with urllib.request.urlopen(
-                    req,
-                    timeout=8
-                ) as response:
-
-                    status_code = response.status
-                    res_data = response.read().decode("utf-8")
-
-                    if not res_data:
-                        raise Exception(
-                            "Gemini returned an empty HTTP response."
-                        )
-
-                    res_json = json.loads(res_data)
-
-                    # Success
-                    break
-
-            except urllib.error.HTTPError as e:
-
-                error_body = ""
-
+        try:
+            for attempt in range(1, MAX_ATTEMPTS + 1):
+                logger.info(f"[Gemini] request_id={request_id} attempt={attempt}")
                 try:
-                    error_body = e.read().decode("utf-8")
-                except Exception:
-                    pass
+                    with urllib.request.urlopen(
+                        req,
+                        timeout=15
+                    ) as response:
 
-                # ---------------------------------------------
-                # Retry 429
-                # ---------------------------------------------
-                if e.code == 429:
+                        status_code = response.status
+                        res_data = response.read().decode("utf-8")
 
-                    if attempt >= MAX_RETRIES - 1 or "quota" in error_body.lower():
-                        logger.error(
-                            "Gemini 429 after all retries: %s",
-                            error_body
-                        )
-                        logger.warning("Gemini quota/rate limit exhausted. Falling back to LocalProvider generate.")
-                        return LocalProvider().generate(
-                            messages=messages,
-                            response_format=response_format,
-                            task_id=task_id,
-                            user_id=user_id,
-                            db=db
-                        )
+                        if not res_data:
+                            raise Exception("Gemini returned an empty HTTP response.")
 
-                    # Exponential backoff:
-                    # 2s, 4s, 8s, 16s + small random jitter
+                        try:
+                            res_json = json.loads(res_data)
+                        except json.JSONDecodeError:
+                            logger.error(f"[Gemini] request_id={request_id} status=InvalidJSON")
+                            raise Exception("Gemini returned an invalid JSON response.")
+
+                        logger.info(f"[Gemini] request_id={request_id} status=200")
+                        logger.info(f"[Gemini] request_id={request_id} completed")
+                        break
+
+                except urllib.error.HTTPError as e:
+                    error_body = ""
+                    try:
+                        error_body = e.read().decode("utf-8")
+                    except Exception:
+                        pass
+
+                    logger.info(f"[Gemini] request_id={request_id} status={e.code}")
+
+                    # Abort immediately on non-retryable errors (not 429, not 5xx)
+                    if e.code not in (429, 500, 502, 503, 504):
+                        if e.code == 400:
+                            raise Exception(f"Gemini rejected request (HTTP 400): {error_body}")
+                        elif e.code in (401, 403):
+                            raise Exception(f"Gemini authentication/permission error (HTTP {e.code}): {error_body}")
+                        else:
+                            raise Exception(f"Gemini API request failed with HTTP {e.code}: {error_body}")
+
+                    # Determine retry delay from Retry-After header
+                    retry_seconds = None
+                    retry_after_hdr = e.headers.get("Retry-After")
+                    if retry_after_hdr:
+                        try:
+                            retry_seconds = float(retry_after_hdr)
+                        except ValueError:
+                            pass
+
+                    # Parse from JSON details if 429
+                    if e.code == 429 and not retry_seconds:
+                        try:
+                            err_data = json.loads(error_body)
+                            details = err_data.get("error", {}).get("details", [])
+                            for detail in details:
+                                if "RetryInfo" in detail.get("@type", "") or "retryDelay" in detail:
+                                    delay_str = detail.get("retryDelay", "60s")
+                                    if delay_str.endswith("s"):
+                                        retry_seconds = float(delay_str[:-1])
+                                    else:
+                                        retry_seconds = float(delay_str)
+                                    break
+                        except Exception:
+                            pass
+
+                    if attempt >= MAX_ATTEMPTS:
+                        if e.code == 429:
+                            msg = "Gemini API rate limit exceeded (HTTP 429)."
+                            if retry_seconds:
+                                msg += f" Please retry in {int(retry_seconds)} seconds."
+                            else:
+                                msg += " Please try again in a minute."
+                            raise GeminiRateLimitError(msg, retry_delay_seconds=retry_seconds)
+                        else:
+                            raise Exception(f"Gemini API request failed after all retries (HTTP {e.code}): {error_body}")
+
+                    # Exponential backoff: 2s, 4s, 8s + jitter
                     delay = (2 ** attempt) + random.uniform(0.2, 0.8)
+                    if retry_seconds and retry_seconds > delay:
+                        delay = retry_seconds
 
-                    logger.warning(
-                        "Gemini returned HTTP 429. "
-                        f"Retrying in {delay:.2f}s "
-                        f"(attempt {attempt + 1}/{MAX_RETRIES})"
-                    )
-
+                    logger.info(f"[Gemini] request_id={request_id} retry={delay:.2f}")
                     time.sleep(delay)
-                    continue
 
-                # ---------------------------------------------
-                # Other HTTP errors
-                # ---------------------------------------------
-                if e.code == 400:
-                    raise Exception(
-                        "Gemini rejected the request (HTTP 400). "
-                        f"Gemini response: {error_body}"
-                    )
-
-                if e.code in (401, 403):
-                    raise Exception(
-                        "Gemini API authentication/permission error. "
-                        f"Gemini response: {error_body}"
-                    )
-
-                if e.code >= 500 and attempt < MAX_RETRIES - 1:
+                except urllib.error.URLError as e:
+                    logger.info(f"[Gemini] request_id={request_id} status=NetworkError")
+                    if attempt >= MAX_ATTEMPTS:
+                        raise Exception(f"Gemini network error after all retries: {str(e.reason)}")
 
                     delay = (2 ** attempt) + random.uniform(0.2, 0.8)
-
-                    logger.warning(
-                        "Gemini server error HTTP %s. "
-                        f"Retrying in {delay:.2f}s",
-                        e.code
-                    )
-
+                    logger.info(f"[Gemini] request_id={request_id} retry={delay:.2f}")
                     time.sleep(delay)
-                    continue
-
-                raise Exception(
-                    f"Gemini API request failed with HTTP {e.code}: "
-                    f"{error_body}"
-                )
-
-            except urllib.error.URLError as e:
-
-                if attempt < MAX_RETRIES - 1:
-
-                    delay = (2 ** attempt) + random.uniform(0.2, 0.8)
-
-                    logger.warning(
-                        "Gemini network error: %s. "
-                        f"Retrying in {delay:.2f}s",
-                        e
-                    )
-
-                    time.sleep(delay)
-                    continue
-
-                raise Exception(
-                    f"Gemini network error: {str(e)}"
-                )
-
-            except json.JSONDecodeError as e:
-
-                logger.error(
-                    "Gemini returned invalid JSON: %s",
-                    e
-                )
-
-                raise Exception(
-                    "Gemini returned an invalid JSON response."
-                )
-
-            except Exception as e:
-
-                logger.error(
-                    "Gemini API request failed: %s",
-                    e
-                )
-
-                raise Exception(
-                    f"Gemini API request failed: {str(e)}"
-                )
-
-        else:
-            raise Exception(
-                "Gemini request failed after all retry attempts."
-            )
+        finally:
+            gemini_concurrency_limiter.release()
 
         # ---------------------------------------------------------
         # 7. Validate Gemini response
@@ -1059,15 +1060,8 @@ class GeminiProvider(AIProviderInterface):
             logger.info("AI PLAN: JSON parsed successfully")
             logger.info("AI PLAN: steps=%d", len(plan_data.get("steps", [])))
         except Exception as e:
-            logger.warning(f"Gemini plan generation failed or rate limited: {str(e)}. Falling back to LocalProvider plan.")
-            return LocalProvider().plan(
-                user_goal=user_goal,
-                conversation_context=conversation_context,
-                user_preferences=user_preferences,
-                available_tools=available_tools,
-                security_policy=security_policy,
-                automation_policy=automation_policy
-            )
+            logger.error(f"Gemini plan generation failed: {str(e)}")
+            raise
 
         if "evidence_requirements" not in plan_data:
             plan_data["evidence_requirements"] = []
@@ -1085,6 +1079,7 @@ class GeminiProvider(AIProviderInterface):
             "Return ONLY valid JSON. Do not use markdown code fences. Do not include explanations before or after the JSON. The first character must be { and the final character must be }.\n"
             "Provide a JSON object matching format: {\"args\": { ... }}"
         )
+        truncated_steps = truncate_large_values(completed_steps)
         prompt = (
             f"Task Goal: {task_description}\n"
             f"{mem_context}"
@@ -1092,7 +1087,7 @@ class GeminiProvider(AIProviderInterface):
             f"Tool name: {tool_name}\n"
             f"Tool description: {tool_description}\n"
             f"Tool input schema: {tool_schema}\n"
-            f"Completed steps output: {json.dumps(completed_steps)}\n\n"
+            f"Completed steps output: {json.dumps(truncated_steps)}\n\n"
             f"Output the JSON parameter arguments matching the tool schema."
         )
 
@@ -1105,33 +1100,31 @@ class GeminiProvider(AIProviderInterface):
             args_content = json.loads(response["choices"][0]["message"]["content"])
             return args_content.get("args", {})
         except Exception as e:
-            logger.warning(f"Gemini execute parameter generation failed or rate limited: {str(e)}. Falling back to LocalProvider execute.")
-            return LocalProvider().execute(
-                task_description=task_description,
-                step_description=step_description,
-                tool_name=tool_name,
-                tool_description=tool_description,
-                tool_schema=tool_schema,
-                completed_steps=completed_steps,
-                mem_context=mem_context,
-                task_id=task_id,
-                user_id=user_id,
-                db=db
-            )
+            logger.error(f"Gemini tool argument generation failed: {str(e)}")
+            raise
 
 
 def get_active_provider() -> AIProviderInterface:
     provider = os.getenv("AI_PROVIDER", "gemini").strip().lower()
     if provider == "local":
-        return LocalProvider()
+        active = LocalProvider()
     elif provider == "openai":
         from services.openai_service import OPENAI_API_KEY
         if not OPENAI_API_KEY:
             raise OpenAIServiceError("OpenAI API key is missing. Please set the OPENAI_API_KEY environment variable.")
-        return OpenAIProvider()
+        active = OpenAIProvider()
     else:
         # Default is Gemini
         gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
         if not gemini_key:
             raise Exception("Gemini API key is not configured.")
-        return GeminiProvider()
+        active = GeminiProvider()
+        
+    print("\n" + "="*50)
+    print("AI PROVIDER DEBUG:")
+    print(f"configured provider = {provider}")
+    print(f"selected provider = {active.__class__.__name__}")
+    print(f"provider class = {active.__class__}")
+    print("="*50 + "\n", flush=True)
+    
+    return active

@@ -66,7 +66,7 @@ export default function LegalConsent() {
           </div>
           <div className="text-left">
             <h1 className="text-xl font-black text-dash-text tracking-wide leading-none">
-              VeriNova AI
+              VeriNova
             </h1>
             <p className="text-dash-secondary text-[10px] tracking-[0.15em] font-bold uppercase mt-1">
               Outcome Verification
@@ -88,7 +88,7 @@ export default function LegalConsent() {
             Legal Terms & Policy
           </h2>
           <p className="text-dash-secondary text-sm font-semibold tracking-wide max-w-xs mx-auto leading-relaxed mb-6">
-            Before using VeriNova AI verification platform, please review and accept our Terms of Service and Privacy Policy.
+            Before using VeriNova verification platform, please review and accept our Terms of Service and Privacy Policy.
           </p>
 
           {error && (

@@ -49,7 +49,7 @@ export default function Hero() {
 
           {/* Subheading */}
           <p className="mt-6 text-dash-secondary text-base sm:text-lg leading-relaxed max-w-xl font-bold">
-            VeriNova AI helps users verify AI-generated outcomes, claims, documents, and information using evidence-based analysis before making decisions they depend on.
+            VeriNova helps users verify AI-generated outcomes, claims, documents, and information using evidence-based analysis before making decisions they depend on.
           </p>
 
           {/* Action Buttons */}

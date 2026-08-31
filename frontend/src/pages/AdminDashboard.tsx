@@ -287,27 +287,6 @@ export default function AdminDashboard() {
     toast(`Launched Admin Tool: ${actionName}`, "success");
   };
 
-  // Real Database task approval/rejection
-  const handleApprove = async (id: number, name: string) => {
-    try {
-      await api.put(`/admin/tasks/${id}/status`, { status: "approved" });
-      toast(`Approved verification for ${name}`, "success");
-      loadData();
-    } catch (err) {
-      toast("Failed to approve task status", "error");
-    }
-  };
-
-  const handleReject = async (id: number, name: string) => {
-    try {
-      await api.put(`/admin/tasks/${id}/status`, { status: "rejected" });
-      toast(`Rejected verification for ${name}`, "error");
-      loadData();
-    } catch (err) {
-      toast("Failed to reject task status", "error");
-    }
-  };
-
   // Contact Messages Handlers
   const handleMarkAsRead = async (id: number) => {
     try {
@@ -374,16 +353,22 @@ export default function AdminDashboard() {
 
   // Filter contact messages based on search query and status filter
   const filteredMessages = contactMessages.filter((msg) => {
+    if (!msg) return false;
     if (messageFilter === "unread" && msg.status !== "new") return false;
     if (messageFilter === "archived" && msg.status !== "closed") return false;
     if (messageFilter === "all" && msg.status === "closed") return false;
 
     const search = searchQuery.toLowerCase();
+    const senderName = msg.name || msg.fullname || "";
+    const email = msg.email || "";
+    const subject = msg.subject || "";
+    const messageText = msg.message || "";
+
     return (
-      msg.fullname.toLowerCase().includes(search) ||
-      msg.email.toLowerCase().includes(search) ||
-      msg.subject.toLowerCase().includes(search) ||
-      msg.message.toLowerCase().includes(search)
+      senderName.toLowerCase().includes(search) ||
+      email.toLowerCase().includes(search) ||
+      subject.toLowerCase().includes(search) ||
+      messageText.toLowerCase().includes(search)
     );
   });
 
@@ -403,11 +388,6 @@ export default function AdminDashboard() {
   // Stats computations from database records
   const totalUsers = users.filter((u: any) => u.role === "user").length;
   const totalVerifications = tasks.length;
-
-  // Filter tasks that require human attention (high-risk, low confidence, needs review, failed)
-  const pendingTasks = tasks.filter((t) => 
-    ["needs_review", "awaiting_admin_review", "failed"].includes(t.status)
-  );
 
   // Group task volume by month for SVG Chart
   const monthlyCounts = Array(12).fill(0);
@@ -436,13 +416,6 @@ export default function AdminDashboard() {
     });
     fillPath = `${path} L ${points[points.length - 1].x} 220 L ${points[0].x} 220 Z`;
   }
-
-  // Filter requests based on search
-  const filteredPending = pendingTasks.filter(t => 
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.task_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (userMap.get(t.user_id) || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="admin-dashboard">
@@ -807,50 +780,40 @@ export default function AdminDashboard() {
                 </div>
               </section>
 
-              {/* Pending Verifications Queue */}
+              {/* User Tasks Activity Queue */}
               <section className="dashboard-panel activity-panel">
                 <div className="panel-header">
-                  <h2>Pending Approvals</h2>
+                  <h2>User Tasks Activity</h2>
                 </div>
 
                 {loading ? (
-                  <div className="loading-state">Loading approvals queue...</div>
-                ) : filteredPending.length === 0 ? (
+                  <div className="loading-state">Loading user tasks...</div>
+                ) : tasks.length === 0 ? (
                   <div className="empty-state">
-                    <div className="empty-icon">✓</div>
-                    <h3>All Clear!</h3>
-                    <p>No pending verification requests require approval.</p>
+                    <div className="empty-icon">📋</div>
+                    <h3>No User Tasks Yet</h3>
+                    <p>Tasks executed by registered users will appear here.</p>
                   </div>
                 ) : (
                   <div className="activity-list">
-                    {filteredPending.slice(0, 4).map((req) => {
-                      const applicantName = userMap.get(req.user_id) || "Anonymous User";
+                    {tasks.slice(0, 5).map((t) => {
+                      const applicantName = userMap.get(t.user_id) || `User #${t.user_id}`;
                       return (
-                        <div key={req.id} className="activity-item admin-queue-item">
+                        <div key={t.id} className="activity-item admin-queue-item">
                           <div className="activity-icon orange-bg">
                             <Clock size={16} />
                           </div>
                           <div className="activity-details">
                             <h4>{applicantName}</h4>
-                            <span className="req-type-span">{req.title} ({req.task_type.toUpperCase()})</span>
-                            <span className="status-pill pending">{req.status}</span>
-                          </div>
-
-                          <div className="action-buttons-cell">
-                            <button
-                              onClick={() => handleApprove(req.id, applicantName)}
-                              className="circle-action-btn approve"
-                              title="Approve"
-                            >
-                              <Check size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleReject(req.id, applicantName)}
-                              className="circle-action-btn reject"
-                              title="Reject"
-                            >
-                              <X size={14} />
-                            </button>
+                            <span className="req-type-span">{t.title} ({t.task_type.toUpperCase()})</span>
+                            <div style={{ marginTop: "3px", display: "flex", gap: "6px", alignItems: "center" }}>
+                              <span className={`status-pill ${statusClass(t.status)}`}>
+                                {statusLabel(t.status)}
+                              </span>
+                              <span style={{ fontSize: "10px", color: "var(--dash-secondary)" }}>
+                                {new Date(t.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       );
@@ -858,9 +821,9 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {filteredPending.length > 4 && (
-                  <button onClick={() => handleAction("Verifications List Dashboard")} className="view-all-link">
-                    View All Pending Requests
+                {tasks.length > 5 && (
+                  <button onClick={() => setActiveTab("tasks")} className="view-all-link">
+                    View All User Tasks
                   </button>
                 )}
               </section>

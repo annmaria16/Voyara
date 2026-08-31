@@ -1,0 +1,263 @@
+{
+  "name": "VeriNova Agent Webhook Tool Execution Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "verinova-agent",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "8c4ab753-41bb-4cd4-b97c-9b7e9b04f762",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body.tool }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "compare_shopping_offers"
+            },
+            {
+              "value2": "web_search",
+              "output": 1
+            },
+            {
+              "value2": "execute_booking",
+              "output": 2
+            }
+          ]
+        },
+        "fallbackOutput": 3
+      },
+      "id": "e674bfa5-7798-4b71-bde9-e60d5c80879e",
+      "name": "Route by Tool",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        200,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/agent/tool/execute",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tool_name\": \"compare_shopping_offers\",\n  \"tool_args\": {{ JSON.stringify($json.body.parameters) }},\n  \"user_id\": {{ $json.body.user_id }},\n  \"task_id\": {{ $json.body.task_id }}\n}",
+        "options": {}
+      },
+      "id": "e838df2c-bc7d-41a4-949f-ec195cd4e918",
+      "name": "Compare Shopping Offers Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 41,
+      "position": [
+        450,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/agent/tool/execute",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tool_name\": \"web_search\",\n  \"tool_args\": {{ JSON.stringify($json.body.parameters) }},\n  \"user_id\": {{ $json.body.user_id }},\n  \"task_id\": {{ $json.body.task_id }}\n}",
+        "options": {}
+      },
+      "id": "52857416-24af-4bc9-8800-47de31f75b22",
+      "name": "Web Search Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 41,
+      "position": [
+        450,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/agent/tool/execute",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tool_name\": \"execute_booking\",\n  \"tool_args\": {{ JSON.stringify($json.body.parameters) }},\n  \"user_id\": {{ $json.body.user_id }},\n  \"task_id\": {{ $json.body.task_id }}\n}",
+        "options": {}
+      },
+      "id": "ca1d8bc5-01e4-4d8e-9080-3329f6356770",
+      "name": "Execute Booking Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 41,
+      "position": [
+        450,
+        310
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/agent/tool/execute",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tool_name\": \"{{ $json.body.tool }}\",\n  \"tool_args\": {{ JSON.stringify($json.body.parameters) }},\n  \"user_id\": {{ $json.body.user_id }},\n  \"task_id\": {{ $json.body.task_id }}\n}",
+        "options": {}
+      },
+      "id": "6bbda5c2-f12b-42fa-b7ad-4560ea515d48",
+      "name": "Fallback Generic Tool Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 41,
+      "position": [
+        450,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success-assign",
+              "name": "success",
+              "value": "=true",
+              "type": "boolean"
+            },
+            {
+              "id": "tool-assign",
+              "name": "tool",
+              "value": "={{ $node[\"Webhook\"].json.body.tool }}",
+              "type": "string"
+            },
+            {
+              "id": "data-assign",
+              "name": "data",
+              "value": "={{ $json.data }}",
+              "type": "object"
+            },
+            {
+              "id": "sources-assign",
+              "name": "sources",
+              "value": "={{ $json.data.sources || [] }}",
+              "type": "array"
+            },
+            {
+              "id": "error-assign",
+              "name": "error",
+              "value": "=null",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "84c8a245-4efb-46a4-9467-fbd7718de50a",
+      "name": "Normalize Response Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        750,
+        240
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route by Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Tool": {
+      "main": [
+        [
+          {
+            "node": "Compare Shopping Offers Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Web Search Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Booking Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fallback Generic Tool Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Shopping Offers Request": {
+      "main": [
+        [
+          {
+            "node": "Normalize Response Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Search Request": {
+      "main": [
+        [
+          {
+            "node": "Normalize Response Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Booking Request": {
+      "main": [
+        [
+          {
+            "node": "Normalize Response Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback Generic Tool Request": {
+      "main": [
+        [
+          {
+            "node": "Normalize Response Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "meta": {
+    "instanceId": "verinova-n8n-instance-id"
+  }
+}

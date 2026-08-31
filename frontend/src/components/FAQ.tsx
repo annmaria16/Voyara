@@ -10,16 +10,16 @@ interface FAQItem {
 export default function FAQ() {
   const faqs: FAQItem[] = [
     {
-      question: "What is VeriNova AI?",
-      answer: "VeriNova AI is an AI-powered outcome verification platform designed to help users review AI-generated outcomes, claims, documents, and information before relying on them.",
+      question: "What is VeriNova?",
+      answer: "VeriNova is an outcome verification platform designed to help users review AI-generated outcomes, claims, documents, and information before relying on them.",
     },
     {
       question: "What can I verify?",
-      answer: "You can use VeriNova AI to review supported AI-generated outcomes, claims, information, documents, and other verification requests supported by the platform.",
+      answer: "You can use VeriNova to review supported AI-generated outcomes, claims, information, documents, and other verification requests supported by the platform.",
     },
     {
-      question: "Does VeriNova AI guarantee that information is correct?",
-      answer: "No. VeriNova AI is designed to provide evidence-based verification insights and confidence information. Users should consider the available evidence and use appropriate human judgment for important decisions.",
+      question: "Does VeriNova guarantee that information is correct?",
+      answer: "No. VeriNova is designed to provide evidence-based verification insights and confidence information. Users should consider the available evidence and use appropriate human judgment for important decisions.",
     },
     {
       question: "Can I see my previous verification requests?",
@@ -30,8 +30,8 @@ export default function FAQ() {
       answer: "Verification activity associated with your account can be stored so you can review previous requests and results.",
     },
     {
-      question: "How can I contact VeriNova AI?",
-      answer: "You can contact the VeriNova AI team through the Contact section on this website.",
+      question: "How can I contact VeriNova?",
+      answer: "You can contact the VeriNova team through the Contact section on this website.",
     },
   ];
 
