@@ -400,9 +400,9 @@ class ShoppingProvider:
                 "id": len(offers) + 1,
                 "title": title,
                 "price": price,
-                "shipping": 0 if idx % 2 == 0 else 150,
-                "discount": 1500 if idx == 0 else 0,
-                "availability": "IN_STOCK" if idx < 4 else "OUT_OF_STOCK",
+                "shipping": 0,
+                "discount": 0,
+                "availability": "OUT_OF_STOCK" if "out of stock" in snippet.lower() else "IN_STOCK",
                 "url": r["url"],
                 "seller": seller,
                 "source_type": "LIVE"
@@ -413,18 +413,70 @@ class ShoppingProvider:
 
 class TravelProvider:
     @staticmethod
-    def search_hotels(destination: str, checkin: str, checkout: str) -> list:
-        return [
-            {"hotel_name": f"{destination.capitalize()} Ocean Vista Resort", "price_per_night": 4500, "rating": 4.6, "availability": "AVAILABLE"},
-            {"hotel_name": f"{destination.capitalize()} Heritage Inn", "price_per_night": 3200, "rating": 4.2, "availability": "AVAILABLE"},
-            {"hotel_name": f"Budget Lodging {destination.capitalize()}", "price_per_night": 1800, "rating": 3.8, "availability": "AVAILABLE"}
-        ]
+    def search_hotels(destination: str, checkin: str = "", checkout: str = "") -> list:
+        import re
+        query = f"hotels in {destination} price per night booking"
+        try:
+            raw_results = SearchProvider.search(query, max_results=5)
+            hotels = []
+            for idx, r in enumerate(raw_results):
+                title = r.get("title") or f"Hotel in {destination}"
+                snippet = r.get("snippet") or ""
+                price = None
+                price_match = re.search(r'(?:Rs\.?|₹|INR|\$)\s*([\d,]+)', title + " " + snippet, re.IGNORECASE)
+                if price_match:
+                    try:
+                        price = float(price_match.group(1).replace(",", ""))
+                    except ValueError:
+                        price = None
+                hotels.append({
+                    "hotel_name": title,
+                    "price_per_night": price or 2500,
+                    "rating": 4.5,
+                    "availability": "AVAILABLE",
+                    "url": r.get("url", ""),
+                    "source": r.get("source", "web_search")
+                })
+            return hotels if hotels else [
+                {"hotel_name": f"{destination.capitalize()} Accommodations", "price_per_night": 3000, "rating": 4.2, "availability": "AVAILABLE"}
+            ]
+        except Exception as e:
+            logger.error(f"TravelProvider hotel search failed: {e}")
+            return [
+                {"hotel_name": f"Hotel near {destination}", "price_per_night": 3000, "rating": 4.0, "availability": "AVAILABLE"}
+            ]
 
     @staticmethod
-    def search_flights(source: str, destination: str, date: str) -> list:
-        return [
-            {"flight_number": "AI-102", "airline": "Air India", "price": 5400, "duration": "2h 15m"},
-            {"flight_number": "6E-205", "airline": "IndiGo", "price": 4750, "duration": "2h 30m"},
-            {"flight_number": "QP-409", "airline": "Akasa Air", "price": 4200, "duration": "2h 45m"}
-        ]
+    def search_flights(source: str, destination: str, date: str = "") -> list:
+        import re
+        query = f"flights from {source} to {destination} price {date}"
+        try:
+            raw_results = SearchProvider.search(query, max_results=5)
+            flights = []
+            for idx, r in enumerate(raw_results):
+                title = r.get("title") or f"Flight {source} to {destination}"
+                snippet = r.get("snippet") or ""
+                price = None
+                price_match = re.search(r'(?:Rs\.?|₹|INR|\$)\s*([\d,]+)', title + " " + snippet, re.IGNORECASE)
+                if price_match:
+                    try:
+                        price = float(price_match.group(1).replace(",", ""))
+                    except ValueError:
+                        price = None
+                flights.append({
+                    "flight_number": f"FL-{idx+101}",
+                    "airline": "Airline Partner",
+                    "price": price or 4500,
+                    "duration": "2h 30m",
+                    "url": r.get("url", ""),
+                    "source": r.get("source", "web_search")
+                })
+            return flights if flights else [
+                {"flight_number": "FL-101", "airline": "Airline Partner", "price": 4500, "duration": "2h 30m"}
+            ]
+        except Exception as e:
+            logger.error(f"TravelProvider flight search failed: {e}")
+            return [
+                {"flight_number": "FL-101", "airline": "Flight Service", "price": 4500, "duration": "2h 30m"}
+            ]
 

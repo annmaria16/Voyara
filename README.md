@@ -1,75 +1,117 @@
-# React + TypeScript + Vite
+# VeriNova - An Outcome Verification Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+VeriNova is an AI-powered outcome verification and research workspace designed to plan, execute, and verify dynamic task requirements with factual accuracy.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 1. System Architecture
 
 ```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+USER
+  ↓
+VERINOVA REACT UI
+  ↓
+FASTAPI BACKEND
+  ↓
+VERINOVA AGENT ORCHESTRATOR
+  ↓
+GEMINI (REASONING & PLANNING)
+  ↓
+TOOL / WORKFLOW ROUTER
+  ↓
+N8N WEBHOOKS
+  ↓
+SEARCH / SHOPPING / RESEARCH / BOOKING / VERIFICATION
+  ↓
+STRUCTURED REAL DATA
+  ↓
+VALIDATION + NORMALIZATION
+  ↓
+GEMINI FINAL ANALYSIS
+  ↓
+VERINOVA RESULT -> UI
 ```
+
+---
+
+## 2. Component Details
+
+### A. Frontend (React)
+- Centered conversational workspace with responsive mesh gradient overlays and inline plan/execution steps indicators.
+- Synchronous click locks and button disablers to prevent duplicate planning requests.
+
+### B. FastAPI Backend
+- Orchestrates plan cycles, registers tools, tracks execution states, and normalizes external output schemas.
+
+### C. AI Provider & Gemini
+- Cloud AI provider abstraction (`GeminiProvider`) dynamically routing tasks.
+- Maximum 2 retries on 429 and 5xx errors with capped exponential backoff.
+- Fail-fast mechanism avoiding long sleeping threads.
+
+### D. Agent Orchestrator
+- Life-cycle steps: `RECEIVED` -> `UNDERSTANDING` -> `PLANNED` -> `EXECUTING` -> `VALIDATING` -> `ANALYZING` -> `COMPLETED`.
+- Multi-agent state locks and action idempotency checks.
+
+### E. n8n Integration & Webhook Workflows
+Dynamic routing to local or external n8n workflows:
+- **`shopping_search`**: Extract price, specifications, and model availability.
+- **`product_comparison`**: Compare specifications and output normalized results.
+- **`web_research`**: Execute Tavily/Google Search grounding and aggregate source links.
+- **`verification`**: Factual verification of specific requirements.
+- **`booking`**: Search and booking options with explicit user confirmation.
+
+---
+
+## 3. Configuration & Environment Variables
+
+Create a `.env` file in the `backend/` folder:
+
+```ini
+SECRET_KEY=your_secret
+FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:8000
+
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_key
+GEMINI_MODEL=gemini-3.5-flash
+
+N8N_BASE_URL=http://localhost:5678
+N8N_WEBHOOK_SECRET=your_webhook_secret
+```
+
+---
+
+## 4. How to Start the Services
+
+### Start Backend (FastAPI)
+```powershell
+cd backend
+.venv\Scripts\activate
+uvicorn main:app --reload --port 8000
+```
+
+### Start Frontend (Vite)
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+### Start n8n
+```bash
+n8n start
+```
+
+---
+
+## 5. Verification & Tests
+
+To execute the backend suite:
+```powershell
+cd backend
+python run_all_tests.py
+```
+
+### Known Limitations
+- High-risk operations (e.g. email draft dispatch, financial transactions) are simulated or require direct explicit confirmation.
+- API limits on the Gemini Free Tier model (20 daily calls) can restrict massive sequential loops.

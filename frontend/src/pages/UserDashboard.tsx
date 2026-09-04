@@ -613,7 +613,7 @@ export default function UserDashboard() {
       let errorMsg = "AI execution failed.";
       const responseData = error.response?.data;
       if (responseData?.error?.code === "AI_RATE_LIMITED") {
-        errorMsg = "VeriNova is temporarily busy. Please wait a moment and try again.";
+        errorMsg = "AI service is temporarily rate-limited. Please try again shortly.";
       } else {
         errorMsg = responseData?.error?.message || responseData?.detail || error.message || errorMsg;
       }

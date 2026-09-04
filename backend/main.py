@@ -2679,11 +2679,33 @@ def admin_delete_contact_message(
 from fastapi.responses import JSONResponse
 
 def classify_ai_exception(e: Exception):
-    err_str = str(e).lower()
+    from services.agent.ai_provider import GeminiRateLimitError, AIProviderTimeoutError, AIProviderError
+    from services.n8n_service import N8NTimeoutError, N8NError
+    from services.agent.executor import ToolTimeoutError, ToolError
     
     if isinstance(e, GeminiRateLimitError):
         return status.HTTP_429_TOO_MANY_REQUESTS, "AI_RATE_LIMITED", str(e), getattr(e, "retry_delay_seconds", None)
         
+    if isinstance(e, AIProviderTimeoutError):
+        return status.HTTP_504_GATEWAY_TIMEOUT, "AI_PROVIDER_TIMEOUT", "AI service is temporarily rate-limited. Please try again shortly.", None
+
+    if isinstance(e, AIProviderError):
+        return status.HTTP_502_BAD_GATEWAY, "AI_PROVIDER_ERROR", str(e), None
+
+    if isinstance(e, N8NTimeoutError):
+        return status.HTTP_504_GATEWAY_TIMEOUT, "N8N_TIMEOUT", "The requested research workflow took too long to respond. Please try again.", None
+
+    if isinstance(e, N8NError):
+        return status.HTTP_502_BAD_GATEWAY, "N8N_ERROR", "Search service temporarily unavailable.", None
+
+    if isinstance(e, ToolTimeoutError):
+        return status.HTTP_504_GATEWAY_TIMEOUT, "TOOL_TIMEOUT", "Search service temporarily unavailable.", None
+
+    if isinstance(e, ToolError):
+        return status.HTTP_502_BAD_GATEWAY, "TOOL_ERROR", "Search service temporarily unavailable.", None
+
+    err_str = str(e).lower()
+    
     if "rate limit" in err_str or "429" in err_str or "resource_exhausted" in err_str:
         return status.HTTP_429_TOO_MANY_REQUESTS, "AI_RATE_LIMITED", "AI service is temporarily rate-limited. Please try again shortly.", None
         
@@ -2736,8 +2758,8 @@ def create_agent_plan(
     db.refresh(task)
 
     request_id = f"task_{task.id}"
-    logger.info(f"[AGENT REQUEST] request_id={request_id} received")
-    logger.info(f"[AGENT REQUEST] request_id={request_id} planner_started")
+    logger.info(f"[VERINOVA] request_id={request_id} task_received")
+    logger.info(f"[VERINOVA] request_id={request_id} planner_started")
 
     # Set context variables for request logging alignment
     from services.agent.ai_provider import request_id_ctx

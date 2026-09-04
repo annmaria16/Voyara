@@ -89,11 +89,12 @@ def test_all():
             )
         if comparison.get("success"):
             print("   [PASS] Comparison tool successfully parsed and structured products:")
+            results = comparison.get("results", [])
+            for res in results:
+                print(f"      - Group: {res.get('product_group')} | Best seller: {res.get('best_option', {}).get('seller')} (₹{res.get('best_option', {}).get('effective_price')})")
             offers = comparison.get("offers", [])
             for off in offers:
                 print(f"      - {off.get('title')} price=₹{off.get('price')} from {off.get('provider')}")
-            best_val = comparison.get("best_value", {})
-            print(f"      - Best Value Store: {best_val.get('store')} (Reason: {best_val.get('reason')})")
         else:
             print(f"   [FAIL] Comparison tool returned success=False: {comparison.get('error')}")
     except Exception as e:
@@ -140,7 +141,7 @@ def test_all():
         synthesis = res["choices"][0]["message"]["content"]
         print("   [PASS] Synthesis engine generated final response:")
         print("-" * 60)
-        print(synthesis)
+        print(synthesis.encode(sys.stdout.encoding or 'utf-8', errors='replace').decode(sys.stdout.encoding or 'utf-8'))
         print("-" * 60)
     except Exception as e:
         print(f"   [FAIL] Synthesis engine failed: {str(e)}")

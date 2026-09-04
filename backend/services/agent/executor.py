@@ -5,7 +5,11 @@ import time
 import inspect
 from datetime import datetime
 from typing import Optional
-from sqlalchemy.orm import Session
+class ToolTimeoutError(Exception):
+    pass
+
+class ToolError(Exception):
+    pass
 
 import models
 import core_models
@@ -171,56 +175,41 @@ def _execute_tool_with_retries(tool, tool_name, tool_args, validated_args, task,
     return tool_success, normalized_result, duration, last_error
 
 
-def _execute_tool_via_n8n_webhook(n8n_url: str, task: str, tool_name: str, parameters: dict, task_id: int, user_id: int):
-    import urllib.request
-    import json
+def _execute_tool_via_n8n_webhook(task: str, tool_name: str, parameters: dict, task_id: int, user_id: int):
     import time
+    from services.n8n_service import N8NService
 
     start_time = time.time()
     payload = {
-        "task": task,
-        "tool": tool_name,
+        "request_id": f"task_{task_id}_tool_{tool_name}",
+        "task_type": tool_name,
+        "query": task,
         "parameters": parameters,
         "user_id": str(user_id),
         "task_id": str(task_id)
     }
 
-    n8n_api_key = os.getenv("N8N_API_KEY", "").strip()
-    headers = {
-        "Content-Type": "application/json"
-    }
-    if n8n_api_key:
-        headers["X-N8N-API-KEY"] = n8n_api_key
-
-    req_data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(n8n_url, data=req_data, headers=headers, method="POST")
-
     try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            res_data = response.read().decode("utf-8")
-            duration = int((time.time() - start_time) * 1000)
-            if not res_data:
-                raise ValueError("n8n webhook returned empty response.")
+        res_json = N8NService.call_webhook(payload, tool_name)
+        duration = int((time.time() - start_time) * 1000)
+        success = res_json.get("success", False)
+        error = res_json.get("error")
+        data = res_json.get("data") if res_json.get("data") is not None else res_json.get("results")
+        
+        if not success:
+            raise ValueError(error or "n8n tool execution indicated success=False.")
 
-            res_json = json.loads(res_data)
-            success = res_json.get("success", False)
-            error = res_json.get("error")
-            data = res_json.get("data")
-            
-            if not success:
-                raise ValueError(error or "n8n tool execution indicated success=False.")
-
-            normalized_result = {
-                "success": True,
-                "tool": tool_name,
-                "data": data,
-                "error": None,
-                "metadata": {
-                    "durationMs": duration,
-                    "source": "n8n"
-                }
+        normalized_result = {
+            "success": True,
+            "tool": tool_name,
+            "data": data,
+            "error": None,
+            "metadata": {
+                "durationMs": duration,
+                "source": "n8n"
             }
-            return True, normalized_result, duration, None
+        }
+        return True, normalized_result, duration, None
     except Exception as e:
         duration = int((time.time() - start_time) * 1000)
         logger.error(f"Failed to execute tool {tool_name} via n8n: {str(e)}")
@@ -835,38 +824,42 @@ def run_agent_loop(
                     for x in steps if x["status"] == "COMPLETED"
                 ]
 
-                # Query LLM to generate parameters
-                system_prompt_fill = (
-                    "You are the VeriNova AI Agent Tool Input Generator.\n"
-                    "Your job is to analyze the task, completed steps, and output the correct JSON parameters for the current step's tool.\n"
-                    "Provide a JSON object matching format: {\"args\": { ... }}"
-                )
-                prompt = (
-                    f"Task Goal: {thread_task.description}\n"
-                    f"{mem_context}"
-                    f"Step to execute: {step_ref['description']}\n"
-                    f"Tool name: {step_ref['tool']}\n"
-                    f"Tool description: {tool.description}\n"
-                    f"Tool input schema: {tool.input_schema.schema()}\n"
-                    f"Completed steps output: {json.dumps(completed_steps)}\n\n"
-                    f"Output the JSON parameter arguments matching the tool schema."
-                )
+                tool_args = step_ref.get("tool_args")
+                validated_args = None
 
-                tool_args = get_active_provider().execute(
-                    task_description=thread_task.description,
-                    step_description=step_ref["description"],
-                    tool_name=step_ref["tool"],
-                    tool_description=tool.description,
-                    tool_schema=tool.input_schema.schema(),
-                    completed_steps=completed_steps,
-                    mem_context=mem_context,
-                    task_id=thread_task.id,
-                    user_id=thread_task.user_id,
-                    db=thread_db
-                )
+                # 1. Reuse tool_args from plan if valid
+                if isinstance(tool_args, dict) and tool_args:
+                    try:
+                        validated_args = tool.input_schema(**tool_args)
+                    except Exception as ve:
+                        logger.warning(f"Plan tool_args validation failed for '{step_ref['tool']}': {ve}. Attempting fallback.")
+                        validated_args = None
 
-                # Validate arguments
-                validated_args = tool.input_schema(**tool_args)
+                # 2. Heuristic fallback for single-argument query tools
+                if validated_args is None:
+                    schema_props = tool.input_schema.schema().get("properties", {})
+                    if len(schema_props) == 1 and "query" in schema_props:
+                        try:
+                            tool_args = {"query": thread_task.description}
+                            validated_args = tool.input_schema(**tool_args)
+                        except Exception:
+                            validated_args = None
+
+                # 3. Query LLM to generate parameters only when necessary
+                if validated_args is None:
+                    tool_args = get_active_provider().execute(
+                        task_description=thread_task.description,
+                        step_description=step_ref["description"],
+                        tool_name=step_ref["tool"],
+                        tool_description=tool.description,
+                        tool_schema=tool.input_schema.schema(),
+                        completed_steps=completed_steps,
+                        mem_context=mem_context,
+                        task_id=thread_task.id,
+                        user_id=thread_task.user_id,
+                        db=thread_db
+                    )
+                    validated_args = tool.input_schema(**tool_args)
 
                 # 1. Action Idempotency protection check for side-effect tools
                 from services.agent.risk_engine import ActionRiskEngine
@@ -907,10 +900,11 @@ def run_agent_loop(
                 thread_db.commit()
 
                 # Execute tool
+                n8n_base = os.getenv("N8N_BASE_URL", "").strip()
                 n8n_url = os.getenv("N8N_WEBHOOK_URL", "").strip()
-                if n8n_url:
+                if n8n_base or n8n_url:
                     tool_success, normalized_result, duration, last_error = _execute_tool_via_n8n_webhook(
-                        n8n_url, thread_task.description, step_ref["tool"], tool_args, thread_task.id, thread_task.user_id
+                        thread_task.description, step_ref["tool"], tool_args, thread_task.id, thread_task.user_id
                     )
                 else:
                     tool_success, normalized_result, duration, last_error = _execute_tool_with_retries(
@@ -1043,14 +1037,25 @@ def run_agent_loop(
     if any_failed:
         failed_step = next(s for s in steps if s["status"] == "FAILED")
         err_msg = failed_step.get("error", "Unknown error")
-        if "429" in err_msg or "rate limit" in err_msg.lower() or "too many requests" in err_msg.lower() or "circuit breaker" in err_msg.lower():
-            friendly_msg = "Live search is temporarily unavailable. We could not verify current prices from external sources."
+        err_lower = err_msg.lower()
+        
+        if "rate_limited" in err_lower or "429" in err_lower or "temporarily busy" in err_lower or "rate limit" in err_lower:
+            friendly_msg = "AI service is temporarily rate-limited. Please try again shortly."
+        elif "n8n" in err_lower and ("timeout" in err_lower or "timed out" in err_lower):
+            friendly_msg = "The requested research workflow took too long to respond. Please try again."
+        elif "timeout" in err_lower or "timed out" in err_lower:
+            friendly_msg = "Search service temporarily unavailable."
+        elif "n8n_error" in err_lower or "n8n network" in err_lower:
+            friendly_msg = "Search service temporarily unavailable."
         else:
             friendly_msg = f"Step {failed_step['step_id']} failed: {err_msg}"
+            
         task.execution_status = "FAILED"
         task.status = "failed"
         db.commit()
         _log_failure(task, db, friendly_msg)
+        
+        logger.error(f"[VERINOVA] request_id=task_{task.id} task_failed reason={friendly_msg}")
         return f"Execution failed: {friendly_msg}"
 
     # Set task status to analyzing (Section 12)
@@ -1088,11 +1093,12 @@ def run_agent_loop(
         f"Generate the final answer response."
     )
 
+    logger.info(f"[VERINOVA] request_id=task_{task.id} synthesis_started")
     try:
         response = get_active_provider().generate([
             {"role": "system", "content": system_prompt_final},
             {"role": "user", "content": prompt_final}
-        ], task_id=task.id, user_id=task.user_id, db=db)
+        ], task_id=task.id, user_id=task.user_id, db=db, purpose="synthesis")
         final_answer = response["choices"][0]["message"]["content"]
     except Exception as e:
         logger.error(f"Failed to generate final answer: {str(e)}")
@@ -1330,6 +1336,7 @@ def run_agent_loop(
         
     db.commit()
 
+    logger.info(f"[VERINOVA] request_id=task_{task.id} task_completed")
     return final_answer
 
 def _log_failure(task: core_models.Task, db: Session, error_message: str):
