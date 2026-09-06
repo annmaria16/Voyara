@@ -1,0 +1,20 @@
+from fastapi import APIRouter
+from app.routers.auth.router import router as auth_router
+from app.routers.customer.router import router as customer_router
+from app.routers.provider.router import router as provider_router
+from app.routers.admin.router import router as admin_router
+from app.routers.verinova.router import router as verinova_router
+from app.routers.upload.router import router as upload_router
+from app.routers.support.router import router as support_router
+
+api_router = APIRouter(prefix="/api")
+
+api_router.include_router(auth_router)
+api_router.include_router(customer_router)
+api_router.include_router(provider_router)
+api_router.include_router(admin_router)
+api_router.include_router(verinova_router)
+api_router.include_router(upload_router)
+api_router.include_router(support_router)
+
+__all__ = ["api_router"]
