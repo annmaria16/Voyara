@@ -47,6 +47,7 @@ export const BookingPage = () => {
     room_id,
     room_name,
     room_price,
+    room_quantity = 1,
     check_in,
     check_out,
     nights,
@@ -73,6 +74,7 @@ export const BookingPage = () => {
         check_in,
         check_out,
         total_guests: guests,
+        room_quantity: room_quantity,
         experience_id: experience_id || undefined,
         experience_participants: experience_participants || undefined,
         customer_notes: customerNotes.trim() || undefined,
@@ -179,6 +181,11 @@ export const BookingPage = () => {
                 <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">{property_type}</span>
                 <h4 className="text-sm font-bold text-[#102A43] dark:text-white">{property_name}</h4>
                 <p className="text-slate-500 dark:text-slate-400">{property_city} • {room_name}</p>
+                <div className="flex items-center space-x-3 pt-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  <span>🏢 {room_quantity} {room_quantity === 1 ? 'Room' : 'Rooms'}</span>
+                  <span>•</span>
+                  <span>👥 {guests} {guests === 1 ? 'Guest' : 'Guests'}</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
@@ -204,7 +211,7 @@ export const BookingPage = () => {
             {/* Price Calculations */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs">
               <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                <span>{room_name} × {nights} night(s)</span>
+                <span>{room_name} (₹{room_price?.toLocaleString('en-IN')} × {nights}n × {room_quantity}r)</span>
                 <span className="font-bold text-[#102A43] dark:text-white">₹{room_subtotal.toLocaleString('en-IN')}</span>
               </div>
 

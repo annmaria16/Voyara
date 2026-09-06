@@ -295,14 +295,16 @@ class PropertyService:
                     if blocked:
                         continue
 
-                    # Check conflicting confirmed bookings
-                    conflict = db.query(BookingRoom).join(Booking).filter(
+                    # Check if all units are booked for these dates
+                    booked_qty = db.query(
+                        func.coalesce(func.sum(BookingRoom.quantity), 0)
+                    ).join(Booking).filter(
                         BookingRoom.room_id == r.id,
                         Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED]),
                         Booking.check_in < check_out,
                         Booking.check_out > check_in
-                    ).first()
-                    if conflict:
+                    ).scalar() or 0
+                    if booked_qty >= r.quantity:
                         continue
 
                 available_rooms.append(r)

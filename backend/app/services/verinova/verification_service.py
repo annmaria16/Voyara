@@ -181,50 +181,57 @@ class VeriNovaService:
                         "details": "No manual provider blackout."
                     })
 
-                # Conflicting bookings check
-                conflict = db.query(BookingRoom).join(Booking).filter(
+                # Conflicting bookings & inventory overlap check
+                booked_qty_other = db.query(
+                    func.coalesce(func.sum(BookingRoom.quantity), 0)
+                ).join(Booking).filter(
                     BookingRoom.room_id == room.id,
                     Booking.id != booking.id,
                     Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED]),
                     Booking.check_in < booking.check_out,
                     Booking.check_out > booking.check_in
-                ).first()
+                ).scalar() or 0
 
-                if conflict:
+                br_qty = getattr(br, 'quantity', 1) or 1
+                total_projected_rooms = booked_qty_other + br_qty
+
+                if total_projected_rooms > room.quantity:
                     checks.append({
                         "category": "ROOM",
-                        "name": f"Room Conflict & Double Booking Prevention",
+                        "name": f"Room Inventory Overlap & Double Booking Prevention",
                         "status": CheckStatus.FAIL,
-                        "message": f"Conflicting reservation detected for Room '{room.name}' on overlapping dates.",
-                        "details": f"Conflict with Booking #{conflict.booking_id}"
+                        "message": f"Inventory overflow for Room '{room.name}'! Requested {br_qty} units, but only {max(0, room.quantity - booked_qty_other)} available (Total: {room.quantity}, Already Booked: {booked_qty_other}).",
+                        "details": f"Projected units {total_projected_rooms} > Total units {room.quantity}."
                     })
                     is_failed = True
-                    failure_messages.append("Conflicting room booking detected.")
+                    failure_messages.append("Room inventory overflow detected.")
                 else:
                     checks.append({
                         "category": "ROOM",
-                        "name": f"Room Conflict & Double Booking Prevention",
+                        "name": f"Room Inventory Overlap & Double Booking Prevention",
                         "status": CheckStatus.PASS,
-                        "message": f"Zero conflicting confirmed reservations found for '{room.name}'.",
+                        "message": f"Room inventory verified for '{room.name}'. {br_qty} of {room.quantity} units reserved ({room.quantity - total_projected_rooms} remaining).",
                         "details": "100% available in transactional inventory."
                     })
 
                 # Room Capacity Check
-                if booking.total_guests > room.capacity:
+                total_allowed_capacity = room.capacity * br_qty
+                if booking.total_guests > total_allowed_capacity:
                     checks.append({
                         "category": "ROOM",
                         "name": f"Room Capacity Check",
-                        "status": CheckStatus.WARNING,
-                        "message": f"Guest count ({booking.total_guests}) exceeds room max capacity ({room.capacity}).",
-                        "details": "Needs provider confirmation for extra guest bedding."
+                        "status": CheckStatus.FAIL,
+                        "message": f"Guest count ({booking.total_guests}) exceeds allowed capacity ({total_allowed_capacity} max for {br_qty} room(s)).",
+                        "details": f"Guests: {booking.total_guests} > Max Capacity: {total_allowed_capacity}."
                     })
-                    needs_review = True
+                    is_failed = True
+                    failure_messages.append("Guest count exceeds maximum room capacity.")
                 else:
                     checks.append({
                         "category": "ROOM",
                         "name": f"Room Capacity Check",
                         "status": CheckStatus.PASS,
-                        "message": f"Guest count ({booking.total_guests}) is within room limit ({room.capacity}).",
+                        "message": f"Guest count ({booking.total_guests}) is within limit ({total_allowed_capacity} max for {br_qty} room(s)).",
                         "details": "Capacity verified."
                     })
 
@@ -327,7 +334,8 @@ class VeriNovaService:
         for br in booking_rooms:
             room = db.query(Room).filter(Room.id == br.room_id).first()
             if room:
-                expected_room_total += round(room.base_price * nights, 2)
+                br_qty = getattr(br, 'quantity', 1) or 1
+                expected_room_total += round(room.base_price * nights * br_qty, 2)
         
         expected_exp_total = 0.0
         for be in booking_experiences:
@@ -435,7 +443,7 @@ class VeriNovaService:
                 verified_at=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.add(res)
-            db.commit()
+            db.flush()
             db.refresh(res)
 
         for chk in checks:
@@ -454,8 +462,7 @@ class VeriNovaService:
         elif final_status == VerificationStatus.FAILED:
             booking.status = BookingStatus.FAILED
 
-        db.commit()
-        db.refresh(res)
+        db.flush()
         return res
 
     @staticmethod

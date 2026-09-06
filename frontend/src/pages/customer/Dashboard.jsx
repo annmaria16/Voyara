@@ -1,36 +1,48 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { customerApi } from '../../api/customer';
-import { StatusBadge } from '../../components/dashboard/StatusBadge';
 import {
   Search,
   MapPin,
   Star,
-  Heart,
+  ShieldCheck,
   Calendar,
   ArrowRight,
   Sparkles,
   Home,
   Flame,
   BookOpen,
-  ChevronRight,
   Compass,
+  CheckCircle2,
+  TreePine,
+  Waves,
+  Mountain,
+  Castle,
+  Lock,
+  Zap,
+  HelpCircle,
+  Luggage,
+  Coffee,
+  Sun,
+  ChevronRight,
+  Heart,
+  Eye,
+  Award,
+  Palmtree,
+  Tent,
+  Sunset
 } from 'lucide-react';
 
 export const CustomerDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [recentBookings, setRecentBookings] = useState([]);
-  const [recommendedStays, setRecommendedStays] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchLocation, setSearchLocation] = useState('');
   const [liveHeroResults, setLiveHeroResults] = useState([]);
   const [showHeroDropdown, setShowHeroDropdown] = useState(false);
   const [isHeroSearching, setIsHeroSearching] = useState(false);
   const heroSearchRef = useRef(null);
   const heroDebounceRef = useRef(null);
-  const [likedProperties, setLikedProperties] = useState({});
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -76,25 +88,18 @@ export const CustomerDashboard = () => {
     }
   };
 
-  const toggleLike = (id) => {
-    setLikedProperties((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
-
   const quickActions = [
     {
-      title: 'Explore Stays',
-      description: 'Find luxury stays & villas',
+      title: 'Explore Sanctuaries',
+      description: 'Discover luxury stays & villas',
       path: '/search',
       icon: Home,
       iconBg: 'bg-gradient-to-br from-teal-400 to-emerald-500 text-white shadow-md shadow-emerald-500/20',
       border: 'hover:border-emerald-400',
     },
     {
-      title: 'Experiences',
-      description: 'Things to do & guided tours',
+      title: 'Host Experiences',
+      description: 'Curated adventures & workshops',
       path: '/experiences',
       icon: Flame,
       iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-md shadow-green-500/20',
@@ -102,40 +107,172 @@ export const CustomerDashboard = () => {
     },
     {
       title: 'My Bookings',
-      description: 'View & manage your trips',
+      description: 'Review confirmed reservations',
       path: '/customer/bookings',
       icon: BookOpen,
       iconBg: 'bg-gradient-to-br from-[#F97360] to-orange-500 text-white shadow-md shadow-orange-500/20',
       border: 'hover:border-[#F97360]',
     },
     {
-      title: 'Favorites',
-      description: 'Saved dream destinations',
-      path: '/search',
-      icon: Heart,
-      iconBg: 'bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-md shadow-purple-500/20',
+      title: 'Travel Support',
+      description: '24/7 VeriNova concierge desk',
+      path: '/support',
+      icon: HelpCircle,
+      iconBg: 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md shadow-purple-500/20',
       border: 'hover:border-purple-400',
     },
   ];
 
+  const travelCollections = [
+    {
+      title: 'Mountain & Cliffside Sanctuaries',
+      tagline: 'Munnar, Manali, Ooty • Mist-covered valleys',
+      destination: 'Munnar',
+      badge: 'High Altitude',
+      icon: Mountain,
+      bgGradient: 'from-emerald-950/90 to-teal-950/70',
+      img: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      title: 'Coastal & Sunset Private Villas',
+      tagline: 'Goa, Gokarna, Varkala • Ocean breeze stays',
+      destination: 'Goa',
+      badge: 'Beachfront',
+      icon: Waves,
+      bgGradient: 'from-orange-950/90 to-amber-950/70',
+      img: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      title: 'Rainforest & Eco Treehouse Escapes',
+      tagline: 'Wayanad, Coorg, Thekkady • Canopy living',
+      destination: 'Wayanad',
+      badge: 'Eco Living',
+      icon: TreePine,
+      bgGradient: 'from-green-950/90 to-emerald-950/70',
+      img: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      title: 'Heritage Palaces & Boutique Estates',
+      tagline: 'Jaipur, Udaipur, Kochi • Timeless elegance',
+      destination: 'Kochi',
+      badge: 'Royal Heritage',
+      icon: Castle,
+      bgGradient: 'from-slate-950/90 to-indigo-950/70',
+      img: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
+    },
+  ];
+
+  const stayMoods = [
+    {
+      title: 'Ayurveda & Wellness',
+      subtitle: 'Holistic rejuvenation in nature',
+      destination: 'Kerala',
+      icon: Sparkles,
+      img: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80',
+    },
+    {
+      title: 'Tea Estate Bungalows',
+      subtitle: 'Fresh mountain brews & rolling hills',
+      destination: 'Munnar',
+      icon: Coffee,
+      img: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80',
+    },
+    {
+      title: 'Sunset Beach Escapes',
+      subtitle: 'Private sundecks & golden tides',
+      destination: 'Goa',
+      icon: Sunset,
+      img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+    },
+    {
+      title: 'Alpine Stargazing Cabins',
+      subtitle: 'Clear skies & bonfire evenings',
+      destination: 'Manali',
+      icon: Tent,
+      img: 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=600&q=80',
+    },
+  ];
+
+  const travelTips = [
+    {
+      icon: Luggage,
+      title: 'Smart Packing Essentials',
+      desc: 'Hill station evenings drop in temperature. Always pack breathable thermal layers and trail walking shoes for spice plantation treks.',
+      badge: 'Prep Tip',
+      accent: 'border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'VeriNova Check-in Protocol',
+      desc: 'Have your digital government photo ID ready. Voyara properties provide seamless contactless arrival with verified host greeting.',
+      badge: 'Arrival Protocol',
+      accent: 'border-orange-500/30 bg-orange-50/50 dark:bg-orange-950/20',
+    },
+    {
+      icon: Coffee,
+      title: 'Authentic Local Experiences',
+      desc: 'Support indigenous communities by booking host-guided organic tea tastings, sunrise kayaking, and traditional pottery sessions.',
+      badge: 'Local Culture',
+      accent: 'border-teal-500/30 bg-teal-50/50 dark:bg-teal-950/20',
+    },
+  ];
+
+  const popularDestinations = [
+    {
+      name: 'Munnar',
+      state: 'Kerala',
+      type: 'Hill Sanctuary',
+      img: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=300&q=80',
+    },
+    {
+      name: 'Goa',
+      state: 'West Coast',
+      type: 'Beachfront',
+      img: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=300&q=80',
+    },
+    {
+      name: 'Wayanad',
+      state: 'Kerala',
+      type: 'Rainforest',
+      img: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=300&q=80',
+    },
+    {
+      name: 'Manali',
+      state: 'Himachal',
+      type: 'Alpine Valley',
+      img: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=300&q=80',
+    },
+    {
+      name: 'Kochi',
+      state: 'Kerala',
+      type: 'Heritage Harbour',
+      img: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=300&q=80',
+    },
+    {
+      name: 'Ooty',
+      state: 'Tamil Nadu',
+      type: 'Tea Country',
+      img: 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?auto=format&fit=crop&w=300&q=80',
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* 1. Travel Hero Section */}
-      <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-white via-[#F0FDF8] to-[#E6F7F2] dark:from-[#0B1528] dark:via-[#0F1D38] dark:to-[#081020] p-6 sm:p-8 md:p-10 transition-colors duration-200">
-        {/* Subtle Decorative Tropical/Wave Graphic Accent on right for Light Mode */}
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-15 dark:opacity-5 pointer-events-none bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500 via-teal-400 to-transparent"></div>
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* 1. Travel Hero Welcome Section */}
+      <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-white via-[#F0FDF8] to-[#E6F7F2] dark:from-[#0B1528] dark:via-[#0F1D38] dark:to-[#081020] p-6 sm:p-8 md:p-10 transition-colors duration-200">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-20 dark:opacity-5 pointer-events-none bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500 via-teal-400 to-transparent"></div>
 
         <div className="relative z-10 max-w-2xl space-y-3">
           <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/15 dark:bg-emerald-500/25 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold shadow-xs">
             <Sparkles className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-300" />
-            <span>Discover Handpicked Stays</span>
+            <span>Voyara Explorer • VeriNova Protected Account</span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black font-serif text-[#102A43] dark:text-white tracking-tight">
-            Welcome back, {user?.name?.split(' ')[0] || 'Ananya'}! 👋
+            Welcome back, {user?.name?.split(' ')[0] || 'Traveler'}! 👋
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium">
-            Where will your next adventure take you?
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+            Discover handpicked sanctuaries, authentic local experiences, and tranquil retreats verified for peace of mind.
           </p>
 
           {/* Embedded Real-Time Search Dock with Floating Live Results */}
@@ -151,7 +288,7 @@ export const CustomerDashboard = () => {
                   value={searchLocation}
                   onChange={(e) => handleHeroSearchChange(e.target.value)}
                   onFocus={() => searchLocation.trim() && setShowHeroDropdown(true)}
-                  placeholder="Search destinations, stays, or experiences..."
+                  placeholder="Search destinations, resorts, or experiences..."
                   className="w-full bg-transparent text-xs text-[#102A43] dark:text-white placeholder-slate-400 focus:outline-hidden font-medium"
                 />
                 {searchLocation && (
@@ -238,7 +375,7 @@ export const CustomerDashboard = () => {
         </div>
       </div>
 
-      {/* 2. Quick Action Cards (4 horizontal cards with vibrant distinct gradient icons matching reference) */}
+      {/* 2. Quick Action Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {quickActions.map((action) => {
           const Icon = action.icon;
@@ -266,210 +403,254 @@ export const CustomerDashboard = () => {
         })}
       </div>
 
-      {/* 3. Bottom Grid: Upcoming Trips (Left) + Recommended for You (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column (5 cols): Upcoming Trips */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold font-serif text-[#102A43] dark:text-white">
-              Upcoming Trips
+      {/* 3. Trending Destination Gateways with Imagery */}
+      <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">
+              Trending Destination Gateways
             </h2>
-            <Link
-              to="/customer/bookings"
-              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center space-x-0.5"
-            >
-              <span>View All</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Browse top handpicked regions with verified local hosts
+            </p>
           </div>
-
-          {loading ? (
-            <div className="p-8 bg-white dark:bg-[#131D2E] rounded-2xl border border-slate-200/80 dark:border-slate-800 flex justify-center">
-              <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : recentBookings.length === 0 ? (
-            <div className="bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 text-center space-y-3 shadow-2xs">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
-                <Compass className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-[#102A43] dark:text-white">
-                  Your next adventure is waiting.
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Find handpicked stays verified by VeriNova across Goa, Kerala, and Manali.
-                </p>
-              </div>
-              <Link
-                to="/search"
-                className="inline-block px-4 py-2 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white text-xs font-bold rounded-xl shadow-md shadow-[#F97360]/20 transition-all cursor-pointer"
-              >
-                Explore Stays
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentBookings.slice(0, 2).map((b) => (
-                <div
-                  key={b.id}
-                  className="bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-2xs space-y-3 group"
-                >
-                  <div className="flex items-center space-x-3">
-                    <img
-                      src={
-                        b.property?.images?.[0]?.image_url ||
-                        'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=400&q=80'
-                      }
-                      alt="Stay"
-                      className="w-16 h-16 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold text-[#102A43] dark:text-white truncate">
-                          {b.property?.name || 'Luxury Stay'}
-                        </h4>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {b.check_in} — {b.check_out}
-                      </p>
-                      <p className="text-xs font-bold text-[#F97360] font-serif mt-1">
-                        ₹{b.total_amount?.toLocaleString('en-IN')}{' '}
-                        <span className="text-[10px] text-slate-400 font-sans font-normal">
-                          ({b.total_nights || 1} Night)
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <StatusBadge status={b.status || 'CONFIRMED'} size="sm" />
-                    <Link
-                      to="/customer/bookings"
-                      className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-                    >
-                      View Booking
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <Link
+            to="/search"
+            className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center space-x-0.5"
+          >
+            <span>Explore All</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
 
-        {/* Right Column (7 cols): Recommended for You */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold font-serif text-[#102A43] dark:text-white">
-              Recommended for You
-            </h2>
-            <Link
-              to="/search"
-              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center space-x-0.5"
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+          {popularDestinations.map((dest) => (
+            <div
+              key={dest.name}
+              onClick={() => navigate(`/search?destination=${encodeURIComponent(dest.name)}`)}
+              className="group relative rounded-2xl overflow-hidden aspect-4/5 cursor-pointer shadow-sm border border-slate-200/80 dark:border-slate-800 transition-all hover:-translate-y-1 hover:shadow-md"
             >
-              <span>View All Stays</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+              <img
+                src={dest.img}
+                alt={dest.name}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3 text-white">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-[#FDBA9A] block">
+                  {dest.type}
+                </span>
+                <h4 className="text-sm font-bold font-serif leading-tight mt-0.5">
+                  {dest.name}
+                </h4>
+                <p className="text-[10px] text-slate-300">{dest.state}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. Curated Stay Collections ("Escape by Setting") */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">
+              Curated Stay Collections
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Handpicked retreats tailored to your preferred landscape and architecture
+            </p>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {(recommendedStays.length > 0
-              ? recommendedStays.slice(0, 2)
-              : [
-                  {
-                    id: 1,
-                    name: 'Mountain Mist Retreat',
-                    city: 'Munnar',
-                    state: 'Kerala',
-                    rating: 4.8,
-                    price: 4200,
-                    image_url:
-                      'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=600&q=80',
-                  },
-                  {
-                    id: 2,
-                    name: 'Whispering Palms Villa',
-                    city: 'Goa',
-                    state: 'India',
-                    rating: 4.9,
-                    price: 8500,
-                    image_url:
-                      'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80',
-                  },
-                ]
-            ).map((stay) => {
-              const stayId = stay.id;
-              const isLiked = !!likedProperties[stayId];
-              const price =
-                stay.rooms?.[0]?.base_price ||
-                stay.rooms?.[0]?.price_per_night ||
-                stay.price ||
-                4500;
-              const img =
-                stay.images?.[0]?.image_url ||
-                stay.image_url ||
-                'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80';
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {travelCollections.map((col) => {
+            const Icon = col.icon;
+            return (
+              <div
+                key={col.title}
+                onClick={() => navigate(`/search?destination=${encodeURIComponent(col.destination)}`)}
+                className="group relative rounded-3xl overflow-hidden aspect-4/3 sm:aspect-16/11 cursor-pointer border border-slate-200/80 dark:border-slate-800 shadow-md transition-transform hover:-translate-y-1.5"
+              >
+                <img
+                  src={col.img}
+                  alt={col.title}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                />
+                <div className={`absolute inset-0 bg-gradient-to-t ${col.bgGradient} opacity-90 group-hover:opacity-95 transition-opacity`} />
 
-              return (
-                <div
-                  key={stayId}
-                  className="bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs hover:shadow-md transition-all group"
-                >
-                  <div className="relative aspect-16/10 overflow-hidden">
-                    <img
-                      src={img}
-                      alt={stay.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <button
-                      onClick={() => toggleLike(stayId)}
-                      className={`absolute top-2.5 right-2.5 p-2 rounded-xl backdrop-blur-md transition-colors cursor-pointer ${
-                        isLiked
-                          ? 'bg-[#F97360] text-white'
-                          : 'bg-black/40 text-white hover:text-[#F97360]'
-                      }`}
-                    >
-                      <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-white' : ''}`} />
-                    </button>
+                <div className="absolute inset-0 p-5 flex flex-col justify-between text-white">
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md">
+                      {col.badge}
+                    </span>
                   </div>
 
-                  <div className="p-4 space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-xs sm:text-sm font-bold text-[#102A43] dark:text-white font-sans line-clamp-1">
-                          {stay.name}
-                        </h3>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-emerald-500" />
-                          <span>
-                            {stay.city || 'Munnar'}, {stay.state || 'India'}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="flex items-center text-xs font-bold text-amber-500 shrink-0">
-                        <Star className="w-3 h-3 fill-amber-500 mr-0.5" />
-                        <span>{stay.rating || '4.8'}</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <p className="text-xs sm:text-sm font-black text-[#102A43] dark:text-white font-serif">
-                        ₹{price.toLocaleString('en-IN')}{' '}
-                        <span className="text-[10px] text-slate-400 font-sans font-normal">
-                          / night
-                        </span>
-                      </p>
-                      <Link
-                        to={`/properties/${stayId}`}
-                        className="px-3 py-1.5 bg-[#F97360]/15 hover:bg-[#F97360] text-[#F97360] hover:text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
-                      >
-                        Book Stay
-                      </Link>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold font-serif leading-snug">
+                      {col.title}
+                    </h3>
+                    <p className="text-[11px] text-slate-200 mt-1 line-clamp-1 font-light">
+                      {col.tagline}
+                    </p>
+                    <div className="flex items-center space-x-1 text-xs font-bold text-[#FDBA9A] mt-2 group-hover:translate-x-1 transition-transform">
+                      <span>Explore Collection</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 5. Stay Mood Explorer (4 visual cards) */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-base sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">
+            Find Your Stay Mood
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Tailored escapes designed around your desired pace and experience
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {stayMoods.map((mood) => {
+            const Icon = mood.icon;
+            return (
+              <div
+                key={mood.title}
+                onClick={() => navigate(`/search?destination=${encodeURIComponent(mood.destination)}`)}
+                className="p-4 bg-white dark:bg-[#131D2E] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-md transition-all cursor-pointer group hover:-translate-y-1 space-y-3"
+              >
+                <div className="relative aspect-16/10 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <img
+                    src={mood.img}
+                    alt={mood.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute top-2.5 right-2.5 w-8 h-8 rounded-xl bg-slate-900/80 backdrop-blur-md text-emerald-400 flex items-center justify-center">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-bold text-[#102A43] dark:text-white font-serif group-hover:text-[#F97360] transition-colors">
+                    {mood.title}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {mood.subtitle}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 6. VeriNova™ Trust & Guarantee Showcase */}
+      <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-[#102A43] to-[#0A1A2F] text-white space-y-6 shadow-xl border border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>VeriNova™ Transactional Integrity Framework</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold font-serif">
+              Built on Zero-Risk Smart Stay Guarantees
+            </h2>
           </div>
+          <Link
+            to="/support"
+            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all border border-white/20"
+          >
+            Learn How We Protect Stays
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+              <Lock className="w-4 h-4" />
+            </div>
+            <h4 className="text-sm font-bold text-white">Row-Level Lock Double-Booking Safety</h4>
+            <p className="text-slate-300 leading-relaxed">
+              Voyara uses atomic PostgreSQL row-level locks on room inventory during every transaction, ensuring simultaneous bookings never overlap.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-orange-500/20 flex items-center justify-center text-[#F97360]">
+              <Zap className="w-4 h-4" />
+            </div>
+            <h4 className="text-sm font-bold text-white">Authoritative Transparent Pricing</h4>
+            <p className="text-slate-300 leading-relaxed">
+              Nightly room rates and experiences are calculated strictly on the backend with zero hidden surge fees or surprise commissions.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-teal-500/20 flex items-center justify-center text-teal-300">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <h4 className="text-sm font-bold text-white">100% Verified Hosts & Sanctuaries</h4>
+            <p className="text-slate-300 leading-relaxed">
+              Every property undergoes strict physical, legal, and operational verification before accepting reservations.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 7. Voyara Travel Readiness & Explorer Journal */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-base sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">
+            Voyara Travel Readiness & Tips
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Insights to make your stay peaceful, sustainable, and effortless
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {travelTips.map((tip) => {
+            const Icon = tip.icon;
+            return (
+              <div
+                key={tip.title}
+                className={`p-5 bg-white dark:bg-[#131D2E] rounded-3xl border ${tip.accent} shadow-xs space-y-3 flex flex-col justify-between`}
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {tip.badge}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-[#102A43] dark:text-white">
+                    {tip.title}
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    {tip.desc}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1">
+                    <span>Verified Guest Advice</span>
+                    <CheckCircle2 className="w-3 h-3" />
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -5,8 +5,28 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.properties.property_service import PropertyService
 from app.services.experiences.experience_service import ExperienceService
+from app.services.availability.availability_service import AvailabilityService
+from app.schemas.availability import RoomAvailabilityCheckResponse
 
 router = APIRouter()
+
+@router.get("/rooms/{room_id}/availability", response_model=RoomAvailabilityCheckResponse)
+def get_room_availability(
+    room_id: int,
+    check_in: Optional[date] = Query(None, description="Check-in date"),
+    check_out: Optional[date] = Query(None, description="Check-out date"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get live, real-time database-driven room availability, capacities, booked units,
+    and current pricing for given dates.
+    """
+    return AvailabilityService.check_room_availability(
+        db=db,
+        room_id=room_id,
+        check_in=check_in,
+        check_out=check_out
+    )
 
 @router.get("/search")
 def search_listings(

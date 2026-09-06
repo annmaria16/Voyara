@@ -12,7 +12,9 @@ export const AdminUsers = () => {
     setLoading(true);
     try {
       const data = await adminApi.getUsers(roleFilter);
-      setUsers(data);
+      // Ensure admin users are excluded from the regular users table
+      const filtered = (data || []).filter(u => u.role !== 'ADMIN');
+      setUsers(filtered);
     } catch (err) {
       setError(err.message || 'Failed to load users.');
     } finally {
@@ -38,15 +40,14 @@ export const AdminUsers = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black font-serif text-[#102A43] dark:text-white">User & Host Management</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Manage traveler accounts, hosts, and administrative access</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Manage registered traveler accounts and verified hosts</p>
         </div>
 
         <div className="flex items-center space-x-2">
           {[
-            { value: '', label: 'All Roles' },
+            { value: '', label: 'All Users' },
             { value: 'CUSTOMER', label: 'Travelers' },
-            { value: 'PROVIDER', label: 'Hosts' },
-            { value: 'ADMIN', label: 'Administrators' }
+            { value: 'PROVIDER', label: 'Hosts' }
           ].map((r) => (
             <button
               key={r.value}
@@ -89,49 +90,55 @@ export const AdminUsers = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-[#FFF8F0]/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="py-3.5 font-mono text-slate-400 dark:text-slate-500">#{u.id}</td>
-                    <td className="py-3.5 font-bold text-[#102A43] dark:text-white">{u.name}</td>
-                    <td className="py-3.5">
-                      <span className="block text-slate-600 dark:text-slate-300">{u.email}</span>
-                      <span className="block text-[11px] text-slate-400 dark:text-slate-500">{u.phone || 'No phone'}</span>
-                    </td>
-                    <td className="py-3.5">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        u.role === 'ADMIN'
-                          ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
-                          : u.role === 'PROVIDER'
-                          ? 'bg-orange-500/10 text-[#F97360] dark:text-orange-400 border border-orange-500/20'
-                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                      }`}>
-                        {u.role === 'ADMIN' ? 'Administrator' : u.role === 'PROVIDER' ? 'Host' : 'Traveler'}
-                      </span>
-                    </td>
-                    <td className="py-3.5">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        u.is_active
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                      }`}>
-                        {u.is_active ? 'Active' : 'Suspended'}
-                      </span>
-                    </td>
-                    <td className="py-3.5 text-slate-500 dark:text-slate-400">{new Date(u.created_at).toLocaleDateString()}</td>
-                    <td className="py-3.5">
-                      <button
-                        onClick={() => handleToggleStatus(u.id)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                          u.is_active
-                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20'
-                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
-                        }`}
-                      >
-                        {u.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="py-12 text-center text-slate-400 dark:text-slate-500">
+                      No accounts found matching the current filter.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  users.map((u) => (
+                    <tr key={u.id} className="hover:bg-[#FFF8F0]/50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="py-3.5 font-mono text-slate-400 dark:text-slate-500">#{u.id}</td>
+                      <td className="py-3.5 font-bold text-[#102A43] dark:text-white">{u.name}</td>
+                      <td className="py-3.5">
+                        <span className="block text-slate-600 dark:text-slate-300">{u.email}</span>
+                        <span className="block text-[11px] text-slate-400 dark:text-slate-500">{u.phone || 'No phone'}</span>
+                      </td>
+                      <td className="py-3.5">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          u.role === 'PROVIDER'
+                            ? 'bg-orange-500/10 text-[#F97360] dark:text-orange-400 border border-orange-500/20'
+                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                        }`}>
+                          {u.role === 'PROVIDER' ? 'Host' : 'Traveler'}
+                        </span>
+                      </td>
+                      <td className="py-3.5">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          u.is_active
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                        }`}>
+                          {u.is_active ? 'Active' : 'Suspended'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 text-slate-500 dark:text-slate-400">{new Date(u.created_at).toLocaleDateString()}</td>
+                      <td className="py-3.5">
+                        <button
+                          onClick={() => handleToggleStatus(u.id)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                            u.is_active
+                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20'
+                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                          }`}
+                        >
+                          {u.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -140,3 +147,4 @@ export const AdminUsers = () => {
     </div>
   );
 };
+

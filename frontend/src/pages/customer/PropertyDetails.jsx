@@ -33,9 +33,17 @@ export const PropertyDetails = () => {
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState('2');
+  const [roomQuantity, setRoomQuantity] = useState(1);
+  const [roomAvailability, setRoomAvailability] = useState(null);
+  const [availLoading, setAvailLoading] = useState(false);
   const [selectedExperienceId, setSelectedExperienceId] = useState(null);
   const [experienceParticipants, setExperienceParticipants] = useState('2');
   const [error, setError] = useState('');
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const minCheckoutDate = checkIn
+    ? new Date(new Date(checkIn).getTime() + 86400000).toISOString().split('T')[0]
+    : todayStr;
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -54,6 +62,54 @@ export const PropertyDetails = () => {
     };
     fetchDetails();
   }, [id]);
+
+  // Fetch real-time room availability whenever room, checkIn, or checkOut changes
+  useEffect(() => {
+    if (!selectedRoomId) return;
+    let isMounted = true;
+    const fetchAvail = async () => {
+      setAvailLoading(true);
+      try {
+        const data = await customerApi.getRoomAvailability(
+          selectedRoomId,
+          checkIn || undefined,
+          checkOut || undefined
+        );
+        if (!isMounted) return;
+        setRoomAvailability(data);
+
+        // Adjust room quantity if exceeds available
+        if (data.available_quantity > 0 && roomQuantity > data.available_quantity) {
+          setRoomQuantity(data.available_quantity);
+        }
+      } catch (err) {
+        console.error('Error checking room availability:', err);
+      } finally {
+        if (isMounted) setAvailLoading(false);
+      }
+    };
+    fetchAvail();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedRoomId, checkIn, checkOut]);
+
+  // Derived variables (safely handling null property during initial load)
+  const selectedRoom = property?.rooms?.find((r) => r.id === selectedRoomId) || property?.rooms?.[0];
+  const selectedExp = property?.experiences?.find((e) => e.id === selectedExperienceId);
+
+  const roomCapacity = roomAvailability?.max_guests || selectedRoom?.capacity || 2;
+  const maxAllowedGuests = roomCapacity * roomQuantity;
+  const availableRoomsCount = roomAvailability ? roomAvailability.available_quantity : (selectedRoom?.quantity || 1);
+  const isRoomSoldOut = roomAvailability ? !roomAvailability.is_available : false;
+
+  // Ensure selected guests count is strictly clamped within maxAllowedGuests (roomCapacity * roomQuantity)
+  useEffect(() => {
+    const currentGuests = parseInt(guests, 10) || 1;
+    if (currentGuests > maxAllowedGuests) {
+      setGuests(String(Math.max(1, maxAllowedGuests)));
+    }
+  }, [maxAllowedGuests, guests]);
 
   if (loading) {
     return (
@@ -75,10 +131,6 @@ export const PropertyDetails = () => {
     );
   }
 
-  // Calculate pricing
-  const selectedRoom = property.rooms?.find((r) => r.id === selectedRoomId) || property.rooms?.[0];
-  const selectedExp = property.experiences?.find((e) => e.id === selectedExperienceId);
-
   const calculateNights = () => {
     if (!checkIn || !checkOut) return 1;
     const start = new Date(checkIn);
@@ -88,7 +140,8 @@ export const PropertyDetails = () => {
   };
 
   const nights = calculateNights();
-  const roomSubtotal = (selectedRoom?.base_price || 0) * nights;
+  const roomUnitPrice = roomAvailability?.price_per_night || selectedRoom?.base_price || 0;
+  const roomSubtotal = roomUnitPrice * nights * roomQuantity;
 
   let expSubtotal = 0;
   if (selectedExp) {
@@ -98,17 +151,43 @@ export const PropertyDetails = () => {
 
   const grandTotal = roomSubtotal + expSubtotal;
 
+  const handleCheckInChange = (newCheckIn) => {
+    setCheckIn(newCheckIn);
+    if (checkOut && newCheckIn >= checkOut) {
+      // Auto-adjust check-out to the next day
+      const nextDay = new Date(new Date(newCheckIn).getTime() + 86400000).toISOString().split('T')[0];
+      setCheckOut(nextDay);
+    }
+  };
+
   const handleProceedToBooking = () => {
     if (!checkIn || !checkOut) {
       setError('Please select check-in and check-out dates.');
       return;
     }
+    if (checkIn < todayStr) {
+      setError('Check-in date cannot be in the past.');
+      return;
+    }
     if (new Date(checkOut) <= new Date(checkIn)) {
-      setError('Check-out date must be after check-in date.');
+      setError('Check-out date must be strictly after check-in date.');
       return;
     }
     if (!selectedRoomId) {
       setError('Please select a room unit.');
+      return;
+    }
+    if (isRoomSoldOut || availableRoomsCount <= 0) {
+      setError(roomAvailability?.message || 'Sorry, this room is not available for the selected dates.');
+      return;
+    }
+    if (roomQuantity > availableRoomsCount) {
+      setError(`Only ${availableRoomsCount} room(s) are available for these dates.`);
+      return;
+    }
+    const guestNum = parseInt(guests, 10);
+    if (guestNum > maxAllowedGuests) {
+      setError(`This room accommodates a maximum of ${maxAllowedGuests} guests for ${roomQuantity} room(s).`);
       return;
     }
 
@@ -121,12 +200,13 @@ export const PropertyDetails = () => {
       property_type: property.property_type,
       property_city: property.city,
       room_id: selectedRoomId,
-      room_name: selectedRoom.name,
-      room_price: selectedRoom.base_price,
+      room_name: selectedRoom?.name || 'Deluxe Unit',
+      room_price: roomUnitPrice,
+      room_quantity: roomQuantity,
       check_in: checkIn,
       check_out: checkOut,
       nights,
-      guests: parseInt(guests, 10),
+      guests: guestNum,
       room_subtotal: roomSubtotal,
       experience_id: selectedExperienceId,
       experience_title: selectedExp?.title,
@@ -260,7 +340,14 @@ export const PropertyDetails = () => {
             </div>
 
             <div className="space-y-4">
-              {property.rooms?.map((room) => {
+              {(!property.rooms || property.rooms.length === 0) ? (
+                <div className="p-8 text-center bg-white dark:bg-[#131D2E] rounded-3xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-2">
+                  <Bed className="w-8 h-8 text-slate-400 mx-auto" />
+                  <p className="font-bold text-sm text-[#102A43] dark:text-white">No room units currently listed</p>
+                  <p>Please check back soon or browse other verified sanctuaries.</p>
+                </div>
+              ) : (
+                property.rooms.map((room) => {
                 const isSelected = selectedRoomId === room.id;
                 return (
                   <div
@@ -299,13 +386,21 @@ export const PropertyDetails = () => {
 
                         <p className="text-xs text-slate-500 dark:text-slate-300 mt-1 line-clamp-2">{room.description}</p>
 
-                        <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-slate-400">
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-slate-500 dark:text-slate-400">
                           <span className="flex items-center space-x-1">
                             <Users className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>Max {room.capacity} Guests</span>
+                            <span>Max {room.capacity} Guests / Room</span>
                           </span>
                           <span>•</span>
                           <span>{room.quantity} units in stock</span>
+                          {isSelected && roomQuantity > 1 && (
+                            <>
+                              <span>•</span>
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                Max {room.capacity * roomQuantity} Guests across {roomQuantity} Rooms
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -325,7 +420,7 @@ export const PropertyDetails = () => {
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
 
@@ -394,7 +489,7 @@ export const PropertyDetails = () => {
             <div className="flex items-baseline justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <span className="text-2xl font-bold font-serif text-[#102A43] dark:text-white">
-                  ₹{selectedRoom?.base_price?.toLocaleString('en-IN') || '0'}
+                  ₹{roomUnitPrice?.toLocaleString('en-IN') || '0'}
                 </span>
                 <span className="text-xs text-slate-400"> / night</span>
               </div>
@@ -408,6 +503,34 @@ export const PropertyDetails = () => {
               </div>
             )}
 
+            {/* Live Availability Status Banner */}
+            {checkIn && checkOut && (
+              <div>
+                {availLoading ? (
+                  <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl text-xs text-slate-500 flex items-center space-x-2">
+                    <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                    <span>Checking live inventory...</span>
+                  </div>
+                ) : isRoomSoldOut || availableRoomsCount <= 0 ? (
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-bold space-y-0.5">
+                    <div className="flex items-center space-x-1.5">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{roomAvailability?.message || 'Sold out for these dates'}</span>
+                    </div>
+                    <p className="text-[11px] font-normal text-rose-600 dark:text-rose-400">Please choose different dates or select another room.</p>
+                  </div>
+                ) : (
+                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between">
+                    <span className="flex items-center space-x-1.5">
+                      <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>{availableRoomsCount} of {selectedRoom?.quantity} units available</span>
+                    </span>
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">Available</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Date inputs */}
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
@@ -418,8 +541,9 @@ export const PropertyDetails = () => {
                   <input
                     type="date"
                     required
+                    min={todayStr}
                     value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
+                    onChange={(e) => handleCheckInChange(e.target.value)}
                     className="w-full px-2.5 py-2 bg-[#FFF8F0]/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#102A43] dark:text-white focus:outline-hidden focus:border-[#F97360]"
                   />
                 </div>
@@ -430,6 +554,7 @@ export const PropertyDetails = () => {
                   <input
                     type="date"
                     required
+                    min={minCheckoutDate}
                     value={checkOut}
                     onChange={(e) => setCheckOut(e.target.value)}
                     className="w-full px-2.5 py-2 bg-[#FFF8F0]/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#102A43] dark:text-white focus:outline-hidden focus:border-[#F97360]"
@@ -437,19 +562,61 @@ export const PropertyDetails = () => {
                 </div>
               </div>
 
+              {/* Number of Rooms Selector */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
-                  Guests Count
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    Number of Rooms
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    Max {Math.max(1, availableRoomsCount)} available
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3 bg-[#FFF8F0]/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5">
+                  <button
+                    type="button"
+                    disabled={roomQuantity <= 1 || isRoomSoldOut}
+                    onClick={() => setRoomQuantity((prev) => Math.max(1, prev - 1))}
+                    className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    -
+                  </button>
+                  <div className="flex-1 text-center">
+                    <span className="font-black text-sm text-[#102A43] dark:text-white font-serif">
+                      {roomQuantity} {roomQuantity === 1 ? 'Room' : 'Rooms'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={roomQuantity >= availableRoomsCount || isRoomSoldOut}
+                    onClick={() => setRoomQuantity((prev) => Math.min(availableRoomsCount, prev + 1))}
+                    className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic Guest Count Selector (Calculated from room.capacity * roomQuantity) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    Guests Count
+                  </label>
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                    Max {maxAllowedGuests} guests ({roomCapacity} guests/room × {roomQuantity} {roomQuantity === 1 ? 'room' : 'rooms'})
+                  </span>
+                </div>
                 <select
                   value={guests}
                   onChange={(e) => setGuests(e.target.value)}
                   className="w-full px-3 py-2 bg-[#FFF8F0]/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#102A43] dark:text-white focus:outline-hidden focus:border-[#F97360] cursor-pointer"
                 >
-                  <option value="1">1 Guest</option>
-                  <option value="2">2 Guests</option>
-                  <option value="3">3 Guests</option>
-                  <option value="4">4 Guests</option>
+                  {Array.from({ length: maxAllowedGuests }, (_, i) => i + 1).map((num) => (
+                    <option key={num} value={num}>
+                      {num} {num === 1 ? 'Guest' : 'Guests'}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -473,8 +640,12 @@ export const PropertyDetails = () => {
             {/* Price Breakdown */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs">
               <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                <span>{selectedRoom?.name} × {nights} night(s)</span>
-                <span className="font-semibold text-[#102A43] dark:text-white">₹{roomSubtotal.toLocaleString('en-IN')}</span>
+                <span>
+                  {selectedRoom?.name} (₹{roomUnitPrice.toLocaleString('en-IN')} × {nights}n × {roomQuantity}r)
+                </span>
+                <span className="font-semibold text-[#102A43] dark:text-white">
+                  ₹{roomSubtotal.toLocaleString('en-IN')}
+                </span>
               </div>
 
               {selectedExp && (
@@ -492,9 +663,10 @@ export const PropertyDetails = () => {
 
             <button
               onClick={handleProceedToBooking}
-              className="w-full py-3.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-[#F97360]/20 hover:shadow-xl transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer"
+              disabled={isRoomSoldOut || availableRoomsCount <= 0}
+              className="w-full py-3.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-[#F97360]/20 hover:shadow-xl transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>Review & Confirm Booking</span>
+              <span>{isRoomSoldOut || availableRoomsCount <= 0 ? 'Sold Out for Selected Dates' : 'Review & Confirm Booking'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 

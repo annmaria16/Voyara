@@ -41,3 +41,18 @@ class AvailabilityCalendarResponse(BaseModel):
     property_id: int
     closures: List[PropertyClosureResponse] = []
     room_blocks: List[RoomBlockResponse] = []
+
+class RoomAvailabilityCheckResponse(BaseModel):
+    room_id: int
+    property_id: int
+    room_name: str
+    total_quantity: int
+    booked_quantity: int
+    blocked_quantity: int
+    available_quantity: int
+    max_guests: int
+    price_per_night: float
+    is_available: bool
+    is_property_closed: bool = False
+    is_room_blocked: bool = False
+    message: Optional[str] = None

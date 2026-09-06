@@ -1,5 +1,7 @@
+from collections import defaultdict
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.database import get_db
 from app.auth.dependencies import get_current_admin
 from app.models.user import User, UserRole
@@ -31,14 +33,74 @@ def get_admin_dashboard(
     active_properties = db.query(Property).filter(Property.is_active == True).count()
     total_rooms = db.query(Room).count()
     total_experiences = db.query(Experience).count()
-    total_bookings = db.query(Booking).count()
+    
+    # Bookings & Revenue
+    all_bookings = db.query(Booking).order_by(Booking.created_at.desc()).all()
+    total_bookings = len(all_bookings)
+    confirmed_bookings = sum(1 for b in all_bookings if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED])
+    total_revenue = sum(b.total_amount for b in all_bookings if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED])
     
     # Verification stats
     verified_bookings = db.query(VerificationResult).filter(VerificationResult.status == VerificationStatus.VERIFIED).count()
     needs_review_bookings = db.query(VerificationResult).filter(VerificationResult.status == VerificationStatus.NEEDS_REVIEW).count()
     failed_verifications = db.query(VerificationResult).filter(VerificationResult.status == VerificationStatus.FAILED).count()
 
-    total_revenue = sum(b.total_amount for b in db.query(Booking).filter(Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED])).all())
+    # Dynamic Top Locations from Properties Table
+    location_rows = db.query(Property.city, func.count(Property.id)).filter(Property.city != None).group_by(Property.city).order_by(func.count(Property.id).desc()).all()
+    total_props_with_city = sum(c[1] for c in location_rows) or 1
+    
+    palette = ['#F97360', '#10B981', '#F59E0B', '#14B8A6', '#8B5CF6', '#EC4899', '#64748B']
+    top_locations = []
+    for idx, (city_name, count) in enumerate(location_rows[:5]):
+        pct = round((count / total_props_with_city) * 100)
+        top_locations.append({
+            "label": city_name or "Other",
+            "percentage": pct,
+            "count": count,
+            "color": palette[idx % len(palette)]
+        })
+    
+    if len(location_rows) > 5:
+        other_count = sum(c[1] for c in location_rows[5:])
+        top_locations.append({
+            "label": "Others",
+            "percentage": round((other_count / total_props_with_city) * 100),
+            "count": other_count,
+            "color": '#64748B'
+        })
+    
+    if not top_locations:
+        top_locations = [
+            {"label": "Active Sanctuaries", "percentage": 100, "count": total_properties, "color": "#10B981"}
+        ]
+
+    # Dynamic Real Booking Activity Trends (Grouped by creation date)
+    daily_booking_counts = defaultdict(int)
+    daily_revenue_totals = defaultdict(float)
+
+    for b in reversed(all_bookings[:30]):
+        date_str = b.created_at.strftime('%d %b') if b.created_at else "Today"
+        daily_booking_counts[date_str] += 1
+        if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED]:
+            daily_revenue_totals[date_str] += b.total_amount
+
+    bookings_chart = [
+        {"label": k, "value": v}
+        for k, v in daily_booking_counts.items()
+    ]
+    if not bookings_chart:
+        bookings_chart = [
+            {"label": "Live System", "value": total_bookings}
+        ]
+
+    revenue_chart = [
+        {"label": k, "value": round(v, 2)}
+        for k, v in daily_revenue_totals.items()
+    ]
+    if not revenue_chart:
+        revenue_chart = [
+            {"label": "Live System", "value": round(total_revenue, 2)}
+        ]
 
     return {
         "admin": {
@@ -48,17 +110,22 @@ def get_admin_dashboard(
         "stats": {
             "total_customers": total_customers,
             "total_providers": total_providers,
+            "total_users": total_customers + total_providers,
             "total_properties": total_properties,
             "active_properties": active_properties,
             "total_rooms": total_rooms,
             "total_experiences": total_experiences,
             "total_bookings": total_bookings,
+            "confirmed_bookings": confirmed_bookings,
             "verified_bookings": verified_bookings,
             "needs_review_bookings": needs_review_bookings,
             "failed_verifications": failed_verifications,
             "total_revenue": round(total_revenue, 2),
             "verification_rate": round((verified_bookings / total_bookings * 100), 1) if total_bookings > 0 else 100.0
-        }
+        },
+        "top_locations": top_locations,
+        "bookings_chart": bookings_chart,
+        "revenue_chart": revenue_chart
     }
 
 router.include_router(users_router)

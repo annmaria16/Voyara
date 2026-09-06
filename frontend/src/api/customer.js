@@ -11,6 +11,14 @@ export const customerApi = {
     return response.data;
   },
 
+  getRoomAvailability: async (roomId, checkIn, checkOut) => {
+    const params = {};
+    if (checkIn) params.check_in = checkIn;
+    if (checkOut) params.check_out = checkOut;
+    const response = await api.get(`/customer/rooms/${roomId}/availability`, { params });
+    return response.data;
+  },
+
   getExperiences: async (params) => {
     const response = await api.get('/customer/experiences', { params });
     return response.data;

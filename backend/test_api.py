@@ -32,7 +32,7 @@ def test_full_voyara_workflow():
     print("[PASS] Provider authentication verified.")
 
     # 4. Test Admin Login
-    r = client.post("/api/auth/login", json={"email": "admin@voyara.com", "password": "admin123"})
+    r = client.post("/api/auth/login", json={"email": "adminvoyara@gmail.com", "password": "admin123"})
     assert r.status_code == 200
     admin_token = r.json()["access_token"]
     admin_headers = {"Authorization": f"Bearer {admin_token}"}

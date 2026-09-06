@@ -11,6 +11,7 @@ class BookingRoomItemResponse(BaseModel):
     room_name: str
     nightly_price: float
     nights: int
+    quantity: int = 1
     guests: int
     subtotal: float
 
@@ -36,6 +37,7 @@ class BookingCreate(BaseModel):
     check_in: date
     check_out: date
     total_guests: int = 1
+    room_quantity: int = 1
     experience_id: Optional[int] = None
     experience_participants: Optional[int] = 0
     experience_date: Optional[date] = None

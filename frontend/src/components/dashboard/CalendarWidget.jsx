@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 
 export const CalendarWidget = ({
-  bookedDates = [10, 11, 12, 15, 16, 20, 21, 22, 25],
-  blockedDates = [5, 6],
-  initialMonth = 'May',
-  initialYear = 2025,
+  bookedDates = [],
+  blockedDates = [],
+  initialMonth = new Date().toLocaleString('default', { month: 'long' }),
+  initialYear = new Date().getFullYear(),
+  onMonthChange,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [currentYear, setCurrentYear] = useState(initialYear);
-  const [selectedDay, setSelectedDay] = useState(15);
+  const [selectedDay, setSelectedDay] = useState(new Date().getDate());
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -18,27 +19,40 @@ export const CalendarWidget = ({
 
   const handlePrevMonth = () => {
     const idx = months.indexOf(currentMonth);
+    let newMonth, newYear;
     if (idx === 0) {
-      setCurrentMonth(months[11]);
-      setCurrentYear((prev) => prev - 1);
+      newMonth = months[11];
+      newYear = currentYear - 1;
     } else {
-      setCurrentMonth(months[idx - 1]);
+      newMonth = months[idx - 1];
+      newYear = currentYear;
     }
+    setCurrentMonth(newMonth);
+    setCurrentYear(newYear);
+    if (onMonthChange) onMonthChange(newMonth, newYear);
   };
 
   const handleNextMonth = () => {
     const idx = months.indexOf(currentMonth);
+    let newMonth, newYear;
     if (idx === 11) {
-      setCurrentMonth(months[0]);
-      setCurrentYear((prev) => prev + 1);
+      newMonth = months[0];
+      newYear = currentYear + 1;
     } else {
-      setCurrentMonth(months[idx + 1]);
+      newMonth = months[idx + 1];
+      newYear = currentYear;
     }
+    setCurrentMonth(newMonth);
+    setCurrentYear(newYear);
+    if (onMonthChange) onMonthChange(newMonth, newYear);
   };
 
+  const monthIndex = months.indexOf(currentMonth);
+  const daysInMonth = new Date(currentYear, monthIndex + 1, 0).getDate();
+  const firstDayIndex = new Date(currentYear, monthIndex, 1).getDay(); // 0 = Sun
+
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const totalDays = 31;
-  const daysArray = Array.from({ length: totalDays }, (_, i) => i + 1);
+  const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
     <div className="w-full select-none">
@@ -52,14 +66,16 @@ export const CalendarWidget = ({
         </div>
         <div className="flex items-center space-x-1">
           <button
+            type="button"
             onClick={handlePrevMonth}
-            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
           <button
+            type="button"
             onClick={handleNextMonth}
-            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -77,6 +93,11 @@ export const CalendarWidget = ({
 
       {/* Days Grid */}
       <div className="grid grid-cols-7 gap-1 text-center">
+        {/* Empty padding cells for first day */}
+        {Array.from({ length: firstDayIndex }).map((_, i) => (
+          <div key={`empty-${i}`} className="h-7 w-7 mx-auto" />
+        ))}
+
         {daysArray.map((day) => {
           const isBooked = bookedDates.includes(day);
           const isBlocked = blockedDates.includes(day);
@@ -85,14 +106,15 @@ export const CalendarWidget = ({
           return (
             <button
               key={day}
+              type="button"
               onClick={() => setSelectedDay(day)}
-              className={`h-7 w-7 mx-auto rounded-lg text-xs font-semibold flex items-center justify-center transition-all relative ${
+              className={`h-7 w-7 mx-auto rounded-lg text-xs font-semibold flex items-center justify-center transition-all relative cursor-pointer ${
                 isSelected
                   ? 'bg-gradient-to-r from-[#F97360] to-orange-500 text-white shadow-xs scale-105 font-bold'
                   : isBooked
                   ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 font-bold'
                   : isBlocked
-                  ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                  ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30 font-bold'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
@@ -116,13 +138,15 @@ export const CalendarWidget = ({
         </div>
         <div className="flex items-center space-x-1.5">
           <span className="w-2 h-2 rounded-full bg-[#F97360]"></span>
-          <span>Booked</span>
+          <span>{bookedDates.length > 0 ? `${bookedDates.length} Booked Days` : 'Booked'}</span>
         </div>
         <div className="flex items-center space-x-1.5">
           <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-          <span>Blocked</span>
+          <span>{blockedDates.length > 0 ? `${blockedDates.length} Blocked Days` : 'Blocked'}</span>
         </div>
       </div>
     </div>
   );
 };
+
+export default CalendarWidget;

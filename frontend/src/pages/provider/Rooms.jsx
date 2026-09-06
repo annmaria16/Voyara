@@ -9,14 +9,16 @@ export const ProviderRooms = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Add Room Modal State
+  // Modal State for Add / Edit
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingRoomId, setEditingRoomId] = useState(null);
   const [name, setName] = useState('');
   const [roomType, setRoomType] = useState('Deluxe Room');
   const [description, setDescription] = useState('');
   const [capacity, setCapacity] = useState('2');
   const [quantity, setQuantity] = useState('1');
   const [basePrice, setBasePrice] = useState('');
+  const [isActive, setIsActive] = useState(true);
   const [amenities, setAmenities] = useState(['King Bed', 'Balcony', 'Free Wi-Fi']);
   const [imageUrl, setImageUrl] = useState('https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80');
   const [modalLoading, setModalLoading] = useState(false);
@@ -59,30 +61,62 @@ export const ProviderRooms = () => {
     fetchRooms(propId);
   };
 
-  const handleAddRoomSubmit = async (e) => {
+  const openAddModal = () => {
+    setEditingRoomId(null);
+    setName('');
+    setRoomType('Deluxe Room');
+    setDescription('');
+    setCapacity('2');
+    setQuantity('1');
+    setBasePrice('');
+    setIsActive(true);
+    setImageUrl('https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80');
+    setError('');
+    setModalOpen(true);
+  };
+
+  const openEditModal = (room) => {
+    setEditingRoomId(room.id);
+    setName(room.name);
+    setRoomType(room.room_type);
+    setDescription(room.description);
+    setCapacity(String(room.capacity));
+    setQuantity(String(room.quantity));
+    setBasePrice(String(room.base_price));
+    setIsActive(room.is_active !== undefined ? room.is_active : true);
+    setImageUrl(room.images?.[0]?.image_url || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80');
+    setAmenities(room.amenities?.map(a => a.amenity_name || a) || ['King Bed', 'Balcony', 'Free Wi-Fi']);
+    setError('');
+    setModalOpen(true);
+  };
+
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     setModalLoading(true);
     setError('');
     try {
       const payload = {
-        name,
+        name: name.trim(),
         room_type: roomType,
-        description,
+        description: description.trim(),
         capacity: parseInt(capacity, 10),
         quantity: parseInt(quantity, 10),
         base_price: parseFloat(basePrice),
+        is_active: isActive,
         amenities,
         images: imageUrl ? [imageUrl] : [],
       };
 
-      await providerApi.createRoom(selectedPropertyId, payload);
+      if (editingRoomId) {
+        await providerApi.updateRoom(editingRoomId, payload);
+      } else {
+        await providerApi.createRoom(selectedPropertyId, payload);
+      }
+
       setModalOpen(false);
-      setName('');
-      setBasePrice('');
-      setDescription('');
       fetchRooms(selectedPropertyId);
     } catch (err) {
-      setError(err.message || 'Failed to create room unit.');
+      setError(err.message || 'Failed to save room unit.');
     } finally {
       setModalLoading(false);
     }
@@ -108,7 +142,7 @@ export const ProviderRooms = () => {
 
         {properties.length > 0 && (
           <button
-            onClick={() => setModalOpen(true)}
+            onClick={openAddModal}
             className="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -167,6 +201,9 @@ export const ProviderRooms = () => {
                         <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-900/90 text-white backdrop-blur-xs">
                           {r.room_type}
                         </span>
+                        <span className={`absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold ${r.is_active ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                          {r.is_active ? 'Active' : 'Inactive'}
+                        </span>
                       </div>
 
                       <div className="p-5 space-y-3">
@@ -188,13 +225,19 @@ export const ProviderRooms = () => {
                             <span>Max {r.capacity} Guests</span>
                           </span>
                           <span>•</span>
-                          <span>{r.quantity} Quantity</span>
+                          <span>{r.quantity} Units</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="p-4 bg-[#FFF8F0]/60 dark:bg-slate-900/70 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">Active in DB</span>
+                      <button
+                        onClick={() => openEditModal(r)}
+                        className="inline-flex items-center space-x-1 font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Edit Room</span>
+                      </button>
                       <button
                         onClick={() => handleDeleteRoom(r.id, r.name)}
                         className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"
@@ -211,11 +254,13 @@ export const ProviderRooms = () => {
         </>
       )}
 
-      {/* Add Room Modal */}
+      {/* Add / Edit Room Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm">
           <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl border border-slate-200 dark:border-slate-800">
-            <h3 className="text-xl font-bold font-serif text-slate-900 dark:text-white">Add Room Unit</h3>
+            <h3 className="text-xl font-bold font-serif text-slate-900 dark:text-white">
+              {editingRoomId ? 'Edit Room Unit' : 'Add Room Unit'}
+            </h3>
 
             {error && (
               <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-xs">
@@ -223,7 +268,7 @@ export const ProviderRooms = () => {
               </div>
             )}
 
-            <form onSubmit={handleAddRoomSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Room Name *</label>
                 <input
@@ -265,7 +310,7 @@ export const ProviderRooms = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Max Guests *</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Max Guests (Capacity) *</label>
                   <input
                     type="number"
                     min="1"
@@ -276,7 +321,7 @@ export const ProviderRooms = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Total Units Count *</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Total Rooms Available (Quantity) *</label>
                   <input
                     type="number"
                     min="1"
@@ -286,6 +331,19 @@ export const ProviderRooms = () => {
                     className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="room_active"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="rounded text-orange-600 focus:ring-orange-500"
+                />
+                <label htmlFor="room_active" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Room Active & Available for Booking
+                </label>
               </div>
 
               <div>
@@ -307,17 +365,6 @@ export const ProviderRooms = () => {
                 onChange={(url) => setImageUrl(url)}
               />
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">Or Photo Image URL</label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden text-xs"
-                />
-              </div>
-
               <div className="flex gap-2 pt-4">
                 <button
                   type="button"
@@ -331,7 +378,7 @@ export const ProviderRooms = () => {
                   disabled={modalLoading}
                   className="flex-1 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-xl cursor-pointer disabled:opacity-50"
                 >
-                  {modalLoading ? 'Saving...' : 'Create Unit'}
+                  {modalLoading ? 'Saving...' : editingRoomId ? 'Update Room' : 'Create Room'}
                 </button>
               </div>
             </form>
@@ -341,3 +388,5 @@ export const ProviderRooms = () => {
     </div>
   );
 };
+
+export default ProviderRooms;

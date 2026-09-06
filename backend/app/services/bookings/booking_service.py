@@ -22,6 +22,13 @@ class BookingService:
     @staticmethod
     def create_booking(db: Session, user_id: int, data: BookingCreate) -> Booking:
         # 1. Validate dates
+        today = date.today()
+        if data.check_in < today:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Check-in date cannot be in the past.",
+            )
+
         if data.check_out <= data.check_in:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -31,6 +38,9 @@ class BookingService:
         nights = (data.check_out - data.check_in).days
         if nights <= 0:
             nights = 1
+
+        requested_quantity = max(1, getattr(data, 'room_quantity', 1) or 1)
+        requested_guests = max(1, data.total_guests or 1)
 
         # 2. Validate Property
         prop = db.query(Property).filter(Property.id == data.property_id).first()
@@ -53,12 +63,12 @@ class BookingService:
                 detail=f"Property '{prop.name}' is closed for the selected dates. Reason: {closure.reason}",
             )
 
-        # 4. Validate Room
-        room = db.query(Room).filter(Room.id == data.room_id).first()
+        # 4. Validate Room with Row-Level Lock for Double-Booking / Concurrency Safety
+        room = db.query(Room).filter(Room.id == data.room_id).with_for_update().first()
         if not room or room.property_id != prop.id or not room.is_active:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Selected room unit does not exist or does not belong to this property.",
+                detail="Selected room unit does not exist, is inactive, or does not belong to this property.",
             )
 
         # Check Room Availability blocks
@@ -74,22 +84,40 @@ class BookingService:
                 detail=f"Room '{room.name}' is unavailable/blocked for these dates. Reason: {room_block.reason}",
             )
 
-        # Check Conflicting Bookings
-        conflict = db.query(BookingRoom).join(Booking).filter(
+        # Validate Guest Capacity for the requested room count
+        max_allowed_guests = room.capacity * requested_quantity
+        if requested_guests > max_allowed_guests:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"This room allows a maximum of {room.capacity} guests per room ({max_allowed_guests} guests for {requested_quantity} room(s)). You selected {requested_guests} guests.",
+            )
+
+        # Calculate live booked quantity for overlapping dates
+        booked_qty = db.query(
+            func.coalesce(func.sum(BookingRoom.quantity), 0)
+        ).join(Booking).filter(
             BookingRoom.room_id == room.id,
             Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED]),
             Booking.check_in < data.check_out,
             Booking.check_out > data.check_in
-        ).first()
-        if conflict:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Room '{room.name}' is already reserved for the selected dates. Please choose different dates or another room.",
-            )
+        ).scalar() or 0
 
-        # Calculate Room Total
+        available_qty = max(0, room.quantity - booked_qty)
+        if requested_quantity > available_qty:
+            if available_qty == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Sorry, this room is no longer available for the selected dates.",
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Only {available_qty} room(s) available for these dates. You requested {requested_quantity}.",
+                )
+
+        # Calculate Room Total Authoritatively on Backend
         room_nightly_price = room.base_price
-        room_total = round(room_nightly_price * nights, 2)
+        room_total = round(room_nightly_price * nights * requested_quantity, 2)
 
         # 5. Validate Experience (if selected)
         experience_total = 0.0
@@ -106,17 +134,19 @@ class BookingService:
                 )
 
             # Check Experience Capacity
-            booked_count = db.query(func.coalesce(func.sum(BookingExperience.participants), 0)).join(Booking).filter(
+            booked_exp_count = db.query(
+                func.coalesce(func.sum(BookingExperience.participants), 0)
+            ).join(Booking).filter(
                 BookingExperience.experience_id == exp_record.id,
                 BookingExperience.scheduled_date == exp_date,
                 Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED])
-            ).scalar()
+            ).scalar() or 0
 
-            remaining_capacity = exp_record.capacity - booked_count
+            remaining_capacity = exp_record.capacity - booked_exp_count
             if exp_participants > remaining_capacity:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Experience '{exp_record.title}' does not have enough remaining capacity (Requested: {exp_participants}, Remaining: {max(0, remaining_capacity)}).",
+                    detail=f"The selected experience has reached its capacity (Requested: {exp_participants}, Remaining: {max(0, remaining_capacity)}).",
                 )
 
             if exp_record.pricing_model == "per_person":
@@ -124,7 +154,7 @@ class BookingService:
             else:
                 experience_total = round(exp_record.price, 2)
 
-        # Calculate Total Amount (strictly on backend)
+        # Calculate Total Amount strictly on backend
         total_amount = round(room_total + experience_total, 2)
 
         # Generate unique booking number
@@ -140,7 +170,7 @@ class BookingService:
             check_in=data.check_in,
             check_out=data.check_out,
             total_nights=nights,
-            total_guests=data.total_guests,
+            total_guests=requested_guests,
             room_total=room_total,
             experience_total=experience_total,
             total_amount=total_amount,
@@ -148,8 +178,7 @@ class BookingService:
             customer_notes=data.customer_notes
         )
         db.add(booking)
-        db.commit()
-        db.refresh(booking)
+        db.flush()
 
         # Create BookingRoom item
         booking_room = BookingRoom(
@@ -158,7 +187,8 @@ class BookingService:
             room_name=room.name,
             nightly_price=room_nightly_price,
             nights=nights,
-            guests=data.total_guests,
+            quantity=requested_quantity,
+            guests=requested_guests,
             subtotal=room_total
         )
         db.add(booking_room)
@@ -177,11 +207,11 @@ class BookingService:
             )
             db.add(booking_exp)
 
-        db.commit()
-        db.refresh(booking)
+        db.flush()
 
         # 6. Run VeriNova Transaction Verification
         VeriNovaService.verify_booking_transaction(db, booking)
+        db.commit()
         db.refresh(booking)
 
         return booking

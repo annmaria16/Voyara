@@ -16,7 +16,7 @@ def seed_database():
     db: Session = SessionLocal()
 
     # Check if admin already exists
-    if db.query(User).filter(User.email == "admin@voyara.com").first():
+    if db.query(User).filter((User.email == "adminvoyara@gmail.com") | (User.email == "admin@voyara.com")).first():
         print("[!] Database already contains seed data.")
         db.close()
         return
@@ -25,7 +25,7 @@ def seed_database():
 
     # 1. Admin
     admin = User(
-        email="admin@voyara.com",
+        email="adminvoyara@gmail.com",
         name="Voyara Administrator",
         phone="+91 9876543210",
         hashed_password=hash_password("admin123"),

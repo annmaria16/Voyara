@@ -125,7 +125,7 @@ npm run dev
 | :--- | :--- | :--- | :--- |
 | **Traveler (Customer)** | `john.traveler@example.com` | `TravelerVoyara2026!` | `/customer` |
 | **Host (Provider)** | `kerala.stays@voyara.com` | `HostVoyara2026!` | `/provider` |
-| **Super Admin** | `admin@voyara.com` | `AdminVoyara2026!` | `/admin` |
+| **Super Admin** | `adminvoyara@gmail.com` | `admin123` | `/admin` |
 
 ---
 

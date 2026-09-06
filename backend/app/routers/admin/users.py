@@ -16,9 +16,9 @@ def get_all_users(
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """Admin endpoint to list all platform users."""
-    query = db.query(User)
-    if role:
+    """Admin endpoint to list all platform users (Travelers & Hosts). Excludes administrators."""
+    query = db.query(User).filter(User.role != UserRole.ADMIN)
+    if role and role.upper() != "ALL":
         query = query.filter(User.role == role.upper())
     return query.order_by(User.created_at.desc()).all()
 
@@ -56,10 +56,11 @@ def toggle_user_status(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     
-    if user.id == admin.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot deactivate your own admin account.")
+    if user.role == UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot modify administrator accounts from this endpoint.")
 
     user.is_active = not user.is_active
     db.commit()
     status_str = "activated" if user.is_active else "deactivated"
     return {"message": f"User {user.name} has been {status_str}.", "success": True}
+

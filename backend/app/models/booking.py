@@ -45,6 +45,7 @@ class BookingRoom(Base):
     room_name = Column(String(255), nullable=False)
     nightly_price = Column(Float, nullable=False)
     nights = Column(Integer, nullable=False)
+    quantity = Column(Integer, default=1, nullable=False)
     guests = Column(Integer, nullable=False)
     subtotal = Column(Float, nullable=False)
 
