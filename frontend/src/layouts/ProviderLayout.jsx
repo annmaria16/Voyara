@@ -12,8 +12,9 @@ export const ProviderLayout = () => {
     if (pathname === '/provider/properties/new') return 'ADD NEW PROPERTY';
     if (pathname.startsWith('/provider/properties')) return 'MY PROPERTIES';
     if (pathname.startsWith('/provider/rooms')) return 'ROOMS & INVENTORY';
-    if (pathname.startsWith('/provider/availability')) return 'CALENDAR & AVAILABILITY';
+    if (pathname.startsWith('/provider/availability')) return 'BLACKOUTS & CALENDAR';
     if (pathname.startsWith('/provider/experiences')) return 'EXPERIENCES & TOURS';
+
     if (pathname.startsWith('/provider/bookings')) return 'GUEST RESERVATIONS';
     if (pathname.startsWith('/provider/profile')) return 'HOST PROFILE';
     if (pathname.startsWith('/provider/support')) return 'SUPPORT DESK';

@@ -3,12 +3,28 @@ import { Link } from 'react-router-dom';
 import { customerApi } from '../../api/customer';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
 import { VerificationModal } from '../../components/verification/VerificationModal';
-import { Calendar, MapPin, ShieldCheck, AlertCircle, ArrowRight, XCircle, Compass, Sparkles } from 'lucide-react';
+import { InvoiceModal } from '../../components/payment/InvoiceModal';
+import { ReviewModal } from '../../components/review/ReviewModal';
+import {
+  Calendar,
+  MapPin,
+  ShieldCheck,
+  AlertCircle,
+  ArrowRight,
+  XCircle,
+  Compass,
+  Sparkles,
+  FileText,
+  CreditCard,
+  Star
+} from 'lucide-react';
 
 export const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [invoiceBooking, setInvoiceBooking] = useState(null);
+  const [reviewBooking, setReviewBooking] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(null);
   const [error, setError] = useState('');
 
@@ -54,7 +70,7 @@ export const MyBookings = () => {
             My Reservations
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 mt-1 font-light">
-            Manage your past and upcoming stays, local host adventures, and transaction verification audit records.
+            Manage your past and upcoming stays, download Razorpay GST tax invoices, and view VeriNova audit records.
           </p>
         </div>
 
@@ -117,9 +133,41 @@ export const MyBookings = () => {
                     <span className="text-xs text-slate-500 dark:text-slate-400">
                       Booked on {new Date(b.created_at).toLocaleDateString()}
                     </span>
+                    <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold">
+                      <CreditCard className="w-3 h-3" />
+                      <span>Razorpay Verified</span>
+                    </span>
                   </div>
 
                   <div className="flex items-center space-x-2">
+                    {/* Review Button if checkout is completed and not cancelled */}
+                    {!isCancelled && (b.status === 'COMPLETED' || new Date(b.check_out) <= new Date()) && (
+                      b.review ? (
+                        <span className="inline-flex items-center space-x-1 px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-bold border border-amber-500/20">
+                          <Star className="w-3.5 h-3.5 fill-amber-400" />
+                          <span>Rated {b.review.rating}/5</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setReviewBooking({ ...b, booking_id: b.id, property_name: b.property?.name })}
+                          className="px-3 py-1 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
+                        >
+                          <Star className="w-3.5 h-3.5 fill-white" />
+                          <span>Rate Stay</span>
+                        </button>
+                      )
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceBooking(b)}
+                      className="px-3 py-1 bg-[#FFF8F0] dark:bg-slate-800 hover:bg-orange-100 dark:hover:bg-slate-700 text-[#F97360] dark:text-orange-400 border border-orange-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Invoice</span>
+                    </button>
+
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                         isCancelled
@@ -183,7 +231,7 @@ export const MyBookings = () => {
                   <div className="p-4 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1 flex flex-col justify-between">
                     <div>
                       <span className="text-slate-400 dark:text-slate-400 font-bold block uppercase tracking-wider text-[10px]">
-                        Total Amount
+                        Total Amount Paid
                       </span>
                       <strong className="text-[#F97360] text-lg font-serif block font-bold">
                         ₹{b.total_amount?.toLocaleString('en-IN')}
@@ -194,7 +242,7 @@ export const MyBookings = () => {
                       <button
                         onClick={() => handleCancel(b.id)}
                         disabled={cancelLoading === b.id}
-                        className="text-[11px] font-bold text-rose-500 hover:text-rose-600 underline text-left cursor-pointer disabled:opacity-50"
+                        className="text-[11px] font-bold text-rose-500 hover:text-rose-600 underline text-left cursor-pointer disabled:opacity-50 mt-1"
                       >
                         {cancelLoading === b.id ? 'Cancelling...' : 'Cancel Reservation'}
                       </button>
@@ -214,6 +262,25 @@ export const MyBookings = () => {
           onClose={() => setSelectedBookingId(null)}
         />
       )}
+
+      {invoiceBooking && (
+        <InvoiceModal
+          booking={invoiceBooking}
+          isOpen={!!invoiceBooking}
+          onClose={() => setInvoiceBooking(null)}
+        />
+      )}
+
+      {reviewBooking && (
+        <ReviewModal
+          booking={reviewBooking}
+          isOpen={!!reviewBooking}
+          onClose={() => setReviewBooking(null)}
+          onSuccess={fetchBookings}
+        />
+      )}
     </div>
   );
 };
+
+export default MyBookings;

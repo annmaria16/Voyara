@@ -19,7 +19,7 @@ class Room(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     property = relationship("Property", back_populates="rooms")
-    images = relationship("RoomImage", back_populates="room", cascade="all, delete-orphan")
+    images = relationship("RoomImage", back_populates="room", cascade="all, delete-orphan", order_by="desc(RoomImage.is_primary), RoomImage.id")
     amenities = relationship("RoomAmenity", back_populates="room", cascade="all, delete-orphan")
     availability_blocks = relationship("RoomAvailability", back_populates="room", cascade="all, delete-orphan")
     booking_items = relationship("BookingRoom", back_populates="room", cascade="all, delete-orphan")

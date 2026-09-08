@@ -18,8 +18,11 @@ import {
   Sparkles,
   Calendar,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Mail,
+  MessageSquare
 } from 'lucide-react';
+
 
 export const ProviderDashboard = () => {
   const { user } = useAuth();
@@ -304,8 +307,34 @@ export const ProviderDashboard = () => {
           initialYear={currentYearNum}
         />
       </div>
+
+      {/* 5. Host Dedicated Help & Support Callout */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center space-x-3.5 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Mail className="w-6 h-6" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              Host Onboarding, Listing or Verification Support
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Help & Support: <strong className="text-emerald-600 dark:text-emerald-400">adminvoyara@gmail.com</strong> • Dedicated Host Concierge
+            </p>
+          </div>
+        </div>
+
+        <Link
+          to="/provider/support"
+          className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer flex items-center space-x-1.5"
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Host Support Desk</span>
+        </Link>
+      </div>
     </div>
   );
 };
 
 export default ProviderDashboard;
+

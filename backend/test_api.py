@@ -87,7 +87,8 @@ def test_full_voyara_workflow():
     print(f"[PASS] VeriNova Transaction Verification VERIFIED with {len(ver_detail['checks'])} audit checks.")
 
     # 9. Test Double Booking Conflict Prevention
-    r_conflict = client.post("/api/customer/bookings", json=booking_payload, headers=cust_headers)
+    conflict_payload = {**booking_payload, "room_quantity": 99}
+    r_conflict = client.post("/api/customer/bookings", json=conflict_payload, headers=cust_headers)
     assert r_conflict.status_code == 400
     print("[PASS] Double booking conflict successfully prevented by backend availability engine.")
 

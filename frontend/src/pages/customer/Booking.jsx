@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { customerApi } from '../../api/customer';
 import { useAuth } from '../../context/AuthContext';
+import { loadRazorpayScript } from '../../utils/razorpay';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
 import {
   ShieldCheck,
@@ -13,7 +14,10 @@ import {
   ArrowRight,
   Sparkles,
   Lock,
-  ArrowLeft
+  ArrowLeft,
+  CreditCard,
+  Zap,
+  Info
 } from 'lucide-react';
 
 export const BookingPage = () => {
@@ -25,7 +29,9 @@ export const BookingPage = () => {
 
   const [customerNotes, setCustomerNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [error, setError] = useState('');
+  const [paymentWarning, setPaymentWarning] = useState('');
 
   if (!bookingState) {
     return (
@@ -62,12 +68,20 @@ export const BookingPage = () => {
     total_amount,
   } = bookingState;
 
-  const handleConfirmReservation = async (e) => {
+  const handleRazorpayPayment = async (e) => {
     e.preventDefault();
     setError('');
+    setPaymentWarning('');
     setLoading(true);
 
     try {
+      // 1. Ensure Razorpay SDK script is loaded
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded) {
+        throw new Error('Razorpay SDK failed to load. Please check your internet connection and try again.');
+      }
+
+      // 2. Request backend to create a server-side verified Razorpay Order
       const payload = {
         property_id,
         room_id,
@@ -80,13 +94,105 @@ export const BookingPage = () => {
         customer_notes: customerNotes.trim() || undefined,
       };
 
-      const response = await customerApi.createBooking(payload);
+      const orderData = await customerApi.createPaymentOrder(payload);
 
-      // Navigate to confirmation page with booking data
-      navigate(`/booking/confirmation/${response.id}`, { state: { booking: response } });
+      // 3. Configure Razorpay Checkout Options
+      const cleanContact = (orderData.customer_phone || user?.phone || '9999999999').replace(/[^0-9]/g, '') || '9999999999';
+
+      const options = {
+        key: orderData.key_id,
+        amount: orderData.amount_paise,
+        currency: orderData.currency || 'INR',
+        name: 'Voyara Stays & Sanctuaries',
+        description: `${property_name} • ${room_name} (${nights}N)`,
+        order_id: orderData.order_id,
+        prefill: {
+          name: orderData.customer_name || user?.name || 'Voyara Guest',
+          email: orderData.customer_email || user?.email || 'guest@voyara.com',
+          contact: cleanContact,
+        },
+        notes: {
+          booking_number: orderData.booking_number,
+          property_name: property_name,
+        },
+        theme: {
+          color: '#F97360',
+        },
+        modal: {
+          ondismiss: async () => {
+            setLoading(false);
+            setPaymentWarning('Payment window was closed before completion. You can retry anytime whenever you are ready.');
+            try {
+              await customerApi.recordPaymentFailure({
+                booking_id: orderData.booking_id,
+                razorpay_order_id: orderData.order_id,
+                error_code: 'PAYMENT_CANCELLED_BY_USER',
+                error_description: 'User dismissed Razorpay checkout window.',
+              });
+            } catch (err) {
+              console.warn('Could not record cancellation status:', err);
+            }
+          },
+        },
+        handler: async (response) => {
+          // 4. Payment succeeded on Razorpay modal -> Verify cryptographically on backend
+          setVerifyingPayment(true);
+          setLoading(true);
+          try {
+            const verifyPayload = {
+              booking_id: orderData.booking_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            };
+
+            const confirmedBooking = await customerApi.verifyPayment(verifyPayload);
+
+            // 5. Navigate to confirmation page with verified booking & payment
+            navigate(`/booking/confirmation/${confirmedBooking.id}`, {
+              state: {
+                booking: confirmedBooking,
+                payment: response,
+              },
+            });
+          } catch (verifyErr) {
+            setError(verifyErr.message || 'Payment signature verification failed. Please contact Voyara support.');
+          } finally {
+            setVerifyingPayment(false);
+            setLoading(false);
+          }
+        },
+      };
+
+      // 4. Open Razorpay Checkout Modal
+      if (typeof window.Razorpay === 'undefined') {
+        await loadRazorpayScript();
+      }
+
+      if (typeof window.Razorpay === 'undefined') {
+        throw new Error('Razorpay payment gateway could not be initialized. Please refresh the page and try again.');
+      }
+
+      const razorpayInstance = new window.Razorpay(options);
+      razorpayInstance.on('payment.failed', async function (failedResponse) {
+        setLoading(false);
+        const errDesc = failedResponse.error?.description || 'Transaction declined by bank or gateway.';
+        setError(`Payment failed: ${errDesc}`);
+        try {
+          await customerApi.recordPaymentFailure({
+            booking_id: orderData.booking_id,
+            razorpay_order_id: orderData.order_id,
+            error_code: failedResponse.error?.code || 'GATEWAY_DECLINE',
+            error_description: errDesc,
+          });
+        } catch (recordErr) {
+          console.warn('Could not record failure:', recordErr);
+        }
+      });
+
+      razorpayInstance.open();
     } catch (err) {
-      setError(err.message || 'Booking reservation could not be completed. Please check availability.');
-    } finally {
+      setError(err.message || 'Payment reservation initialization failed. Please check availability.');
       setLoading(false);
     }
   };
@@ -109,24 +215,48 @@ export const BookingPage = () => {
         <div>
           <div className="flex items-center space-x-2 mb-1">
             <span className="text-xs bg-gradient-to-r from-[#F97360] to-orange-500 text-white font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
-              Step 2 of 2
+              Step 2 of 2 • Secure Checkout
             </span>
             <VerificationBadge status="VERIFIED" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-black font-serif text-[#102A43] dark:text-white">
-            Review & Confirm Your Reservation
+            Review & Pay with Razorpay
           </h1>
         </div>
       </div>
 
+      {/* Error Alert */}
       {error && (
-        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-2xl flex items-center space-x-3 text-rose-700 dark:text-rose-300 text-xs font-bold">
-          <AlertCircle className="w-5 h-5 shrink-0" />
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-2xl flex items-center space-x-3 text-rose-700 dark:text-rose-300 text-xs font-bold animate-in fade-in">
+          <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
           <span>{error}</span>
         </div>
       )}
 
-      <form onSubmit={handleConfirmReservation} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Dismissal / Warning Alert */}
+      {paymentWarning && (
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-center space-x-3 text-amber-800 dark:text-amber-300 text-xs font-semibold animate-in fade-in">
+          <Info className="w-5 h-5 shrink-0 text-amber-600" />
+          <span>{paymentWarning}</span>
+        </div>
+      )}
+
+      {/* Full-screen / inline verification overlay when confirming signature */}
+      {verifyingPayment && (
+        <div className="p-6 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 rounded-3xl flex items-center space-x-4 animate-pulse">
+          <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin shrink-0"></div>
+          <div>
+            <h4 className="font-bold text-sm text-emerald-900 dark:text-emerald-200">
+              Verifying Cryptographic Payment Signature...
+            </h4>
+            <p className="text-xs text-emerald-700 dark:text-emerald-400">
+              Running VeriNova™ double-booking and transactional consistency checks. Please do not close your browser.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleRazorpayPayment} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Guest info & Notes */}
         <div className="lg:col-span-7 space-y-6">
           {/* Guest Identity Card */}
@@ -166,6 +296,30 @@ export const BookingPage = () => {
               placeholder="e.g. Late check-in arrival around 6 PM, dietary preference for breakfast..."
               className="w-full px-4 py-3 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs text-[#102A43] dark:text-white focus:outline-hidden focus:border-[#F97360] resize-none"
             />
+          </div>
+
+          {/* Razorpay Trust & Payment Methods Banner */}
+          <div className="p-5 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 text-white border border-slate-800 shadow-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs border border-blue-400/30">
+                  <CreditCard className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-100">Razorpay 256-Bit Encrypted Payment</h4>
+                  <p className="text-[10px] text-slate-400">UPI, Credit/Debit Cards, NetBanking, Wallets supported</p>
+                </div>
+              </div>
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                100% Safe
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-semibold text-slate-300">
+              <span className="px-2.5 py-1 bg-white/10 rounded-lg border border-white/10">⚡ Google Pay / PhonePe / Paytm</span>
+              <span className="px-2.5 py-1 bg-white/10 rounded-lg border border-white/10">💳 Visa / Mastercard / RuPay</span>
+              <span className="px-2.5 py-1 bg-white/10 rounded-lg border border-white/10">🏦 Net Banking (50+ Banks)</span>
+            </div>
           </div>
         </div>
 
@@ -223,28 +377,39 @@ export const BookingPage = () => {
               )}
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm font-bold text-[#102A43] dark:text-white">
-                <span>Total Amount Due</span>
+                <div>
+                  <span>Total Amount Due</span>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-semibold">Includes All Taxes & VeriNova Audit</span>
+                </div>
                 <span className="text-xl text-[#F97360] font-serif font-black">₹{total_amount.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
+            {/* Payment Button */}
             <button
               type="submit"
-              disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-[#F97360]/20 hover:shadow-xl transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50"
+              disabled={loading || verifyingPayment}
+              className="w-full py-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-[#F97360]/25 hover:shadow-xl transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50"
             >
-              {loading ? (
+              {loading || verifyingPayment ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Verifying & Securing...</span>
+                  <span>{verifyingPayment ? 'Verifying Transaction...' : 'Opening Razorpay Gateway...'}</span>
                 </>
               ) : (
                 <>
                   <Lock className="w-4 h-4" />
-                  <span>Confirm & Lock Reservation</span>
+                  <span>Pay ₹{total_amount.toLocaleString('en-IN')} with Razorpay</span>
                 </>
               )}
             </button>
+
+            <div className="text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center space-x-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Protected by VeriNova™ Transaction Verification</span>
+              </span>
+            </div>
           </div>
         </div>
       </form>

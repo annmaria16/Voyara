@@ -211,23 +211,64 @@ class BookingService:
 
         # 6. Run VeriNova Transaction Verification
         VeriNovaService.verify_booking_transaction(db, booking)
+
+        # 7. Check if room is now fully booked for these dates, and send an in-app alert to the host
+        try:
+            remaining_after = max(0, available_qty - requested_quantity)
+            if remaining_after == 0:
+                from app.services.notifications.notification_service import NotificationService
+                from app.models.provider import ProviderProfile
+                provider_profile = db.query(ProviderProfile).filter(ProviderProfile.id == prop.provider_id).first()
+                target_user_id = provider_profile.user_id if provider_profile else prop.provider_id
+                formatted_check_in = data.check_in.strftime('%d %b %Y')
+                formatted_check_out = data.check_out.strftime('%d %b %Y')
+                NotificationService.create_notification(
+                    db=db,
+                    user_id=target_user_id,
+                    title=f"Room Fully Booked: {room.name}",
+                    message=f"All {room.quantity} unit(s) of '{room.name}' at '{prop.name}' are now fully booked for {formatted_check_in} – {formatted_check_out}.",
+                    type="ROOM_FULLY_BOOKED",
+                    link="/provider/availability"
+                )
+        except Exception as e:
+            print("Error dispatching fully booked notification to host:", e)
+
         db.commit()
         db.refresh(booking)
 
         return booking
 
     @staticmethod
+    def auto_complete_past_bookings(db: Session):
+        """Automatically mark confirmed stays as COMPLETED once their checkout date has passed."""
+        try:
+            today = date.today()
+            past_bookings = db.query(Booking).filter(
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED]),
+                Booking.check_out < today
+            ).all()
+            if past_bookings:
+                for b in past_bookings:
+                    b.status = BookingStatus.COMPLETED
+                db.commit()
+        except Exception as e:
+            print("Error auto-completing past bookings:", e)
+
+    @staticmethod
     def get_customer_bookings(db: Session, user_id: int) -> List[Booking]:
+        BookingService.auto_complete_past_bookings(db)
         return db.query(Booking).filter(Booking.user_id == user_id).order_by(Booking.created_at.desc()).all()
 
     @staticmethod
     def get_provider_bookings(db: Session, provider_id: int) -> List[Booking]:
+        BookingService.auto_complete_past_bookings(db)
         return db.query(Booking).join(Property).filter(
             Property.provider_id == provider_id
         ).order_by(Booking.created_at.desc()).all()
 
     @staticmethod
     def get_all_bookings(db: Session) -> List[Booking]:
+        BookingService.auto_complete_past_bookings(db)
         return db.query(Booking).order_by(Booking.created_at.desc()).all()
 
     @staticmethod

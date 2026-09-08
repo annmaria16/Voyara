@@ -1,12 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Star, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 export const PropertyCard = ({ property }) => {
-  const primaryImg =
+  const rawImg =
     property.images?.find((img) => img.is_primary)?.image_url ||
     property.images?.[0]?.image_url ||
+    (typeof property.images?.[0] === 'string' ? property.images[0] : null) ||
     'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80';
+
+  const primaryImg = resolveImageUrl(rawImg);
 
   const getTypeColor = (type) => {
     switch (type?.toLowerCase()) {
@@ -34,6 +38,9 @@ export const PropertyCard = ({ property }) => {
           alt={property.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
           loading="lazy"
+          onError={(e) => {
+            e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80';
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 opacity-80" />
 

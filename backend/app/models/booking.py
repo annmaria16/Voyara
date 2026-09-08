@@ -8,6 +8,7 @@ class BookingStatus(str, enum.Enum):
     PENDING = "PENDING"
     VERIFIED = "VERIFIED"
     CONFIRMED = "CONFIRMED"
+    COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
     FAILED = "FAILED"
 
@@ -35,6 +36,8 @@ class Booking(Base):
     booking_rooms = relationship("BookingRoom", back_populates="booking", cascade="all, delete-orphan")
     booking_experiences = relationship("BookingExperience", back_populates="booking", cascade="all, delete-orphan")
     verification_result = relationship("VerificationResult", back_populates="booking", uselist=False, cascade="all, delete-orphan")
+    payment = relationship("Payment", back_populates="booking", uselist=False, cascade="all, delete-orphan")
+    review = relationship("Review", back_populates="booking", uselist=False, cascade="all, delete-orphan")
 
 class BookingRoom(Base):
     __tablename__ = "booking_rooms"

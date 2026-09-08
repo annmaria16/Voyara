@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/auth';
-import { Mail, ArrowLeft, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle2, AlertCircle, RefreshCw, Send } from 'lucide-react';
 
 export const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [devToken, setDevToken] = useState('');
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,13 +32,10 @@ export const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const res = await authApi.forgotPassword(trimmed);
+      await authApi.forgotPassword(trimmed);
       setSubmitted(true);
-      if (res.reset_token) {
-        setDevToken(res.reset_token);
-      }
     } catch (err) {
-      setError(err.message || 'Failed to request password reset.');
+      setError(err.message || 'Failed to request password reset. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -62,7 +58,7 @@ export const ForgotPassword = () => {
             Reset your password
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Enter your email address and we'll help you reset your password.
+            Enter your registered email address to receive password reset instructions.
           </p>
         </div>
       </div>
@@ -70,47 +66,57 @@ export const ForgotPassword = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-[#131D2E] py-8 px-6 sm:px-10 rounded-3xl shadow-xl border border-[#FDBA9A]/30 dark:border-slate-800 space-y-6">
           {submitted ? (
-            <div className="space-y-4">
-              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-slate-800 dark:text-slate-200 text-xs sm:text-sm">
-                <div className="flex items-center space-x-2 font-bold mb-1.5 text-emerald-800 dark:text-emerald-300">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>Password Reset Request Received</span>
-                </div>
-                <p className="text-xs text-emerald-900/90 dark:text-emerald-300/90 leading-relaxed">
-                  If an account exists for <strong>{email}</strong>, you will receive instructions to reset your password shortly.
-                </p>
-
-                {devToken && (
-                  <div className="mt-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-emerald-200/80 dark:border-emerald-800/80 space-y-1.5">
-                    <div className="flex items-center space-x-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-                      <Sparkles className="w-3.5 h-3.5 text-[#F97360]" />
-                      <span>Local Development Token</span>
-                    </div>
-                    <code className="text-xs text-emerald-600 dark:text-emerald-400 font-mono break-all select-all block bg-emerald-50/50 dark:bg-emerald-950/30 p-2 rounded-lg border border-emerald-100 dark:border-emerald-800">
-                      {devToken}
-                    </code>
-                    <Link
-                      to={`/reset-password?token=${devToken}`}
-                      className="mt-2 inline-block text-xs font-bold text-[#F97360] hover:underline"
-                    >
-                      Click here to reset password directly →
-                    </Link>
-                  </div>
-                )}
+            <div className="space-y-5 text-center py-2 animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center mx-auto border border-emerald-500/30 shadow-xs">
+                <CheckCircle2 className="w-9 h-9" />
               </div>
 
-              <Link
-                to="/login"
-                className="w-full py-3 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-2 transition-all shadow-md shadow-[#F97360]/20"
-              >
-                <span>Back to Sign In</span>
-              </Link>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold font-serif text-[#102A43] dark:text-white">
+                  Check your email
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-sm mx-auto">
+                  If an account exists for <strong className="text-[#102A43] dark:text-white font-semibold">{email}</strong>, we've sent you a password reset link.
+                </p>
+              </div>
+
+              <div className="p-4 bg-[#FFF8F0]/80 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-left text-xs space-y-1.5 text-slate-600 dark:text-slate-400">
+                <div className="flex items-center space-x-1.5 font-bold text-slate-800 dark:text-slate-200">
+                  <span>📬 Next Steps:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 pl-1 text-[11px] leading-relaxed">
+                  <li>Open your email inbox and click the reset link.</li>
+                  <li>The link is valid for <strong>1 hour</strong>.</li>
+                  <li>If you don't see it, be sure to check your <strong>Spam / Junk</strong> folder.</li>
+                </ul>
+              </div>
+
+              <div className="pt-2 space-y-3">
+                <Link
+                  to="/login"
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center space-x-2 transition-all shadow-md shadow-[#F97360]/20 cursor-pointer"
+                >
+                  <span>Back to Sign In</span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitted(false);
+                    setError('');
+                  }}
+                  className="inline-flex items-center space-x-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-[#F97360] dark:hover:text-orange-400 font-semibold cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Didn't receive email? Try another address</span>
+                </button>
+              </div>
             </div>
           ) : (
             <form className="space-y-4" onSubmit={handleSubmit} noValidate>
               {error && (
-                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2 font-medium">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                   <span>{error}</span>
                 </div>
               )}
@@ -129,6 +135,7 @@ export const ForgotPassword = () => {
                     type="email"
                     required
                     autoComplete="email"
+                    placeholder="e.g. yourname@example.com"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -148,15 +155,18 @@ export const ForgotPassword = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-xl shadow-md shadow-[#F97360]/20 transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 mt-2"
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-2xl shadow-md shadow-[#F97360]/20 transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 mt-2"
               >
                 {loading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Sending...</span>
+                    <span>Sending Reset Link...</span>
                   </div>
                 ) : (
-                  <span>Send Reset Link</span>
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Send Reset Link</span>
+                  </>
                 )}
               </button>
 
@@ -176,3 +186,5 @@ export const ForgotPassword = () => {
     </div>
   );
 };
+
+export default ForgotPassword;

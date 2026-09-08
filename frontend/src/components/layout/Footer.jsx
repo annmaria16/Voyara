@@ -50,17 +50,19 @@ export const Footer = () => {
             </ul>
           </div>
 
-          {/* Providers & Trust */}
+          {/* Providers, Trust & Support */}
           <div>
-            <h4 className="text-sm font-bold uppercase tracking-wider text-[#4FD1C5] mb-4">Host & Trust</h4>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-[#4FD1C5] mb-4">Support & Trust</h4>
             <ul className="space-y-2.5 text-xs text-white/80">
-              <li><Link to="/register" className="hover:text-[#F97360] transition-colors font-medium text-[#FDBA9A]">Become a Stay Host</Link></li>
+              <li><Link to="/support" className="hover:text-[#F97360] transition-colors font-medium text-emerald-300">Help & Support Desk</Link></li>
+              <li><a href="mailto:adminvoyara@gmail.com" className="hover:text-[#F97360] transition-colors font-semibold text-[#FDBA9A]">Help & Support: adminvoyara@gmail.com</a></li>
+              <li><Link to="/register" className="hover:text-[#F97360] transition-colors">Become a Stay Host</Link></li>
               <li><Link to="/login" className="hover:text-[#F97360] transition-colors">Provider Portal</Link></li>
               <li><Link to="/#verinova" className="hover:text-[#F97360] transition-colors">VeriNova Trust Standards</Link></li>
               <li><span className="text-white/50 cursor-default">Terms & Booking Protection</span></li>
-              <li><span className="text-white/50 cursor-default">Privacy Policy</span></li>
             </ul>
           </div>
+
         </div>
 
         {/* Bottom Bar */}

@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { customerApi } from '../../api/customer';
 import { useAuth } from '../../context/AuthContext';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import {
   MapPin,
   Star,
@@ -39,6 +40,7 @@ export const PropertyDetails = () => {
   const [selectedExperienceId, setSelectedExperienceId] = useState(null);
   const [experienceParticipants, setExperienceParticipants] = useState('2');
   const [error, setError] = useState('');
+  const [reviewsData, setReviewsData] = useState(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const minCheckoutDate = checkIn
@@ -49,8 +51,12 @@ export const PropertyDetails = () => {
     const fetchDetails = async () => {
       setLoading(true);
       try {
-        const data = await customerApi.getPropertyDetails(id);
+        const [data, revs] = await Promise.all([
+          customerApi.getPropertyDetails(id),
+          customerApi.getPropertyReviews(id).catch(() => null),
+        ]);
         setProperty(data);
+        setReviewsData(revs);
         if (data.rooms?.length > 0) {
           setSelectedRoomId(data.rooms[0].id);
         }
@@ -224,7 +230,8 @@ export const PropertyDetails = () => {
     }
   };
 
-  const images = property.images?.length > 0 ? property.images : [{ image_url: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80' }];
+  const rawImages = property.images?.length > 0 ? property.images : [{ image_url: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80' }];
+  const images = rawImages.map((img) => (typeof img === 'string' ? { image_url: img } : img));
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -261,9 +268,12 @@ export const PropertyDetails = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="md:col-span-3 aspect-16/10 rounded-3xl overflow-hidden bg-slate-100 dark:bg-slate-800 shadow-md">
           <img
-            src={images[selectedImage]?.image_url || images[0]?.image_url}
+            src={resolveImageUrl(images[selectedImage]?.image_url || images[0]?.image_url)}
             alt={property.name}
             className="w-full h-full object-cover transition-all duration-300"
+            onError={(e) => {
+              e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80';
+            }}
           />
         </div>
         <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto">
@@ -276,7 +286,14 @@ export const PropertyDetails = () => {
                 selectedImage === idx ? 'border-[#F97360] shadow-md scale-98' : 'border-transparent opacity-75 hover:opacity-100'
               }`}
             >
-              <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+              <img
+                src={resolveImageUrl(img.image_url || img)}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80';
+                }}
+              />
             </button>
           ))}
         </div>
@@ -361,9 +378,12 @@ export const PropertyDetails = () => {
                   >
                     <div className="sm:w-48 aspect-16/10 rounded-2xl overflow-hidden bg-gray-100 dark:bg-slate-800 shrink-0">
                       <img
-                        src={room.images?.[0]?.image_url || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80'}
+                        src={resolveImageUrl(room.images?.[0]?.image_url || (typeof room.images?.[0] === 'string' ? room.images[0] : null)) || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80'}
                         alt={room.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80';
+                        }}
                       />
                     </div>
 
@@ -422,6 +442,131 @@ export const PropertyDetails = () => {
                 );
               }))}
             </div>
+          </div>
+
+          {/* Verified Guest Reviews & Ratings Section */}
+          <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+                  <h2 className="text-lg sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">
+                    {reviewsData?.average_rating || property.rating || 4.8} / 5.0
+                  </h2>
+                  <span className="text-xs text-slate-400">
+                    • {reviewsData?.review_count || property.review_count || 0} Verified Guest Review(s)
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  100% authentic ratings from guests with completed VeriNova bookings
+                </p>
+              </div>
+
+              <div className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                <ShieldCheck className="w-4 h-4" />
+                <span>Verified Stays Only</span>
+              </div>
+            </div>
+
+            {/* Rating Breakdown Bars */}
+            {reviewsData?.rating_breakdown && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-[#FFF8F0]/50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <span>Cleanliness</span>
+                    <span>{reviewsData.rating_breakdown.cleanliness}/5</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full"
+                      style={{ width: `${(reviewsData.rating_breakdown.cleanliness / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <span>Staff</span>
+                    <span>{reviewsData.rating_breakdown.staff}/5</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full"
+                      style={{ width: `${(reviewsData.rating_breakdown.staff / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <span>Location</span>
+                    <span>{reviewsData.rating_breakdown.location}/5</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full"
+                      style={{ width: `${(reviewsData.rating_breakdown.location / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <span>Value</span>
+                    <span>{reviewsData.rating_breakdown.value}/5</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full"
+                      style={{ width: `${(reviewsData.rating_breakdown.value / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Reviews List */}
+            {reviewsData?.reviews && reviewsData.reviews.length > 0 ? (
+              <div className="space-y-4 pt-2">
+                {reviewsData.reviews.map((rev) => (
+                  <div
+                    key={rev.id}
+                    className="p-4 bg-[#FFF8F0]/30 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-400 to-rose-500 text-white font-bold text-xs flex items-center justify-center">
+                          {rev.user?.full_name ? rev.user.full_name.charAt(0).toUpperCase() : 'G'}
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                            {rev.user?.full_name || 'Verified Guest'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">
+                            Reviewed on {new Date(rev.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-800/40">
+                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                          {rev.rating.toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-light whitespace-pre-line">
+                      "{rev.comment}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-6 text-center text-xs text-slate-400 italic">
+                No guest reviews yet. Be the first to book and review this sanctuary!
+              </div>
+            )}
           </div>
 
           {/* Add-on Experiences Section */}

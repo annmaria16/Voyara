@@ -25,3 +25,19 @@ class SupportTicket(Base):
 
     user = relationship("User")
     booking = relationship("Booking")
+    messages = relationship("SupportMessage", back_populates="ticket", cascade="all, delete-orphan", order_by="SupportMessage.created_at.asc()")
+
+class SupportMessage(Base):
+    __tablename__ = "support_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("support_tickets.id", ondelete="CASCADE"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    sender_role = Column(String(50), nullable=False)  # "ADMIN", "CUSTOMER", "PROVIDER"
+    sender_name = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    ticket = relationship("SupportTicket", back_populates="messages")
+    sender = relationship("User")
+

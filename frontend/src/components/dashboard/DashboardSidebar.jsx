@@ -64,8 +64,9 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => {} }) =
         { name: 'Properties', path: '/provider/properties', icon: Home },
         { name: 'Add Property', path: '/provider/properties/new', icon: PlusCircle },
         { name: 'Rooms & Units', path: '/provider/rooms', icon: Layers },
-        { name: 'Availability', path: '/provider/availability', icon: Calendar },
+        { name: 'Blackouts', path: '/provider/availability', icon: Calendar },
         { name: 'Experiences', path: '/provider/experiences', icon: Flame },
+
         { name: 'Bookings & Guests', path: '/provider/bookings', icon: BookOpen },
         { name: 'Host Profile', path: '/provider/profile', icon: User },
         { name: 'Support Desk', path: '/provider/support', icon: MessageSquare },
@@ -77,10 +78,10 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => {} }) =
       activeBg: 'bg-gradient-to-r from-[#F97360]/20 to-emerald-500/10 text-white border-l-4 border-[#F97360] shadow-xs',
       items: [
         { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+        { name: 'Property Requests', path: '/admin/properties', icon: Home, highlight: true },
         { name: 'Users & Accounts', path: '/admin/users', icon: Users },
-        { name: 'Properties', path: '/admin/properties', icon: Home },
         { name: 'Bookings Monitor', path: '/admin/bookings', icon: BookOpen },
-        { name: 'VeriNova Center', path: '/admin/verification', icon: ShieldCheck, highlight: true },
+        { name: 'VeriNova Center', path: '/admin/verification', icon: ShieldCheck },
         { name: 'Support Inquiries', path: '/admin/support', icon: MessageSquare },
         { name: 'Admin Profile', path: '/admin/profile', icon: User },
       ],

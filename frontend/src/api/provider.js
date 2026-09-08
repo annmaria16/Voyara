@@ -32,6 +32,39 @@ export const providerApi = {
     return response.data;
   },
 
+  lookupPincode: async (pincode) => {
+    const clean = String(pincode).trim();
+    if (!/^[1-9][0-9]{5}$/.test(clean)) {
+      throw new Error('Pincode must be a 6-digit Indian postal code.');
+    }
+    // 1. Try direct fetch
+    try {
+      const res = await fetch(`https://api.postalpincode.in/pincode/${clean}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0 && data[0].Status === 'Success' && data[0].PostOffice?.length > 0) {
+          const first = data[0].PostOffice[0];
+          return {
+            status: 'success',
+            pincode: clean,
+            district: first.District,
+            state: first.State,
+            country: first.Country || 'India',
+            places: data[0].PostOffice.map(p => p.Name).filter(Boolean),
+            post_offices: data[0].PostOffice
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Direct pincode fetch failed, falling back to backend proxy:', e);
+    }
+
+    // 2. Fallback to backend proxy
+    const response = await api.get(`/provider/pincode/${clean}`);
+    return response.data;
+  },
+
+
   // Rooms
   getPropertyRooms: async (propertyId) => {
     const response = await api.get(`/provider/properties/${propertyId}/rooms`);

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../api/admin';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
 import { VerificationModal } from '../../components/verification/VerificationModal';
-import { BookOpen, AlertCircle, ShieldCheck } from 'lucide-react';
+import { InvoiceModal } from '../../components/payment/InvoiceModal';
+import { BookOpen, AlertCircle, ShieldCheck, CreditCard, FileText } from 'lucide-react';
 
 export const AdminBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [invoiceBooking, setInvoiceBooking] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export const AdminBookings = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-black font-serif text-[#102A43] dark:text-white">All Platform Bookings</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Live reservation ledger across all providers and travelers</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Live reservation ledger & Razorpay payment reconciliation across all providers and travelers</p>
       </div>
 
       {error && (
@@ -53,8 +55,9 @@ export const AdminBookings = () => {
                   <th className="pb-3">Property & Room</th>
                   <th className="pb-3">Stay Dates</th>
                   <th className="pb-3">Total Amount</th>
-                  <th className="pb-3">Status</th>
+                  <th className="pb-3">Payment</th>
                   <th className="pb-3">VeriNova Audit</th>
+                  <th className="pb-3 text-right">Tax Invoice</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -79,13 +82,18 @@ export const AdminBookings = () => {
                       ₹{b.total_amount?.toLocaleString('en-IN')}
                     </td>
                     <td className="py-3.5">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        b.status === 'CANCELLED'
-                          ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                      }`}>
-                        {b.status}
-                      </span>
+                      <div className="space-y-1">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          b.status === 'CANCELLED'
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                        }`}>
+                          {b.status}
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-mono">
+                          Razorpay
+                        </span>
+                      </div>
                     </td>
                     <td className="py-3.5">
                       <VerificationBadge
@@ -94,6 +102,16 @@ export const AdminBookings = () => {
                         onClick={() => setSelectedBookingId(b.id)}
                         showDetailsHint={true}
                       />
+                    </td>
+                    <td className="py-3.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceBooking(b)}
+                        className="px-2.5 py-1 bg-[#FFF8F0] dark:bg-slate-800 hover:bg-orange-100 dark:hover:bg-slate-700 text-[#F97360] dark:text-orange-400 border border-orange-200 dark:border-slate-700 rounded-lg text-[11px] font-bold transition-all inline-flex items-center space-x-1 cursor-pointer"
+                      >
+                        <FileText className="w-3 h-3" />
+                        <span>Receipt</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -110,6 +128,16 @@ export const AdminBookings = () => {
           onClose={() => setSelectedBookingId(null)}
         />
       )}
+
+      {invoiceBooking && (
+        <InvoiceModal
+          booking={invoiceBooking}
+          isOpen={!!invoiceBooking}
+          onClose={() => setInvoiceBooking(null)}
+        />
+      )}
     </div>
   );
 };
+
+export default AdminBookings;

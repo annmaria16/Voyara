@@ -30,6 +30,7 @@ import { CustomerDashboard } from './pages/customer/Dashboard';
 import { ProviderDashboard } from './pages/provider/Dashboard';
 import { ProviderProperties } from './pages/provider/Properties';
 import { AddProperty } from './pages/provider/AddProperty';
+import { EditProperty } from './pages/provider/EditProperty';
 import { ProviderRooms } from './pages/provider/Rooms';
 import { ProviderAvailability } from './pages/provider/Availability';
 import { ProviderExperiences } from './pages/provider/Experiences';
@@ -41,6 +42,8 @@ import { AdminUsers } from './pages/admin/Users';
 import { AdminProperties } from './pages/admin/Properties';
 import { AdminBookings } from './pages/admin/Bookings';
 import { VerificationCenter } from './pages/admin/VerificationCenter';
+import { AdminSupport } from './pages/admin/Support';
+
 
 // Common / Universal Pages
 import { ProfilePage } from './pages/common/Profile';
@@ -94,6 +97,7 @@ export function App() {
               <Route index element={<ProviderDashboard />} />
               <Route path="properties" element={<ProviderProperties />} />
               <Route path="properties/new" element={<AddProperty />} />
+              <Route path="properties/:id/edit" element={<EditProperty />} />
               <Route path="rooms" element={<ProviderRooms />} />
               <Route path="availability" element={<ProviderAvailability />} />
               <Route path="experiences" element={<ProviderExperiences />} />
@@ -118,8 +122,9 @@ export function App() {
               <Route path="experiences" element={<AdminProperties />} />
               <Route path="bookings" element={<AdminBookings />} />
               <Route path="verification" element={<VerificationCenter />} />
-              <Route path="support" element={<SupportPage />} />
+              <Route path="support" element={<AdminSupport />} />
               <Route path="profile" element={<ProfilePage />} />
+
             </Route>
 
             {/* Auth Standalone Pages */}

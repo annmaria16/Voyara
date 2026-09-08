@@ -21,9 +21,27 @@ export const adminApi = {
     return response.data;
   },
 
-  getProperties: async () => {
-    const response = await api.get('/admin/properties');
+  getProperties: async (verificationStatus) => {
+    const response = await api.get('/admin/properties', {
+      params: verificationStatus && verificationStatus !== 'ALL' ? { verification_status: verificationStatus } : {},
+    });
     return response.data;
+  },
+
+  getPropertyDetail: async (propertyId) => {
+    const response = await api.get(`/admin/properties/${propertyId}`);
+    return response.data;
+  },
+
+  verifyProperty: async (propertyId, data) => {
+    const response = await api.post(`/admin/properties/${propertyId}/verify`, data);
+    return response.data;
+  },
+
+  getOwnershipProofUrl: (propertyId) => {
+    const token = localStorage.getItem('voyara_token');
+    const query = token ? `?token=${encodeURIComponent(token)}` : '';
+    return `/api/admin/properties/${propertyId}/ownership-proof${query}`;
   },
 
   togglePropertyStatus: async (propertyId) => {

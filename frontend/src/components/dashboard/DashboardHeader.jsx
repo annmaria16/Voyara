@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { customerApi } from '../../api/customer';
+import { NotificationBell } from '../notifications/NotificationBell';
 import {
   Search,
   Heart,
@@ -209,36 +210,8 @@ export const DashboardHeader = ({
             )}
           </button>
 
-          {/* Notifications Trigger */}
-          <div ref={notificationsRef} className="relative">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-emerald-500 hover:bg-white dark:hover:bg-slate-800 transition-colors border border-slate-200/60 dark:border-slate-800 relative cursor-pointer"
-              title="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#F97360]"></span>
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#131D2E] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-4 z-50 text-xs space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2">
-                  <span className="font-bold text-[#102A43] dark:text-white">Notifications</span>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">2 New</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="p-2.5 rounded-xl bg-[#FFF8F0] dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-700/40">
-                    <p className="font-semibold text-[#102A43] dark:text-white">Stay Confirmed</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Your booking is secured by VeriNova.</p>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-[#FFF8F0] dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-700/40">
-                    <p className="font-semibold text-[#102A43] dark:text-white">Ecosystem Active</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Connected to PostgreSQL live inventory.</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Real In-App Notification Bell */}
+          <NotificationBell />
 
           {/* User Profile Dropdown */}
           <div ref={profileMenuRef} className="relative">

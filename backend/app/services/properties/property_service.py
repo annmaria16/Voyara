@@ -97,20 +97,138 @@ def _calculate_fuzzy_match_score(query: str, text: str) -> float:
 class PropertyService:
     @staticmethod
     def create_property(db: Session, provider_id: int, data: PropertyCreate) -> Property:
+        normalized_name = data.name.strip()
+        normalized_address = data.address.strip()
+
+        # Deduplication & Idempotency: Check if this provider already has an in-flight verification request
+        existing_pending = db.query(Property).filter(
+            Property.provider_id == provider_id,
+            func.lower(Property.name) == normalized_name.lower(),
+            Property.verification_status == "PENDING_VERIFICATION"
+        ).first()
+
+        if existing_pending:
+            # If the property is already PENDING VERIFICATION, do not create another request; show its existing status instead
+            return existing_pending
+
+        # Check if the provider is resubmitting a property that needed review or was rejected
+        existing_review = db.query(Property).filter(
+            Property.provider_id == provider_id,
+            func.lower(Property.name) == normalized_name.lower(),
+            func.lower(Property.address) == normalized_address.lower(),
+            Property.verification_status.in_(["NEEDS_REVIEW", "REJECTED"])
+        ).first()
+
+        if existing_review:
+            # Update existing property with new data and reset to PENDING_VERIFICATION
+            existing_review.name = normalized_name
+            existing_review.property_type = data.property_type.value if hasattr(data.property_type, 'value') else str(data.property_type)
+            existing_review.description = data.description.strip()
+            existing_review.city = data.city.strip()
+            existing_review.state = data.state.strip()
+            existing_review.country = data.country.strip()
+            existing_review.location_details = data.location_details
+            existing_review.latitude = data.latitude
+            existing_review.longitude = data.longitude
+            existing_review.contact_phone = data.contact_phone.strip()
+            existing_review.contact_email = data.contact_email.strip()
+            existing_review.check_in_time = data.check_in_time
+            existing_review.check_out_time = data.check_out_time
+            if data.ownership_proof_url:
+                existing_review.ownership_proof_url = data.ownership_proof_url
+            existing_review.verification_status = "PENDING_VERIFICATION"
+            existing_review.reviewed_by = None
+            existing_review.reviewed_at = None
+            existing_review.is_active = True
+
+            # Re-sync amenities
+            if data.amenities is not None:
+                db.query(PropertyAmenity).filter(PropertyAmenity.property_id == existing_review.id).delete()
+                for am in data.amenities:
+                    if am.strip():
+                        db.add(PropertyAmenity(property_id=existing_review.id, amenity_name=am.strip()))
+
+            # Re-sync images
+            if data.images is not None:
+                db.query(PropertyImage).filter(PropertyImage.property_id == existing_review.id).delete()
+                for i, img_url in enumerate(data.images):
+                    if img_url.strip():
+                        db.add(PropertyImage(
+                            property_id=existing_review.id,
+                            image_url=img_url.strip(),
+                            is_primary=(i == 0)
+                        ))
+
+            # Re-sync rooms if provided
+            if data.rooms:
+                for room_data in data.rooms:
+                    room = Room(
+                        property_id=existing_review.id,
+                        name=room_data.name.strip(),
+                        room_type=room_data.room_type.strip(),
+                        description=room_data.description.strip(),
+                        capacity=room_data.capacity,
+                        quantity=room_data.quantity,
+                        base_price=room_data.base_price,
+                        is_active=True
+                    )
+                    db.add(room)
+                    db.flush()
+
+                    if room_data.amenities:
+                        for am in room_data.amenities:
+                            if am.strip():
+                                db.add(RoomAmenity(room_id=room.id, amenity_name=am.strip()))
+
+                    if room_data.images:
+                        for idx, r_img in enumerate(room_data.images):
+                            if r_img.strip():
+                                db.add(RoomImage(
+                                    room_id=room.id,
+                                    image_url=r_img.strip(),
+                                    is_primary=(idx == 0)
+                                ))
+
+            db.commit()
+            db.refresh(existing_review)
+
+            # Single notification to admins for resubmission
+            try:
+                from app.services.notifications.notification_service import NotificationService
+                from app.models.provider import ProviderProfile
+                provider_profile = db.query(ProviderProfile).filter(ProviderProfile.id == provider_id).first()
+                host_name = (provider_profile.business_name if provider_profile and provider_profile.business_name else (provider_profile.user.name if provider_profile and provider_profile.user else f"Host #{provider_id}"))
+                NotificationService.notify_admins(
+                    db=db,
+                    title="New Property Verification Request",
+                    message=f"New property verification request from {host_name}.",
+                    type="PROPERTY_SUBMITTED",
+                    link="/admin/properties"
+                )
+            except Exception as e:
+                print("Error broadcasting property resubmission notification to admins:", e)
+
+            return existing_review
+
+        # Create brand new property
         prop = Property(
             provider_id=provider_id,
-            name=data.name.strip(),
+            name=normalized_name,
             property_type=data.property_type.value if hasattr(data.property_type, 'value') else str(data.property_type),
             description=data.description.strip(),
-            address=data.address.strip(),
+            address=normalized_address,
             city=data.city.strip(),
             state=data.state.strip(),
             country=data.country.strip(),
             location_details=data.location_details,
+            latitude=data.latitude,
+            longitude=data.longitude,
             contact_phone=data.contact_phone.strip(),
             contact_email=data.contact_email.strip(),
             check_in_time=data.check_in_time,
             check_out_time=data.check_out_time,
+            ownership_proof_url=data.ownership_proof_url,
+            verification_status="PENDING_VERIFICATION",
             is_active=True
         )
         db.add(prop)
@@ -132,9 +250,55 @@ class PropertyService:
                         image_url=img_url.strip(),
                         is_primary=(i == 0)
                     ))
-        
+
+        # Add rooms if provided during property creation
+        if data.rooms:
+            for room_data in data.rooms:
+                room = Room(
+                    property_id=prop.id,
+                    name=room_data.name.strip(),
+                    room_type=room_data.room_type.strip(),
+                    description=room_data.description.strip(),
+                    capacity=room_data.capacity,
+                    quantity=room_data.quantity,
+                    base_price=room_data.base_price,
+                    is_active=True
+                )
+                db.add(room)
+                db.flush()
+
+                if room_data.amenities:
+                    for am in room_data.amenities:
+                        if am.strip():
+                            db.add(RoomAmenity(room_id=room.id, amenity_name=am.strip()))
+
+                if room_data.images:
+                    for idx, r_img in enumerate(room_data.images):
+                        if r_img.strip():
+                            db.add(RoomImage(
+                                room_id=room.id,
+                                image_url=r_img.strip(),
+                                is_primary=(idx == 0)
+                            ))
         db.commit()
         db.refresh(prop)
+
+        # Broadcast exactly one notification to Admins
+        try:
+            from app.services.notifications.notification_service import NotificationService
+            from app.models.provider import ProviderProfile
+            provider_profile = db.query(ProviderProfile).filter(ProviderProfile.id == provider_id).first()
+            host_name = (provider_profile.business_name if provider_profile and provider_profile.business_name else (provider_profile.user.name if provider_profile and provider_profile.user else f"Host #{provider_id}"))
+            NotificationService.notify_admins(
+                db=db,
+                title="New Property Verification Request",
+                message=f"New property verification request from {host_name}.",
+                type="PROPERTY_SUBMITTED",
+                link="/admin/properties"
+            )
+        except Exception as e:
+            print("Error broadcasting property submission notification to admins:", e)
+
         return prop
 
     @staticmethod
@@ -166,6 +330,10 @@ class PropertyService:
         prop = PropertyService.get_property_by_id(db, property_id, provider_id)
 
         update_dict = data.model_dump(exclude_unset=True)
+        # Security: Strip out any unauthorized verification field manipulations
+        for secure_field in ["verification_status", "verified_by", "verified_at", "reviewed_by", "reviewed_at"]:
+            update_dict.pop(secure_field, None)
+
         if "property_type" in update_dict and update_dict["property_type"]:
             prop.property_type = update_dict["property_type"].value if hasattr(update_dict["property_type"], 'value') else str(update_dict["property_type"])
             del update_dict["property_type"]
@@ -213,7 +381,11 @@ class PropertyService:
         experience: Optional[str] = None,
         experience_date: Optional[date] = None,
     ) -> List[dict]:
-        query = db.query(Property).filter(Property.is_active == True)
+        # Enforce that only verified and active properties are visible to customers
+        query = db.query(Property).filter(
+            Property.is_active == True,
+            Property.verification_status == "VERIFIED"
+        )
 
         # Property type filter
         if property_type and property_type.strip() and property_type.lower() != "all":
@@ -278,8 +450,8 @@ class PropertyService:
                 room_query = room_query.filter(Room.capacity >= guests)
             
             rooms = room_query.all()
-            if not rooms:
-                continue  # No suitable active rooms
+            if not rooms and check_in and check_out:
+                continue  # No suitable active rooms for specified dates
 
             # Calculate min price among available rooms
             available_rooms = []
@@ -329,7 +501,7 @@ class PropertyService:
 
             room_count = len(rooms)
             exp_count = db.query(Experience).filter(Experience.property_id == p.id, Experience.is_active == True).count()
-            formatted = PropertyService._format_property(p, min_p, room_count, exp_count)
+            formatted = PropertyService._format_public_property(p, min_p, room_count, exp_count)
             scored_properties.append((match_score, formatted))
 
         # Sort by relevance score descending
@@ -338,18 +510,22 @@ class PropertyService:
 
     @staticmethod
     def get_public_property_details(db: Session, property_id: int) -> dict:
-        prop = db.query(Property).filter(Property.id == property_id, Property.is_active == True).first()
+        prop = db.query(Property).filter(
+            Property.id == property_id,
+            Property.is_active == True,
+            Property.verification_status == "VERIFIED"
+        ).first()
         if not prop:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Property not found or is currently inactive.",
+                detail="Property not found or is currently inactive/pending verification.",
             )
 
         min_price = db.query(func.min(Room.base_price)).filter(Room.property_id == prop.id, Room.is_active == True).scalar() or 0.0
         room_count = db.query(Room).filter(Room.property_id == prop.id, Room.is_active == True).count()
         exp_count = db.query(Experience).filter(Experience.property_id == prop.id, Experience.is_active == True).count()
 
-        data = PropertyService._format_property(prop, min_price, room_count, exp_count)
+        data = PropertyService._format_public_property(prop, min_price, room_count, exp_count)
         
         # Add active rooms
         rooms = db.query(Room).filter(Room.property_id == prop.id, Room.is_active == True).all()
@@ -398,7 +574,8 @@ class PropertyService:
         return data
 
     @staticmethod
-    def _format_property(p: Property, min_price: float, room_count: int, experience_count: int) -> dict:
+    def _format_public_property(p: Property, min_price: float, room_count: int, experience_count: int) -> dict:
+        """Format customer-safe property dictionary without confidential ownership documents or internal admin notes."""
         return {
             "id": p.id,
             "provider_id": p.provider_id,
@@ -410,11 +587,14 @@ class PropertyService:
             "state": p.state,
             "country": p.country,
             "location_details": p.location_details,
+            "latitude": p.latitude,
+            "longitude": p.longitude,
             "contact_phone": p.contact_phone,
             "contact_email": p.contact_email,
             "check_in_time": p.check_in_time,
             "check_out_time": p.check_out_time,
             "is_active": p.is_active,
+            "verification_status": getattr(p, "verification_status", "VERIFIED") or "VERIFIED",
             "rating": p.rating,
             "review_count": p.review_count,
             "featured": p.featured,
@@ -424,4 +604,60 @@ class PropertyService:
             "experience_count": experience_count,
             "images": [{"id": img.id, "image_url": img.image_url, "caption": img.caption, "is_primary": img.is_primary} for img in p.images],
             "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities]
+        }
+
+    @staticmethod
+    def _format_property(p: Property, min_price: float, room_count: int, experience_count: int) -> dict:
+        """Format full provider-facing property dictionary."""
+        return {
+            "id": p.id,
+            "provider_id": p.provider_id,
+            "name": p.name,
+            "property_type": p.property_type,
+            "description": p.description,
+            "address": p.address,
+            "city": p.city,
+            "state": p.state,
+            "country": p.country,
+            "location_details": p.location_details,
+            "latitude": p.latitude,
+            "longitude": p.longitude,
+            "contact_phone": p.contact_phone,
+            "contact_email": p.contact_email,
+            "check_in_time": p.check_in_time,
+            "check_out_time": p.check_out_time,
+            "is_active": p.is_active,
+            "verification_status": getattr(p, "verification_status", "PENDING_VERIFICATION") or "PENDING_VERIFICATION",
+            "ownership_proof_url": getattr(p, "ownership_proof_url", None),
+            "verification_reason": getattr(p, "verification_reason", None),
+            "verified_by": getattr(p, "verified_by", None),
+            "verified_at": getattr(p, "verified_at", None),
+            "reviewed_by": getattr(p, "reviewed_by", None),
+            "reviewed_at": getattr(p, "reviewed_at", None),
+            "rating": p.rating,
+            "review_count": p.review_count,
+            "featured": p.featured,
+            "created_at": p.created_at,
+            "min_price": min_price or 0.0,
+            "room_count": room_count,
+            "experience_count": experience_count,
+            "images": [{"id": img.id, "image_url": img.image_url, "caption": img.caption, "is_primary": img.is_primary} for img in p.images],
+            "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities],
+            "rooms": [
+                {
+                    "id": r.id,
+                    "property_id": r.property_id,
+                    "name": r.name,
+                    "room_type": r.room_type,
+                    "description": r.description,
+                    "capacity": r.capacity,
+                    "quantity": r.quantity,
+                    "base_price": r.base_price,
+                    "is_active": r.is_active,
+                    "created_at": r.created_at,
+                    "images": [{"id": img.id, "image_url": img.image_url, "is_primary": img.is_primary} for img in r.images],
+                    "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in r.amenities]
+                }
+                for r in p.rooms
+            ]
         }

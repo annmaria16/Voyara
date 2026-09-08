@@ -136,10 +136,10 @@ export const ResetPassword = () => {
               </div>
               <div className="space-y-1">
                 <h3 className="text-lg font-bold text-[#102A43] dark:text-white">
-                  Your password has been reset successfully.
+                  Password reset successful.
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  You can now sign in to Voyara with your new password.
+                  You can now sign in to your Voyara account with your new password.
                 </p>
               </div>
               <button
@@ -147,7 +147,7 @@ export const ResetPassword = () => {
                 onClick={() => navigate('/login')}
                 className="w-full py-3 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-xl text-sm shadow-md shadow-[#F97360]/20 transition-all cursor-pointer"
               >
-                Sign In
+                Go to Login
               </button>
             </div>
           ) : isTokenInvalid ? (
@@ -189,32 +189,43 @@ export const ResetPassword = () => {
                 </div>
               )}
 
-              {/* Reset Token input */}
-              <div>
-                <label
-                  htmlFor="reset-token"
-                  className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1"
-                >
-                  Reset Token
-                </label>
-                <div className="relative">
-                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
-                  <input
-                    id="reset-token"
-                    type="text"
-                    required
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    onBlur={() => setTouched((p) => ({ ...p, token: true }))}
-                    className={`w-full pl-10 pr-4 py-2.5 bg-[#FFF8F0]/50 dark:bg-slate-900 border rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:bg-white dark:focus:bg-slate-900 transition-all ${
-                      getTokenError() ? 'border-rose-400' : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
-                    }`}
-                  />
+              {/* Reset Token - hidden if passed via URL, shown if accessed directly */}
+              {tokenFromUrl ? (
+                <div className="p-2.5 bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs flex items-center justify-between text-emerald-800 dark:text-emerald-300">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="font-semibold">Secure reset link verified</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">1-Time Valid</span>
                 </div>
-                {getTokenError() && (
-                  <p className="mt-1 text-xs text-rose-500">{getTokenError()}</p>
-                )}
-              </div>
+              ) : (
+                <div>
+                  <label
+                    htmlFor="reset-token"
+                    className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1"
+                  >
+                    Reset Token
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" />
+                    <input
+                      id="reset-token"
+                      type="text"
+                      required
+                      placeholder="Paste your reset token here"
+                      value={token}
+                      onChange={(e) => setToken(e.target.value)}
+                      onBlur={() => setTouched((p) => ({ ...p, token: true }))}
+                      className={`w-full pl-10 pr-4 py-2.5 bg-[#FFF8F0]/50 dark:bg-slate-900 border rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:bg-white dark:focus:bg-slate-900 transition-all ${
+                        getTokenError() ? 'border-rose-400' : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                      }`}
+                    />
+                  </div>
+                  {getTokenError() && (
+                    <p className="mt-1 text-xs text-rose-500">{getTokenError()}</p>
+                  )}
+                </div>
+              )}
 
               {/* New Password */}
               <div>

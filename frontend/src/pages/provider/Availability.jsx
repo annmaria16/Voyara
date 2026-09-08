@@ -128,11 +128,12 @@ export const ProviderAvailability = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-black font-serif text-slate-900 dark:text-white">Availability & Blackout Calendar</h2>
+        <h2 className="text-2xl font-black font-serif text-slate-900 dark:text-white">Blackouts & Calendar</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Enforce property closures and room date blackouts strictly checked by the backend.
         </p>
       </div>
+
 
       {error && (
         <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">

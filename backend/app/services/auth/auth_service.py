@@ -11,9 +11,9 @@ from app.config import settings
 from app.models.user import User, UserRole
 from app.models.provider import ProviderProfile
 from app.schemas.auth import RegisterRequest, LoginRequest, GoogleAuthRequest
-from app.schemas.user import UserUpdate
 from app.auth.password import hash_password, verify_password
 from app.auth.jwt import create_access_token
+from app.services.email.email_service import EmailService
 
 def validate_password_strength(password: str) -> None:
     """Validate that password meets all security requirements."""
@@ -201,6 +201,8 @@ class AuthService:
     def forgot_password(db: Session, email: str) -> dict:
         email_clean = email.lower().strip()
         user = db.query(User).filter(User.email == email_clean).first()
+        
+        # If user is not registered, return error
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -209,28 +211,42 @@ class AuthService:
 
         token = secrets.token_urlsafe(32)
         user.reset_token = token
-        user.reset_token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+        user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
         db.commit()
 
+        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+
+        # Send official branded HTML reset email via SMTP
+        EmailService.send_password_reset_email(
+            to_email=user.email,
+            reset_url=reset_url,
+            user_name=user.name or "Traveler"
+        )
+
         return {
-            "message": f"Password reset instructions have been generated for {user.email}.",
-            "reset_token": token,
+            "message": "Password reset instructions have been sent to your registered email.",
             "success": True
         }
 
     @staticmethod
     def reset_password(db: Session, token: str, new_password: str) -> dict:
-        user = db.query(User).filter(User.reset_token == token).first()
+        if not token or not token.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This password reset link is invalid or has expired."
+            )
+
+        user = db.query(User).filter(User.reset_token == token.strip()).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This password reset link is invalid or has expired.",
+                detail="This password reset link is invalid or has expired."
             )
 
-        if user.reset_token_expiry and user.reset_token_expiry < datetime.now(timezone.utc).replace(tzinfo=None):
+        if user.reset_token_expiry and user.reset_token_expiry < datetime.utcnow():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This password reset link is invalid or has expired.",
+                detail="This password reset link is invalid or has expired."
             )
 
         validate_password_strength(new_password)
@@ -241,7 +257,7 @@ class AuthService:
         db.commit()
 
         return {
-            "message": "Your password has been reset successfully.",
+            "message": "Password reset successful.",
             "success": True
         }
 

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { providerApi } from '../../api/provider';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
 import { VerificationModal } from '../../components/verification/VerificationModal';
-import { BookOpen, Calendar, Users, MapPin, AlertCircle, ShieldCheck } from 'lucide-react';
+import { InvoiceModal } from '../../components/payment/InvoiceModal';
+import { BookOpen, Calendar, Users, MapPin, AlertCircle, ShieldCheck, CreditCard, FileText } from 'lucide-react';
 
 export const ProviderBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [invoiceBooking, setInvoiceBooking] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export const ProviderBookings = () => {
       <div>
         <h2 className="text-2xl font-black font-serif text-slate-900 dark:text-white">Guest Reservations</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Bookings received for your properties and connected host experiences
+          Bookings received for your properties and connected host experiences with Razorpay settlement verification
         </p>
       </div>
 
@@ -60,9 +62,10 @@ export const ProviderBookings = () => {
                   <th className="pb-3">Guest Details</th>
                   <th className="pb-3">Property & Room</th>
                   <th className="pb-3">Dates</th>
-                  <th className="pb-3">Total Amount</th>
-                  <th className="pb-3">Status</th>
+                  <th className="pb-3">Gross Amount</th>
+                  <th className="pb-3">Payment</th>
                   <th className="pb-3">VeriNova Audit</th>
+                  <th className="pb-3 text-right">Invoice</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -93,11 +96,18 @@ export const ProviderBookings = () => {
                       ₹{b.total_amount?.toLocaleString('en-IN')}
                     </td>
                     <td className="py-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        b.status === 'CANCELLED' ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                      }`}>
-                        {b.status}
-                      </span>
+                      <div className="space-y-1">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          b.status === 'CANCELLED'
+                            ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30'
+                            : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                        }`}>
+                          {b.status}
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-mono">
+                          Razorpay
+                        </span>
+                      </div>
                     </td>
                     <td className="py-4">
                       <VerificationBadge
@@ -106,6 +116,16 @@ export const ProviderBookings = () => {
                         onClick={() => setSelectedBookingId(b.id)}
                         showDetailsHint={true}
                       />
+                    </td>
+                    <td className="py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setInvoiceBooking(b)}
+                        className="px-2.5 py-1 bg-[#FFF8F0] dark:bg-slate-800 hover:bg-orange-100 dark:hover:bg-slate-700 text-[#F97360] dark:text-orange-400 border border-orange-200 dark:border-slate-700 rounded-lg text-[11px] font-bold transition-all inline-flex items-center space-x-1 cursor-pointer"
+                      >
+                        <FileText className="w-3 h-3" />
+                        <span>Tax Invoice</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -122,6 +142,16 @@ export const ProviderBookings = () => {
           onClose={() => setSelectedBookingId(null)}
         />
       )}
+
+      {invoiceBooking && (
+        <InvoiceModal
+          booking={invoiceBooking}
+          isOpen={!!invoiceBooking}
+          onClose={() => setInvoiceBooking(null)}
+        />
+      )}
     </div>
   );
 };
+
+export default ProviderBookings;

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.models.booking import BookingStatus
 from app.schemas.property import PropertyResponse
 from app.schemas.user import UserResponse
+from app.schemas.payment import PaymentResponse
 
 class BookingRoomItemResponse(BaseModel):
     id: int
@@ -63,6 +64,7 @@ class BookingResponse(BaseModel):
     booking_rooms: List[BookingRoomItemResponse] = []
     booking_experiences: List[BookingExperienceItemResponse] = []
     verification_status: Optional[str] = None
+    payment: Optional[PaymentResponse] = None
 
     class Config:
         from_attributes = True

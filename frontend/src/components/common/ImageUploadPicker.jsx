@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { uploadApi } from '../../api/upload';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import { Upload, Image as ImageIcon, X, Loader2, CheckCircle2 } from 'lucide-react';
 
 export const ImageUploadPicker = ({
@@ -12,11 +13,14 @@ export const ImageUploadPicker = ({
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
+  const [blobPreview, setBlobPreview] = useState(null);
 
   const handleFile = async (file) => {
     if (!file) return;
     setError(null);
     setUploading(true);
+    const tempPreview = URL.createObjectURL(file);
+    setBlobPreview(tempPreview);
 
     try {
       const res = await uploadApi.uploadImage(file);
@@ -24,6 +28,8 @@ export const ImageUploadPicker = ({
     } catch (err) {
       console.error('Image upload failed:', err);
       setError(err.message || 'Failed to upload image. Please try again.');
+      setBlobPreview(null);
+      URL.revokeObjectURL(tempPreview);
     } finally {
       setUploading(false);
     }
@@ -40,10 +46,16 @@ export const ImageUploadPicker = ({
   const handleRemove = (e) => {
     e.stopPropagation();
     onChange('');
+    if (blobPreview) {
+      URL.revokeObjectURL(blobPreview);
+      setBlobPreview(null);
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
+
+  const displaySrc = blobPreview || resolveImageUrl(value);
 
   return (
     <div className="space-y-1.5 select-none">
@@ -53,12 +65,18 @@ export const ImageUploadPicker = ({
         </label>
       )}
 
-      {value ? (
+      {value || blobPreview ? (
         <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-16/9 bg-slate-100 dark:bg-slate-900 group">
           <img
-            src={value}
+            src={displaySrc}
             alt="Preview"
             className="w-full h-full object-cover"
+            onError={(e) => {
+              if (value && !value.startsWith('http')) {
+                const clean = value.startsWith('/') ? value : `/${value}`;
+                e.target.src = `http://localhost:8000${clean}`;
+              }
+            }}
           />
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
             <button
@@ -138,3 +156,5 @@ export const ImageUploadPicker = ({
     </div>
   );
 };
+
+export default ImageUploadPicker;
