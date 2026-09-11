@@ -5,7 +5,16 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.dependencies import get_current_provider
 from app.models.provider import ProviderProfile
-from app.schemas.property import PropertyCreate, PropertyUpdate, PropertyResponse, ProviderPropertyResponse
+from app.schemas.property import (
+    PropertyCreate,
+    PropertyUpdate,
+    PropertyResponse,
+    ProviderPropertyResponse,
+    GuestInformationMessageRequest,
+    GuestInformationMessageResponse,
+    CancellationPolicyRequest,
+    CancellationPolicyResponse,
+)
 from app.schemas.auth import MessageResponse
 from app.services.properties.property_service import PropertyService
 
@@ -89,4 +98,103 @@ def delete_property(
 ):
     """Delete a property with provider ownership check."""
     return PropertyService.delete_property(db, property_id, provider.id)
+
+@router.get("/properties/{property_id}/guest-information", response_model=GuestInformationMessageResponse)
+def get_property_guest_information(
+    property_id: int,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Get the host guest information & safety message for a specific property (verified provider ownership)."""
+    prop = PropertyService.get_property_by_id(db, property_id, provider_id=provider.id)
+    return {
+        "property_id": prop.id,
+        "property_name": prop.name,
+        "guest_information_message": prop.guest_information_message,
+        "message": "Success"
+    }
+
+@router.put("/properties/{property_id}/guest-information", response_model=GuestInformationMessageResponse)
+def update_property_guest_information(
+    property_id: int,
+    data: GuestInformationMessageRequest,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Update or clear the host guest information & safety message for a specific property (verified provider ownership)."""
+    msg = data.guest_information_message
+    if msg and len(msg) > 5000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Guest information message must not exceed 5000 characters."
+        )
+    prop = PropertyService.get_property_by_id(db, property_id, provider_id=provider.id)
+    prop.guest_information_message = msg.strip() if msg and msg.strip() else None
+    db.commit()
+    db.refresh(prop)
+    return {
+        "property_id": prop.id,
+        "property_name": prop.name,
+        "guest_information_message": prop.guest_information_message,
+        "message": "Guest information & safety message updated successfully."
+    }
+
+@router.get("/properties/{property_id}/cancellation-policy", response_model=CancellationPolicyResponse)
+def get_property_cancellation_policy(
+    property_id: int,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Get the host cancellation refund policy for a specific property."""
+    prop = PropertyService.get_property_by_id(db, property_id, provider_id=provider.id)
+    pct = prop.cancellation_refund_percentage if prop.cancellation_refund_percentage is not None else 50
+    desc = (
+        f"Free cancellation (100% refund) up to 2 days before check-in. "
+        f"If cancelled within 2 days of check-in, a {pct}% refund is issued."
+    ) if pct > 0 else (
+        "Free cancellation (100% refund) up to 2 days before check-in. "
+        "If cancelled within 2 days of check-in, no refund is issued (0% refund)."
+    )
+    return {
+        "property_id": prop.id,
+        "property_name": prop.name,
+        "cancellation_refund_percentage": pct,
+        "policy_description": desc,
+        "message": "Success"
+    }
+
+@router.put("/properties/{property_id}/cancellation-policy", response_model=CancellationPolicyResponse)
+def update_property_cancellation_policy(
+    property_id: int,
+    data: CancellationPolicyRequest,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Update the host cancellation refund percentage for a specific property."""
+    if data.cancellation_refund_percentage not in [0, 25, 50, 75, 100]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cancellation refund percentage must be one of: 0, 25, 50, 75, 100."
+        )
+    prop = PropertyService.get_property_by_id(db, property_id, provider_id=provider.id)
+    prop.cancellation_refund_percentage = data.cancellation_refund_percentage
+    db.commit()
+    db.refresh(prop)
+    
+    pct = prop.cancellation_refund_percentage
+    desc = (
+        f"Free cancellation (100% refund) up to 2 days before check-in. "
+        f"If cancelled within 2 days of check-in, a {pct}% refund is issued."
+    ) if pct > 0 else (
+        "Free cancellation (100% refund) up to 2 days before check-in. "
+        "If cancelled within 2 days of check-in, no refund is issued (0% refund)."
+    )
+    return {
+        "property_id": prop.id,
+        "property_name": prop.name,
+        "cancellation_refund_percentage": pct,
+        "policy_description": desc,
+        "message": "Cancellation policy updated successfully."
+    }
+
 

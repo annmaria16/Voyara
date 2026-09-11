@@ -37,10 +37,16 @@ class Property(Base):
     contact_email = Column(String(255), nullable=False)
     check_in_time = Column(String(20), default="14:00", nullable=False)
     check_out_time = Column(String(20), default="11:00", nullable=False)
+    guest_information_message = Column(Text, nullable=True)
+    cancellation_refund_percentage = Column(Integer, default=50, nullable=False)
     
-    # Verification & Visibility Control
+    # VeriNova Trust & Assessment Fields
     verification_status = Column(String(50), default="PENDING_VERIFICATION", nullable=False, index=True)
     ownership_proof_url = Column(String(500), nullable=True)
+    evidence_status = Column(String(50), default="NOT_PROVIDED", nullable=False)
+    trust_score = Column(Integer, default=0, nullable=False)
+    trust_assessment_status = Column(String(50), default="NEEDS_REVIEW", nullable=False)
+    property_identity_fingerprint = Column(String(100), nullable=True, index=True)
     verification_reason = Column(Text, nullable=True)
     verified_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     verified_at = Column(DateTime, nullable=True)
@@ -64,6 +70,7 @@ class Property(Base):
     availability_blocks = relationship("PropertyAvailability", back_populates="property", cascade="all, delete-orphan")
     bookings = relationship("Booking", back_populates="property", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="property", cascade="all, delete-orphan", order_by="desc(Review.created_at)")
+    verinova_assessments = relationship("VeriNovaPropertyAssessment", foreign_keys="[VeriNovaPropertyAssessment.property_id]", back_populates="property", cascade="all, delete-orphan", order_by="desc(VeriNovaPropertyAssessment.created_at)")
 
 class PropertyImage(Base):
     __tablename__ = "property_images"

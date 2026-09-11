@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Star, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
+import { MapPin, Star, ShieldCheck, ArrowRight, Users } from 'lucide-react';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
 export const PropertyCard = ({ property }) => {
@@ -12,97 +12,96 @@ export const PropertyCard = ({ property }) => {
 
   const primaryImg = resolveImageUrl(rawImg);
 
-  const getTypeColor = (type) => {
+  const getTypeBadge = (type) => {
     switch (type?.toLowerCase()) {
       case 'resort':
-        return 'bg-emerald-600 text-white';
+        return 'bg-[#087F8C] text-white';
       case 'villa':
-        return 'bg-orange-600 text-white';
+        return 'bg-[#F97316] text-white';
       case 'homestay':
-        return 'bg-amber-600 text-white';
+        return 'bg-[#0F9D9A] text-white';
       case 'camp':
-        return 'bg-teal-700 text-white';
+        return 'bg-[#35A66F] text-white';
       case 'cottage':
-        return 'bg-[#F97360] text-white';
+        return 'bg-[#17324D] text-white';
       default:
-        return 'bg-emerald-700 text-white';
+        return 'bg-[#087F8C] text-white';
     }
   };
 
+  const startingPrice = property.min_price || property.rooms?.[0]?.base_price || 3500;
+  const maxCapacity = property.max_capacity || property.rooms?.[0]?.capacity || 2;
+
   return (
-    <div className="group bg-white dark:bg-[#131D2E] rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-2xs hover:shadow-xl transition-all duration-300 flex flex-col hover:-translate-y-1">
+    <div className="group card-voyara card-lift rounded-3xl overflow-hidden flex flex-col justify-between">
       {/* Image Container */}
-      <div className="relative aspect-4/3 overflow-hidden bg-gray-100 dark:bg-slate-800">
+      <div className="relative aspect-4/3 overflow-hidden bg-slate-100 dark:bg-slate-800 img-zoom-container">
         <img
           src={primaryImg}
           alt={property.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+          className="w-full h-full object-cover"
           loading="lazy"
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80';
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
         {/* Property Type Badge */}
         <span
-          className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-md ${getTypeColor(
+          className={`absolute top-3.5 left-3.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm ${getTypeBadge(
             property.property_type
           )}`}
         >
           {property.property_type}
         </span>
 
-        {/* VeriNova Trust indicator */}
-        <div className="absolute top-3 right-3">
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md rounded-full text-[11px] font-bold text-emerald-600 dark:text-emerald-400 shadow-sm border border-emerald-500/20">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Verified Stay</span>
+        {/* Voyara Trust indicator */}
+        <div className="absolute top-3.5 right-3.5">
+          <span
+            title="This property has passed Voyara's platform verification and administrative review."
+            className="inline-flex items-center space-x-1 px-2.5 py-1 bg-white/95 dark:bg-[#091B29]/90 backdrop-blur-md rounded-full text-[11px] font-bold text-[#236C48] dark:text-[#35A66F] shadow-xs border border-[#35A66F]/30"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-[#35A66F]" />
+            <span>✓ Voyara Verified Stay</span>
           </span>
         </div>
 
         {/* Location & Rating on overlay bottom */}
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-xs">
+        <div className="absolute bottom-3 left-3.5 right-3.5 flex items-center justify-between text-white text-xs">
           <div className="flex items-center space-x-1 drop-shadow-md truncate">
-            <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="font-medium truncate">{property.city}, {property.state}</span>
+            <MapPin className="w-3.5 h-3.5 text-[#27B7A8] shrink-0" />
+            <span className="font-medium truncate">{property.city || property.district || 'Kerala'}, {property.state || 'India'}</span>
           </div>
-          <div className="flex items-center space-x-1 bg-black/40 backdrop-blur-xs px-2 py-0.5 rounded-full">
-            <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+          <div className="flex items-center space-x-1 bg-black/40 backdrop-blur-xs px-2.5 py-0.5 rounded-full shrink-0">
+            <Star className="w-3 h-3 text-[#F6C945] fill-[#F6C945]" />
             <span className="font-bold">{property.rating?.toFixed(1) || '4.8'}</span>
-            <span className="text-white/70 text-[10px]">({property.review_count || 12})</span>
+            <span className="text-white/70 text-[10px]">({property.review_count || 14})</span>
           </div>
         </div>
       </div>
 
       {/* Body Details */}
-      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+      <div className="p-5 flex-1 flex flex-col justify-between space-y-3 bg-white dark:bg-[#0F273D]">
         <div>
-          <h3 className="text-base sm:text-lg font-bold font-serif text-[#102A43] dark:text-white group-hover:text-[#F97360] transition-colors line-clamp-1">
+          <h3 className="text-base sm:text-lg font-bold font-serif text-[#17324D] dark:text-white group-hover:text-[#087F8C] dark:group-hover:text-[#27B7A8] transition-colors line-clamp-1">
             {property.name}
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-300 mt-1 line-clamp-2 leading-relaxed">
+          {(property.provider_business_name || property.host_name) && (
+            <span className="text-[11px] font-semibold text-[#087F8C] dark:text-[#27B7A8] block mt-0.5">
+              Stay Partner: {property.provider_business_name || property.host_name}
+            </span>
+          )}
+          <p className="text-xs text-[#607080] dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed font-light">
             {property.description}
           </p>
 
-          {/* Amenities Preview */}
-          {property.amenities && property.amenities.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              {property.amenities.slice(0, 3).map((am, i) => (
-                <span
-                  key={i}
-                  className="text-[11px] px-2.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 font-semibold"
-                >
-                  {am.amenity_name || am}
-                </span>
-              ))}
-              {property.amenities.length > 3 && (
-                <span className="text-[10px] px-1.5 py-0.5 text-slate-400 font-medium">
-                  +{property.amenities.length - 3} more
-                </span>
-              )}
-            </div>
-          )}
+          <div className="flex items-center space-x-3 mt-3 text-xs text-[#607080] dark:text-slate-400 font-medium">
+            <span className="inline-flex items-center space-x-1">
+              <Users className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
+              <span>Up to {maxCapacity} Guests</span>
+            </span>
+          </div>
         </div>
 
         {/* Price & CTA */}
@@ -110,18 +109,18 @@ export const PropertyCard = ({ property }) => {
           <div>
             <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Starting from</span>
             <div className="flex items-baseline space-x-1">
-              <span className="text-lg font-bold text-[#F97360] font-serif">
-                ₹{property.min_price ? property.min_price.toLocaleString('en-IN') : '2,500'}
+              <span className="text-lg font-bold text-[#F97316] font-serif">
+                ₹{Number(startingPrice).toLocaleString('en-IN')}
               </span>
-              <span className="text-xs text-slate-400">/ night</span>
+              <span className="text-[11px] text-slate-400">/ night</span>
             </div>
           </div>
 
           <Link
             to={`/properties/${property.id}`}
-            className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white text-xs font-bold transition-all shadow-md shadow-[#F97360]/20 group-hover:shadow-lg cursor-pointer"
+            className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#F97316] to-[#FF8A3D] hover:from-[#FF8A3D] hover:to-[#F97316] text-white text-xs font-bold transition-all shadow-md shadow-orange-500/20 group-hover:shadow-lg cursor-pointer font-sans"
           >
-            <span>View Place</span>
+            <span>View Stay</span>
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
@@ -131,3 +130,5 @@ export const PropertyCard = ({ property }) => {
 };
 
 export default PropertyCard;
+
+

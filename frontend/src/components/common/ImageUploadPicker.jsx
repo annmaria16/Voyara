@@ -60,13 +60,13 @@ export const ImageUploadPicker = ({
   return (
     <div className="space-y-1.5 select-none">
       {label && (
-        <label className="block text-xs font-semibold text-[#102A43] dark:text-slate-200">
+        <label className="block text-xs font-bold text-[#091B29] dark:text-slate-200">
           {label}
         </label>
       )}
 
       {value || blobPreview ? (
-        <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-16/9 bg-slate-100 dark:bg-slate-900 group">
+        <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 aspect-16/9 bg-slate-100 dark:bg-slate-900 group">
           <img
             src={displaySrc}
             alt="Preview"
@@ -82,14 +82,14 @@ export const ImageUploadPicker = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-1.5 bg-white/90 dark:bg-slate-900/90 text-xs font-bold text-slate-900 dark:text-white rounded-xl shadow-md hover:bg-white transition-all"
+              className="px-3 py-1.5 bg-white/90 dark:bg-slate-900/90 text-xs font-bold text-slate-900 dark:text-white rounded-xl shadow-md hover:bg-white transition-all cursor-pointer"
             >
               Replace Photo
             </button>
             <button
               type="button"
               onClick={handleRemove}
-              className="p-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl shadow-md transition-all"
+              className="p-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl shadow-md transition-all cursor-pointer"
               title="Remove"
             >
               <X className="w-4 h-4" />
@@ -107,24 +107,24 @@ export const ImageUploadPicker = ({
           onClick={() => fileInputRef.current?.click()}
           className={`cursor-pointer border-2 border-dashed rounded-2xl p-6 text-center transition-all ${
             dragOver
-              ? 'border-[#F97360] bg-[#F97360]/5 dark:bg-[#F97360]/10'
-              : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131D2E] hover:border-emerald-500 dark:hover:border-emerald-400'
+              ? 'border-orange-500 bg-orange-500/5 dark:bg-orange-500/10'
+              : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0F273D] hover:border-[#087F8C] dark:hover:border-teal-400'
           }`}
         >
           {uploading ? (
             <div className="py-4 flex flex-col items-center space-y-2">
-              <Loader2 className="w-7 h-7 text-[#F97360] animate-spin" />
-              <p className="text-xs font-semibold text-[#102A43] dark:text-slate-200">
+              <Loader2 className="w-7 h-7 text-[#087F8C] animate-spin" />
+              <p className="text-xs font-semibold text-[#091B29] dark:text-slate-200">
                 Uploading photo to Voyara storage...
               </p>
             </div>
           ) : (
             <div className="flex flex-col items-center space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-teal-500/10 dark:bg-teal-500/20 text-[#087F8C] dark:text-teal-400 flex items-center justify-center">
                 <Upload className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-[#102A43] dark:text-slate-100">
+                <p className="text-xs font-bold text-[#091B29] dark:text-slate-100">
                   Click or drag photo here to upload
                 </p>
                 {hint && (
@@ -158,3 +158,4 @@ export const ImageUploadPicker = ({
 };
 
 export default ImageUploadPicker;
+

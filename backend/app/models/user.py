@@ -9,6 +9,19 @@ class UserRole(str, enum.Enum):
     PROVIDER = "PROVIDER"
     ADMIN = "ADMIN"
 
+class AccountStatus(str, enum.Enum):
+    ACTIVE = "ACTIVE"
+    PENDING_VERIFICATION = "PENDING_VERIFICATION"
+    SUSPENDED = "SUSPENDED"
+    DEACTIVATED = "DEACTIVATED"
+
+class HostVerificationStatus(str, enum.Enum):
+    UNVERIFIED = "UNVERIFIED"
+    PHONE_VERIFIED = "PHONE_VERIFIED"
+    EMAIL_VERIFIED = "EMAIL_VERIFIED"
+    FULLY_VERIFIED = "FULLY_VERIFIED"
+    SUSPENDED = "SUSPENDED"
+
 class User(Base):
     __tablename__ = "users"
 
@@ -19,6 +32,31 @@ class User(Base):
     phone = Column(String(50), unique=True, index=True, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.CUSTOMER, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    account_status = Column(String(50), default=AccountStatus.ACTIVE.value, nullable=False)
+    
+    # Phone Verification (OTP)
+    phone_verified = Column(Boolean, default=False, nullable=False)
+    phone_verified_at = Column(DateTime, nullable=True)
+    phone_otp_hash = Column(String(255), nullable=True)
+    phone_otp_expires_at = Column(DateTime, nullable=True)
+    phone_otp_attempts = Column(Integer, default=0, nullable=False)
+    phone_otp_last_sent_at = Column(DateTime, nullable=True)
+
+    # Email Verification
+    email_verified = Column(Boolean, default=False, nullable=False)
+    email_verified_at = Column(DateTime, nullable=True)
+    email_verification_token_hash = Column(String(255), nullable=True)
+    email_verification_expires_at = Column(DateTime, nullable=True)
+
+    # Account Suspension / Deactivation Metadata
+    suspended_at = Column(DateTime, nullable=True)
+    suspended_by = Column(Integer, nullable=True)
+    suspension_reason = Column(String(1000), nullable=True)
+    deactivated_at = Column(DateTime, nullable=True)
+    deactivated_by = Column(Integer, nullable=True)
+    deactivation_reason = Column(String(1000), nullable=True)
+    token_version = Column(Integer, default=1, nullable=False)
+
     auth_provider = Column(String(50), default="local", nullable=False)
     google_sub = Column(String(255), unique=True, index=True, nullable=True)
     avatar_url = Column(String(500), nullable=True)

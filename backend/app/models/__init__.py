@@ -7,9 +7,18 @@ from app.models.experience import Experience, ExperienceSchedule, ExperienceAvai
 from app.models.booking import Booking, BookingStatus, BookingRoom, BookingExperience
 from app.models.payment import Payment, PaymentStatus
 from app.models.verification import VerificationResult, VerificationCheck, VerificationStatus, CheckStatus
+from app.models.verinova_models import (
+    VeriNovaPropertyAssessment,
+    VeriNovaPropertyCheck,
+    VeriNovaAssessmentStatus,
+    VeriNovaEvidenceStatus,
+    VeriNovaCheckStatus,
+    VeriNovaAuditLog,
+)
 from app.models.support import SupportTicket, SupportMessage, TicketStatus
 from app.models.notification import Notification
 from app.models.review import Review
+from app.models.refund import Refund, RefundStatus
 
 __all__ = [
     "User",
@@ -33,10 +42,18 @@ __all__ = [
     "BookingExperience",
     "Payment",
     "PaymentStatus",
+    "Refund",
+    "RefundStatus",
     "VerificationResult",
     "VerificationCheck",
     "VerificationStatus",
     "CheckStatus",
+    "VeriNovaPropertyAssessment",
+    "VeriNovaPropertyCheck",
+    "VeriNovaAssessmentStatus",
+    "VeriNovaEvidenceStatus",
+    "VeriNovaCheckStatus",
+    "VeriNovaAuditLog",
     "SupportTicket",
     "SupportMessage",
     "TicketStatus",

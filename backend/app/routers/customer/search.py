@@ -30,7 +30,7 @@ def get_room_availability(
 
 @router.get("/search")
 def search_listings(
-    destination: Optional[str] = Query(None, description="City, state, or destination name"),
+    destination: Optional[str] = Query(None, description="City, state, destination name, or host"),
     check_in: Optional[date] = Query(None, description="Check-in date"),
     check_out: Optional[date] = Query(None, description="Check-out date"),
     guests: Optional[int] = Query(None, description="Minimum guest capacity"),
@@ -38,13 +38,15 @@ def search_listings(
     min_price: Optional[float] = Query(None, description="Minimum room price"),
     max_price: Optional[float] = Query(None, description="Maximum room price"),
     amenities: Optional[List[str]] = Query(None, description="Amenities required"),
+    host: Optional[str] = Query(None, description="Host / brand name filter"),
+    property_name: Optional[str] = Query(None, description="Property name filter"),
     experience: Optional[str] = Query(None, description="Experience keyword filter"),
     experience_date: Optional[date] = Query(None, description="Experience date filter"),
     db: Session = Depends(get_db)
 ):
     """
     Real-time database-driven search for Voyara accommodation and experiences.
-    Queries PostgreSQL/database records with availability, closure, and pricing constraints.
+    Queries PostgreSQL/database records with availability, closure, host brand, and pricing constraints.
     """
     return PropertyService.search_properties(
         db=db,
@@ -56,6 +58,8 @@ def search_listings(
         min_price=min_price,
         max_price=max_price,
         amenities=amenities,
+        host=host,
+        property_name=property_name,
         experience=experience,
         experience_date=experience_date
     )

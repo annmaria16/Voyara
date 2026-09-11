@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { providerApi } from '../../api/provider';
-import { Calendar, Lock, Unlock, AlertCircle, PlusCircle, Trash2, Home, Layers } from 'lucide-react';
+import {
+  Calendar,
+  Lock,
+  Unlock,
+  AlertCircle,
+  PlusCircle,
+  Trash2,
+  Home,
+  Layers,
+  ShieldCheck,
+  CalendarDays,
+  Info,
+  Clock,
+  CheckCircle2,
+} from 'lucide-react';
 
 export const ProviderAvailability = () => {
   const [properties, setProperties] = useState([]);
@@ -27,7 +41,7 @@ export const ProviderAvailability = () => {
     setLoading(true);
     try {
       const data = await providerApi.getProperties();
-      setProperties(data);
+      setProperties(Array.isArray(data) ? data : []);
       if (data.length > 0) {
         setSelectedPropertyId(data[0].id);
         fetchCalendarAndRooms(data[0].id);
@@ -46,7 +60,7 @@ export const ProviderAvailability = () => {
         providerApi.getPropertyRooms(propId),
       ]);
       setCalendarData(cal);
-      setRooms(roomList);
+      setRooms(Array.isArray(roomList) ? roomList : []);
       if (roomList.length > 0) {
         setBlockRoomId(roomList[0].id);
       }
@@ -126,14 +140,22 @@ export const ProviderAvailability = () => {
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-black font-serif text-slate-900 dark:text-white">Blackouts & Calendar</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Enforce property closures and room date blackouts strictly checked by the backend.
-        </p>
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
+        <div>
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
+            <span>Property Availability Calendar</span>
+          </div>
+          <h1 className="text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
+            Calendar & Blackouts
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 font-light">
+            Enforce property seasonal closures, room unit blackouts, and private reservation holds.
+          </p>
+        </div>
       </div>
-
 
       {error && (
         <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
@@ -142,39 +164,45 @@ export const ProviderAvailability = () => {
         </div>
       )}
 
+      {/* Property Selector Bar */}
       {properties.length > 0 && (
-        <div className="flex items-center space-x-2 overflow-x-auto pb-2">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0 mr-2">
+        <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-xs flex items-center space-x-3 overflow-x-auto">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 whitespace-nowrap pl-2">
             Selected Property:
           </span>
-          {properties.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => handlePropertyChange(p.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                selectedPropertyId === p.id
-                  ? 'bg-gradient-to-r from-[#F97360] to-orange-500 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-orange-500/10 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-              }`}
-            >
-              {p.name}
-            </button>
-          ))}
+          <div className="flex items-center space-x-2">
+            {properties.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => handlePropertyChange(p.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  selectedPropertyId === p.id
+                    ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-md shadow-teal-700/20 font-serif'
+                    : 'bg-[#FFFDF7] dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-800'
+                }`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
+      {/* Grid of Two Dedicated Controls */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Whole Property Closure Panel */}
-        <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-[#FDBA9A]/30 dark:border-slate-800 shadow-xs space-y-6">
-          <div className="flex items-center space-x-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
-            <Home className="w-5 h-5 text-orange-500" />
+        <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-6">
+          <div className="flex items-center space-x-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+              <Home className="w-5 h-5" />
+            </div>
             <div>
-              <h3 className="text-base font-bold font-serif text-slate-900 dark:text-white">Property-Level Closures</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Close entire property for all rooms on chosen dates</p>
+              <h3 className="text-base font-serif font-bold text-[#091B29] dark:text-white">Property-Level Closures</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Close entire property for all rooms on chosen dates</p>
             </div>
           </div>
 
-          <form onSubmit={handleCloseProperty} className="space-y-3 text-xs">
+          <form onSubmit={handleCloseProperty} className="space-y-4 text-xs">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">From Date</label>
@@ -183,7 +211,7 @@ export const ProviderAvailability = () => {
                   required
                   value={closureStartDate}
                   onChange={(e) => setClosureStartDate(e.target.value)}
-                  className="w-full p-2 bg-[#FFF8F0]/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                 />
               </div>
               <div>
@@ -193,7 +221,7 @@ export const ProviderAvailability = () => {
                   required
                   value={closureEndDate}
                   onChange={(e) => setClosureEndDate(e.target.value)}
-                  className="w-full p-2 bg-[#FFF8F0]/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                 />
               </div>
             </div>
@@ -202,42 +230,42 @@ export const ProviderAvailability = () => {
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Reason for Closure</label>
               <input
                 type="text"
-                placeholder="e.g. Monsoon Renovation, Private Event"
+                placeholder="e.g. Monsoon Renovation, Private Buyout, Family Event"
                 value={closureReason}
                 onChange={(e) => setClosureReason(e.target.value)}
-                className="w-full p-2 bg-[#FFF8F0]/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
               />
             </div>
 
             <button
               type="submit"
               disabled={actionLoading}
-              className="w-full py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-2xl shadow-md transition-all cursor-pointer disabled:opacity-50"
             >
-              Block Property Dates
+              {actionLoading ? 'Scheduling...' : 'Apply Property Closure'}
             </button>
           </form>
 
           {/* Active Closures List */}
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 pt-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
               Active Closures ({calendarData?.closures?.length || 0})
             </span>
             {calendarData?.closures?.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No scheduled closures. Property is fully open.</p>
+              <p className="text-xs text-slate-400 italic">No scheduled closures. Property is open for booking.</p>
             ) : (
               calendarData?.closures?.map((cl) => (
                 <div
                   key={cl.id}
-                  className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl flex items-center justify-between text-xs text-rose-900 dark:text-rose-200"
+                  className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl flex items-center justify-between text-xs text-rose-900 dark:text-rose-200"
                 >
                   <div>
-                    <span className="font-bold block">{cl.start_date} to {cl.end_date}</span>
+                    <span className="font-bold block">{cl.start_date} ➔ {cl.end_date}</span>
                     <span className="text-[11px] opacity-80">{cl.reason}</span>
                   </div>
                   <button
                     onClick={() => handleRemoveClosure(cl.id)}
-                    className="p-1 text-rose-700 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900/40 rounded-lg cursor-pointer"
+                    className="p-1.5 text-rose-700 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900/40 rounded-xl cursor-pointer"
                     title="Remove Closure"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -249,22 +277,24 @@ export const ProviderAvailability = () => {
         </div>
 
         {/* Room-Level Blackout Panel */}
-        <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-[#FDBA9A]/30 dark:border-slate-800 shadow-xs space-y-6">
-          <div className="flex items-center space-x-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
-            <Layers className="w-5 h-5 text-emerald-500" />
+        <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-6">
+          <div className="flex items-center space-x-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="w-10 h-10 rounded-2xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] flex items-center justify-center shrink-0">
+              <Layers className="w-5 h-5" />
+            </div>
             <div>
-              <h3 className="text-base font-bold font-serif text-slate-900 dark:text-white">Room Unit Blackouts</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">Block a specific room without closing the whole property</p>
+              <h3 className="text-base font-serif font-bold text-[#091B29] dark:text-white">Room Unit Blackouts</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Block a specific room unit without closing entire property</p>
             </div>
           </div>
 
-          <form onSubmit={handleBlockRoom} className="space-y-3 text-xs">
+          <form onSubmit={handleBlockRoom} className="space-y-4 text-xs">
             <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Select Room</label>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Select Room Category</label>
               <select
                 value={blockRoomId}
                 onChange={(e) => setBlockRoomId(e.target.value)}
-                className="w-full p-2 bg-[#FFF8F0]/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden cursor-pointer"
+                className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] cursor-pointer"
               >
                 {rooms.map((r) => (
                   <option key={r.id} value={r.id} className="dark:bg-slate-900 text-slate-900 dark:text-white">
@@ -282,7 +312,7 @@ export const ProviderAvailability = () => {
                   required
                   value={blockStartDate}
                   onChange={(e) => setBlockStartDate(e.target.value)}
-                  className="w-full p-2 bg-[#FFF8F0]/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                 />
               </div>
               <div>
@@ -292,7 +322,7 @@ export const ProviderAvailability = () => {
                   required
                   value={blockEndDate}
                   onChange={(e) => setBlockEndDate(e.target.value)}
-                  className="w-full p-2 bg-[#FFF8F0]/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                 />
               </div>
             </div>
@@ -301,42 +331,42 @@ export const ProviderAvailability = () => {
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Reason for Block</label>
               <input
                 type="text"
-                placeholder="e.g. VIP Hold, Maintenance"
+                placeholder="e.g. VIP Hold, Deep Cleaning, Maintenance"
                 value={blockReason}
                 onChange={(e) => setBlockReason(e.target.value)}
-                className="w-full p-2 bg-[#FFF8F0]/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
               />
             </div>
 
             <button
               type="submit"
               disabled={actionLoading || rooms.length === 0}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] hover:from-[#0F9D9A] hover:to-[#27B7A8] text-white font-bold rounded-2xl shadow-md transition-all cursor-pointer disabled:opacity-50"
             >
-              Block Room Dates
+              {actionLoading ? 'Blocking...' : 'Block Room Unit Dates'}
             </button>
           </form>
 
           {/* Active Room Blocks */}
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 pt-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
               Active Room Blocks ({calendarData?.room_blocks?.length || 0})
             </span>
             {calendarData?.room_blocks?.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No room blackouts configured.</p>
+              <p className="text-xs text-slate-400 italic">No room unit blackouts configured.</p>
             ) : (
               calendarData?.room_blocks?.map((rb) => (
                 <div
                   key={rb.id}
-                  className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-2xl flex items-center justify-between text-xs text-amber-900 dark:text-amber-200"
+                  className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-2xl flex items-center justify-between text-xs text-amber-900 dark:text-amber-200"
                 >
                   <div>
-                    <span className="font-bold block">{rb.start_date} to {rb.end_date}</span>
+                    <span className="font-bold block">{rb.start_date} ➔ {rb.end_date}</span>
                     <span className="text-[11px] opacity-80">{rb.reason}</span>
                   </div>
                   <button
                     onClick={() => handleRemoveRoomBlock(rb.id)}
-                    className="p-1 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/40 rounded-lg cursor-pointer"
+                    className="p-1.5 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/40 rounded-xl cursor-pointer"
                     title="Remove Block"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -350,3 +380,5 @@ export const ProviderAvailability = () => {
     </div>
   );
 };
+
+export default ProviderAvailability;

@@ -1,31 +1,29 @@
-import os
-import mimetypes
+import json
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from fastapi.responses import FileResponse
-from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.auth.dependencies import get_current_admin, get_current_user, security
-from app.auth.jwt import decode_access_token
+from app.auth.dependencies import get_current_admin
 from app.models.user import User, UserRole
 from app.models.property import Property, PropertyVerificationStatus
 from app.models.room import Room
 from app.models.experience import Experience
-from app.config import settings
+from app.models.verinova_models import VeriNovaPropertyAssessment, VeriNovaAuditLog
 from app.schemas.auth import MessageResponse
-from app.schemas.property import PropertyVerificationAction, AdminPropertyResponse, PropertyVerificationResponse
+from app.schemas.property import PropertyVerificationAction, PropertyVerificationResponse
+from app.services.verinova.property_trust_service import PropertyTrustService
+from app.services.notifications.notification_service import NotificationService
 
 router = APIRouter()
 
 @router.get("/properties")
 def get_all_properties(
-    verification_status: Optional[str] = Query(None, description="Filter: ALL, PENDING_VERIFICATION, VERIFIED, NEEDS_REVIEW, REJECTED"),
+    verification_status: Optional[str] = Query(None, description="Filter: ALL, PENDING_VERIFICATION, VERIFIED, NEEDS_REVIEW, REJECTED, SUSPENDED"),
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """Admin endpoint to list all properties with verification status, location coordinates, and audit history."""
+    """Admin endpoint to list all properties with verification status, trust score, fingerprint, and host verification states."""
     query = db.query(Property).order_by(Property.created_at.desc())
     if verification_status and verification_status.upper() != "ALL":
         query = query.filter(Property.verification_status == verification_status.upper())
@@ -33,6 +31,10 @@ def get_all_properties(
     properties = query.all()
     results = []
     for p in properties:
+        host_user = p.provider.user if p.provider and p.provider.user else None
+        phone_verified = getattr(host_user, "phone_verified", False) if host_user else False
+        email_verified = getattr(host_user, "email_verified", False) if host_user else False
+
         results.append({
             "id": p.id,
             "name": p.name,
@@ -51,12 +53,17 @@ def get_all_properties(
             "check_out_time": p.check_out_time,
             "provider_id": p.provider_id,
             "provider_name": p.provider.business_name if p.provider else "N/A",
-            "provider_email": p.provider.user.email if p.provider and p.provider.user else None,
-            "provider_phone": p.provider.contact_phone if p.provider else None,
+            "host_name": host_user.name if host_user else "N/A",
+            "provider_email": host_user.email if host_user else None,
+            "provider_phone": host_user.phone if host_user else None,
+            "phone_verified": phone_verified,
+            "email_verified": email_verified,
             "is_active": p.is_active,
             "verification_status": p.verification_status or "PENDING_VERIFICATION",
-            "ownership_proof_url": p.ownership_proof_url,
             "verification_reason": p.verification_reason,
+            "trust_score": p.trust_score,
+            "trust_assessment_status": p.trust_assessment_status,
+            "property_identity_fingerprint": p.property_identity_fingerprint,
             "verified_by": p.verified_by,
             "verified_at": p.verified_at,
             "reviewed_by": p.reviewed_by,
@@ -76,10 +83,22 @@ def get_admin_property_detail(
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """Admin deep inspection of a property including ownership proof, Google map location, images, and host contact."""
+    """Admin deep inspection of a property including host verification, trust assessment, location map, photos, and rooms."""
     p = db.query(Property).filter(Property.id == property_id).first()
     if not p:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found.")
+
+    host_user = p.provider.user if p.provider and p.provider.user else None
+    phone_verified = getattr(host_user, "phone_verified", False) if host_user else False
+    email_verified = getattr(host_user, "email_verified", False) if host_user else False
+
+    # Get latest trust assessment
+    assessment = db.query(VeriNovaPropertyAssessment).filter(
+        VeriNovaPropertyAssessment.property_id == p.id
+    ).order_by(VeriNovaPropertyAssessment.created_at.desc()).first()
+
+    if not assessment:
+        assessment = PropertyTrustService.assess_property(db, p.id, actor_id=admin.id, actor_role="ADMIN")
 
     return {
         "id": p.id,
@@ -99,12 +118,20 @@ def get_admin_property_detail(
         "check_out_time": p.check_out_time,
         "provider_id": p.provider_id,
         "provider_name": p.provider.business_name if p.provider else "N/A",
-        "provider_email": p.provider.user.email if p.provider and p.provider.user else None,
-        "provider_phone": p.provider.contact_phone if p.provider else None,
+        "host_name": host_user.name if host_user else "N/A",
+        "provider_email": host_user.email if host_user else None,
+        "provider_phone": host_user.phone if host_user else None,
+        "phone_verified": phone_verified,
+        "email_verified": email_verified,
         "is_active": p.is_active,
         "verification_status": p.verification_status or "PENDING_VERIFICATION",
-        "ownership_proof_url": p.ownership_proof_url,
         "verification_reason": p.verification_reason,
+        "trust_score": assessment.trust_score,
+        "trust_assessment_status": assessment.assessment_status.value,
+        "property_identity_fingerprint": p.property_identity_fingerprint,
+        "duplicate_detected": assessment.duplicate_detected,
+        "duplicate_property_id": assessment.duplicate_property_id,
+        "duplicate_explanation": assessment.duplicate_explanation,
         "verified_by": p.verified_by,
         "verified_at": p.verified_at,
         "reviewed_by": p.reviewed_by,
@@ -142,79 +169,132 @@ def verify_property_action(
     db: Session = Depends(get_db)
 ):
     """
-    Admin moderation endpoint to APPROVE, REJECT, or REQUEST_REVIEW for a property.
+    Admin moderation endpoint to APPROVE, REJECT, NEEDS_REVIEW, SUSPEND, or REACTIVATE a property.
     Only approved properties transition to VERIFIED and become customer-visible.
     """
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found.")
 
-    action = (data.action or "").upper().strip()
+    raw_action = (data.action or "").upper().strip()
+    action = raw_action
+    if action == "REQUEST_REVIEW":
+        action = "NEEDS_REVIEW"
+    elif action == "SUSPEND_PROPERTY":
+        action = "SUSPEND"
+    elif action == "REACTIVATE_PROPERTY":
+        action = "REACTIVATE"
+
     now = datetime.utcnow()
+    reason = (data.reason or "").strip()
+
+    if action in ["REJECT", "NEEDS_REVIEW", "SUSPEND"] and not reason:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Please provide a reason when selecting {action}."
+        )
 
     if action == "APPROVE":
         prop.verification_status = PropertyVerificationStatus.VERIFIED.value
+        prop.is_active = True
         prop.verified_by = admin.id
         prop.verified_at = now
-        prop.verification_reason = data.reason.strip() if data.reason else "Approved by Administrator"
-        message = f"Property '{prop.name}' has been APPROVED and is now live and customer-visible."
+        prop.verification_reason = reason or "Approved by Administrator after platform trust evaluation."
+        message = f"Property '{prop.name}' has been APPROVED and is now live."
     elif action == "REJECT":
         prop.verification_status = PropertyVerificationStatus.REJECTED.value
+        prop.is_active = False
         prop.reviewed_by = admin.id
         prop.reviewed_at = now
-        prop.verification_reason = data.reason.strip() if data.reason else "Property submission rejected by administrator."
+        prop.verification_reason = reason
         message = f"Property '{prop.name}' has been REJECTED."
-    elif action in ["REQUEST_REVIEW", "NEEDS_REVIEW"]:
+    elif action == "NEEDS_REVIEW":
         prop.verification_status = PropertyVerificationStatus.NEEDS_REVIEW.value
+        prop.is_active = False
         prop.reviewed_by = admin.id
         prop.reviewed_at = now
-        prop.verification_reason = data.reason.strip() if data.reason else "Additional details or corrections requested."
+        prop.verification_reason = reason
         message = f"Property '{prop.name}' has been marked as NEEDS_REVIEW."
+    elif action == "SUSPEND":
+        prop.verification_status = "SUSPENDED"
+        prop.is_active = False
+        prop.reviewed_by = admin.id
+        prop.reviewed_at = now
+        prop.verification_reason = reason
+        message = f"Property '{prop.name}' has been SUSPENDED."
+    elif action == "REACTIVATE":
+        prop.verification_status = PropertyVerificationStatus.VERIFIED.value
+        prop.is_active = True
+        prop.verified_by = admin.id
+        prop.verified_at = now
+        prop.verification_reason = reason or "Property reactivated by administrator."
+        message = f"Property '{prop.name}' has been REACTIVATED and is live."
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid action. Allowed actions: APPROVE, REJECT, REQUEST_REVIEW."
+            detail="Invalid action. Allowed actions: APPROVE, REJECT, NEEDS_REVIEW, SUSPEND, REACTIVATE."
         )
 
+    # Record Audit Log
+    log = VeriNovaAuditLog(
+        entity_type="PROPERTY",
+        entity_id=prop.id,
+        event_type="DECISION_APPLIED",
+        actor_id=admin.id,
+        actor_role="ADMIN",
+        summary=f"Property '{prop.name}' status set to {prop.verification_status} by Admin {admin.name or admin.email}. Reason: {prop.verification_reason}",
+        details_json=json.dumps({
+            "action": action,
+            "reason": prop.verification_reason,
+            "verification_status": prop.verification_status
+        })
+    )
+    db.add(log)
     db.commit()
     db.refresh(prop)
 
-    # Trigger In-App Notification to Host
+    # In-App Notification to Host
     try:
-        from app.services.notifications.notification_service import NotificationService
         host_user_id = prop.provider.user_id if prop.provider else None
         if host_user_id:
-            if action == "APPROVE":
+            if action in ["APPROVE", "REACTIVATE"]:
                 NotificationService.create_notification(
                     db=db,
                     user_id=host_user_id,
                     title="Property Approved",
-                    message=f"Your property {prop.name} has been approved and is now visible to customers.",
+                    message=f"Your property '{prop.name}' has been approved and is now live for bookings.",
                     type="PROPERTY_APPROVED",
                     link="/provider/properties"
                 )
             elif action == "REJECT":
-                reason_str = data.reason.strip() if data.reason else "Not specified"
                 NotificationService.create_notification(
                     db=db,
                     user_id=host_user_id,
                     title="Property Submission Rejected",
-                    message=f"Your property {prop.name} was rejected. Reason: {reason_str}.",
+                    message=f"Your property '{prop.name}' was rejected. Reason: {prop.verification_reason}",
                     type="PROPERTY_REJECTED",
                     link="/provider/properties"
                 )
-            elif action in ["REQUEST_REVIEW", "NEEDS_REVIEW"]:
-                reason_str = data.reason.strip() if data.reason else "Review required"
+            elif action == "NEEDS_REVIEW":
                 NotificationService.create_notification(
                     db=db,
                     user_id=host_user_id,
                     title="Property Review Requested",
-                    message=f"Your property {prop.name} needs review. Reason: {reason_str}.",
+                    message=f"Action required for '{prop.name}': {prop.verification_reason}",
                     type="PROPERTY_NEEDS_REVIEW",
                     link="/provider/properties"
                 )
+            elif action == "SUSPEND":
+                NotificationService.create_notification(
+                    db=db,
+                    user_id=host_user_id,
+                    title="Property Suspended",
+                    message=f"Your property '{prop.name}' has been suspended. Reason: {prop.verification_reason}",
+                    type="PROPERTY_SUSPENDED",
+                    link="/provider/properties"
+                )
     except Exception as notif_err:
-        print("Error notifying host of property verification action:", notif_err)
+        print("Error notifying host:", notif_err)
 
     return {
         "message": message,
@@ -227,71 +307,6 @@ def verify_property_action(
         "reviewed_by": prop.reviewed_by,
         "reviewed_at": prop.reviewed_at,
     }
-
-@router.get("/properties/{property_id}/ownership-proof")
-def get_property_ownership_proof(
-    property_id: int,
-    token: Optional[str] = Query(None, description="Admin access token for browser tab viewing"),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: Session = Depends(get_db)
-):
-    """
-    Secure Admin-only endpoint to access and view/download the uploaded ownership or authorization proof document.
-    Authenticates via either HTTP Bearer header or token query parameter.
-    Never accessible to customers or unauthorized users.
-    """
-    admin = None
-    if credentials:
-        try:
-            admin = get_current_user(credentials=credentials, db=db)
-        except HTTPException:
-            pass
-
-    if not admin and token:
-        payload = decode_access_token(token)
-        if payload:
-            user_id = payload.get("sub") or payload.get("user_id")
-            if user_id:
-                user = db.query(User).filter(User.id == int(user_id)).first()
-                if user and user.is_active:
-                    admin = user
-
-    if not admin or admin.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin authorization required to access ownership documents."
-        )
-
-    prop = db.query(Property).filter(Property.id == property_id).first()
-    if not prop or not prop.ownership_proof_url:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ownership proof document not found for this property.")
-
-    filename = os.path.basename(prop.ownership_proof_url)
-    file_path = os.path.join(settings.UPLOAD_DIR, filename)
-
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document file does not exist on server storage.")
-
-    media_type, _ = mimetypes.guess_type(file_path)
-    if not media_type:
-        ext = os.path.splitext(filename)[1].lower()
-        if ext == ".pdf":
-            media_type = "application/pdf"
-        elif ext in [".jpg", ".jpeg"]:
-            media_type = "image/jpeg"
-        elif ext == ".png":
-            media_type = "image/png"
-        elif ext == ".webp":
-            media_type = "image/webp"
-        else:
-            media_type = "application/octet-stream"
-
-    return FileResponse(
-        file_path,
-        media_type=media_type,
-        filename=filename,
-        headers={"Content-Disposition": f'inline; filename="{filename}"'}
-    )
 
 @router.put("/properties/{property_id}/toggle-status", response_model=MessageResponse)
 def toggle_property_status(

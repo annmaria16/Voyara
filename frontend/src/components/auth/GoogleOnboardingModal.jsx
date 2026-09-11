@@ -132,8 +132,8 @@ export const GoogleOnboardingModal = ({
                 onClick={() => setSelectedRole('PROVIDER')}
                 className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start space-x-3 ${
                   selectedRole === 'PROVIDER'
-                    ? 'bg-gradient-to-r from-[#F97360] to-orange-500 text-white border-transparent shadow-md'
-                    : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                    ? 'bg-gradient-to-r from-orange-500 to-[#EA580C] text-white border-transparent shadow-md'
+                    : 'bg-white dark:bg-[#091B29] text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:border-teal-500/50'
                 }`}
               >
                 <div
@@ -144,13 +144,13 @@ export const GoogleOnboardingModal = ({
                   <Home className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="block text-xs font-bold">Host</span>
+                  <strong className="block text-xs font-bold font-serif">Stay Partner</strong>
                   <span
-                    className={`block text-[10px] mt-0.5 leading-tight ${
+                    className={`text-[11px] block mt-0.5 ${
                       selectedRole === 'PROVIDER' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'
                     }`}
                   >
-                    List your stays and experiences on Voyara
+                    List stays and host experiences
                   </span>
                 </div>
               </button>
@@ -186,11 +186,8 @@ export const GoogleOnboardingModal = ({
 
           {/* Phone Number Input */}
           <div>
-            <label
-              htmlFor="google-phone"
-              className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1"
-            >
-              Phone Number
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              Phone Number <span className="text-orange-500">*</span>
             </label>
             <PhoneInput
               id="google-phone"
@@ -211,7 +208,7 @@ export const GoogleOnboardingModal = ({
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 active:scale-[0.99] text-white font-bold rounded-xl shadow-md shadow-[#F97360]/20 transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 mt-4"
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] active:scale-[0.99] text-white font-bold rounded-xl shadow-md shadow-orange-500/20 transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 mt-4"
           >
             {loading ? (
               <div className="flex items-center space-x-2">

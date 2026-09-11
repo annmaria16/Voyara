@@ -11,6 +11,33 @@ export const authApi = {
     return response.data;
   },
 
+  // Phone OTP
+  sendPhoneOtp: async (phone) => {
+    const response = await api.post('/auth/phone/send-otp', { phone });
+    return response.data;
+  },
+
+  resendPhoneOtp: async (phone) => {
+    const response = await api.post('/auth/phone/resend-otp', { phone });
+    return response.data;
+  },
+
+  verifyPhoneOtp: async (phone, otp) => {
+    const response = await api.post('/auth/phone/verify-otp', { phone, otp });
+    return response.data;
+  },
+
+  // Email Verification
+  sendEmailVerification: async (email) => {
+    const response = await api.post('/auth/email/send-verification', { email });
+    return response.data;
+  },
+
+  verifyEmail: async (email, code) => {
+    const response = await api.post('/auth/email/verify', { email, code });
+    return response.data;
+  },
+
   logout: async () => {
     const response = await api.post('/auth/logout');
     return response.data;

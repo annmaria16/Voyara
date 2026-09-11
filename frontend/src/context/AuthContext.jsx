@@ -35,8 +35,14 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = async (email, password) => {
-    const data = await authApi.login({ email, password });
+  const login = async (emailOrCredentials, maybePassword) => {
+    let credentials;
+    if (typeof emailOrCredentials === 'object' && emailOrCredentials !== null) {
+      credentials = emailOrCredentials;
+    } else {
+      credentials = { email: emailOrCredentials, password: maybePassword };
+    }
+    const data = await authApi.login(credentials);
     setToken(data.access_token);
     setUser(data.user);
     localStorage.setItem('voyara_token', data.access_token);
@@ -79,8 +85,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const getRoleLabel = (role) => {
-    if (role === 'ADMIN') return 'Administrator';
-    if (role === 'PROVIDER') return 'Host';
+    if (role === 'ADMIN') return 'Voyara Control Center';
+    if (role === 'PROVIDER') return 'Stay Partner';
     if (role === 'CUSTOMER') return 'Traveler';
     return '';
   };

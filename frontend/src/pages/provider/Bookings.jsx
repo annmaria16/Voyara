@@ -3,135 +3,463 @@ import { providerApi } from '../../api/provider';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
 import { VerificationModal } from '../../components/verification/VerificationModal';
 import { InvoiceModal } from '../../components/payment/InvoiceModal';
-import { BookOpen, Calendar, Users, MapPin, AlertCircle, ShieldCheck, CreditCard, FileText } from 'lucide-react';
+import {
+  BookOpen,
+  Calendar,
+  Users,
+  MapPin,
+  AlertCircle,
+  ShieldCheck,
+  CreditCard,
+  FileText,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  ArrowRight,
+  Flame,
+  UserCheck,
+  Mail,
+  Phone,
+  Search,
+  Bed,
+  Home,
+  Building,
+  Sparkles,
+  Check,
+  ChevronRight,
+} from 'lucide-react';
 
 export const ProviderBookings = () => {
   const [bookings, setBookings] = useState([]);
+  const [properties, setProperties] = useState([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('ALL');
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [invoiceBooking, setInvoiceBooking] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState('');
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [bookingsData, propsData] = await Promise.all([
+        providerApi.getBookings(),
+        providerApi.getProperties().catch(() => []),
+      ]);
+      setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+      setProperties(Array.isArray(propsData) ? propsData : []);
+    } catch (err) {
+      setError(err.message || 'Failed to load bookings.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchBookings = async () => {
-      setLoading(true);
-      try {
-        const data = await providerApi.getBookings();
-        setBookings(data);
-      } catch (err) {
-        setError(err.message || 'Failed to load bookings.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBookings();
+    fetchData();
   }, []);
 
+  const handleCheckIn = async (bookingId) => {
+    setActionLoading(bookingId);
+    try {
+      await providerApi.checkInGuest(bookingId);
+      await fetchData();
+    } catch (err) {
+      alert(err.response?.data?.detail || err.message || 'Failed to mark guest as checked in.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCheckOut = async (bookingId) => {
+    setActionLoading(bookingId);
+    try {
+      await providerApi.checkOutGuest(bookingId);
+      await fetchData();
+    } catch (err) {
+      alert(err.response?.data?.detail || err.message || 'Failed to mark guest as checked out.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Filter by Property
+  const propertyFilteredBookings = bookings.filter((b) => {
+    if (selectedPropertyId !== 'ALL' && b.property_id !== Number(selectedPropertyId)) {
+      return false;
+    }
+    return true;
+  });
+
+  // Filter by Search & Status Tab
+  const filteredBookings = propertyFilteredBookings.filter((b) => {
+    // Status filter
+    if (activeTab === 'UPCOMING' && !['CONFIRMED', 'VERIFIED', 'PENDING'].includes(b.status)) {
+      return false;
+    }
+    if (activeTab === 'CHECKED_IN' && b.status !== 'CHECKED_IN') {
+      return false;
+    }
+    if (activeTab === 'COMPLETED' && b.status !== 'COMPLETED') {
+      return false;
+    }
+    if (activeTab === 'CANCELLED' && b.status !== 'CANCELLED') {
+      return false;
+    }
+
+    // Search query filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const guestName = (b.user?.name || b.customer_name || '').toLowerCase();
+      const guestEmail = (b.user?.email || '').toLowerCase();
+      const bookingNo = (b.booking_number || `VOY-${b.id}`).toLowerCase();
+      const propName = (b.property?.name || '').toLowerCase();
+      const roomName = (b.booking_rooms?.[0]?.room_name || b.room_name || '').toLowerCase();
+
+      return (
+        guestName.includes(query) ||
+        guestEmail.includes(query) ||
+        bookingNo.includes(query) ||
+        propName.includes(query) ||
+        roomName.includes(query)
+      );
+    }
+
+    return true;
+  });
+
+  const upcomingCount = propertyFilteredBookings.filter((b) => ['CONFIRMED', 'VERIFIED', 'PENDING'].includes(b.status)).length;
+  const checkedInCount = propertyFilteredBookings.filter((b) => b.status === 'CHECKED_IN').length;
+  const completedCount = propertyFilteredBookings.filter((b) => b.status === 'COMPLETED').length;
+  const cancelledCount = propertyFilteredBookings.filter((b) => b.status === 'CANCELLED').length;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-black font-serif text-slate-900 dark:text-white">Guest Reservations</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Bookings received for your properties and connected host experiences with Razorpay settlement verification
-        </p>
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
+        <div>
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
+            <span>Stay Partner Operations</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
+            Arrivals & Guest Reservations
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 font-light">
+            Real-time arrivals board, verified stays, guest profiles, and invoices.
+          </p>
+        </div>
+
+        {/* Property Selector Filter */}
+        {properties.length > 0 && (
+          <div className="flex items-center space-x-2 shrink-0">
+            <select
+              value={selectedPropertyId}
+              onChange={(e) => setSelectedPropertyId(e.target.value)}
+              className="px-4 py-2.5 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-[#091B29] dark:text-white shadow-xs focus:outline-none focus:border-[#087F8C] cursor-pointer"
+            >
+              <option value="ALL">All Properties ({properties.length})</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.city})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-rose-700 dark:text-rose-300 text-sm">
-          {error}
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
-      {loading ? (
-        <div className="py-20 flex justify-center">
-          <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+      {/* Control Bar: Tabs & Search */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        {/* Arrivals Board Tabs */}
+        <div className="flex items-center space-x-2 overflow-x-auto pb-1 custom-scrollbar">
+          <button
+            type="button"
+            onClick={() => setActiveTab('ALL')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'ALL'
+                ? 'bg-[#091B29] text-white shadow-sm dark:bg-[#087F8C]'
+                : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
+            }`}
+          >
+            All Reservations ({propertyFilteredBookings.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('UPCOMING')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'UPCOMING'
+                ? 'bg-[#087F8C] text-white shadow-sm'
+                : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
+            }`}
+          >
+            Upcoming Guests ({upcomingCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('CHECKED_IN')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
+              activeTab === 'CHECKED_IN'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Checked-In ({checkedInCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('COMPLETED')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'COMPLETED'
+                ? 'bg-[#35A66F] text-white shadow-sm'
+                : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
+            }`}
+          >
+            Completed Stays ({completedCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('CANCELLED')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'CANCELLED'
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
+            }`}
+          >
+            Cancelled ({cancelledCount})
+          </button>
         </div>
-      ) : bookings.length === 0 ? (
-        <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-16 text-center border border-[#FDBA9A]/30 dark:border-slate-800 space-y-3">
-          <BookOpen className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">No bookings received yet</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Reservations made by travelers will show up here in real time.</p>
+
+        {/* Search Bar */}
+        <div className="relative w-full lg:w-72 shrink-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search guest, booking #, stay..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-700 rounded-2xl text-xs text-[#091B29] dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#087F8C] shadow-xs"
+          />
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-24 flex justify-center">
+          <div className="w-8 h-8 border-3 border-[#087F8C] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : filteredBookings.length === 0 ? (
+        <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-16 text-center border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-sm">
+          <div className="w-16 h-16 rounded-3xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] mx-auto flex items-center justify-center">
+            <BookOpen className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white">
+              No reservations found
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto font-light">
+              {searchQuery ? 'Try modifying your search keywords or filter tab.' : 'When guests book your accommodations or experiences, live reservations and check-in actions appear here.'}
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-[#FDBA9A]/30 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="pb-3">Reference</th>
-                  <th className="pb-3">Guest Details</th>
-                  <th className="pb-3">Property & Room</th>
-                  <th className="pb-3">Dates</th>
-                  <th className="pb-3">Gross Amount</th>
-                  <th className="pb-3">Payment</th>
-                  <th className="pb-3">VeriNova Audit</th>
-                  <th className="pb-3 text-right">Invoice</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {bookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-[#FFF8F0]/50 dark:hover:bg-slate-900/50 transition-colors">
-                    <td className="py-4 font-mono font-bold text-slate-900 dark:text-white">{b.booking_number}</td>
-                    <td className="py-4">
-                      <strong className="text-slate-900 dark:text-white block">{b.user?.name || 'Guest'}</strong>
-                      <span className="text-slate-400 text-[11px]">{b.user?.email}</span>
-                      {b.user?.phone && <span className="text-slate-400 text-[11px] block">{b.user.phone}</span>}
-                    </td>
-                    <td className="py-4">
-                      <strong className="text-slate-900 dark:text-white block">{b.property?.name}</strong>
-                      <span className="text-slate-600 dark:text-slate-300 text-[11px]">
-                        {b.booking_rooms?.[0]?.room_name || 'Stay Unit'}
+        <div className="space-y-5">
+          {filteredBookings.map((b) => {
+            const isCancelled = b.status === 'CANCELLED';
+            const isCheckedIn = b.status === 'CHECKED_IN';
+            const isCompleted = b.status === 'COMPLETED';
+            const isConfirmed = b.status === 'CONFIRMED' || b.status === 'VERIFIED' || b.status === 'PENDING';
+            const guestName = b.user?.name || b.customer_name || 'Guest Traveler';
+            const guestEmail = b.user?.email || 'N/A';
+            const guestPhone = b.user?.phone || '';
+            const propertyName = b.property?.name || 'Property';
+            const roomName = b.booking_rooms?.[0]?.room_name || b.room_name || 'Standard Unit';
+            const experience = b.booking_experiences?.[0];
+            const isActionBusy = actionLoading === b.id;
+
+            return (
+              <div
+                key={b.id}
+                className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:border-[#087F8C]/40 transition-all"
+              >
+                {/* 1. Header Strip: Booking Reference, Status & Trust Badges */}
+                <div className="bg-slate-50/80 dark:bg-slate-800/40 px-6 py-3.5 border-b border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center space-x-3 flex-wrap gap-y-1.5">
+                    {/* Booking Reference */}
+                    <span className="font-mono text-xs font-bold text-[#087F8C] dark:text-[#27B7A8] bg-[#087F8C]/10 px-3 py-1 rounded-xl border border-[#087F8C]/20 shadow-2xs">
+                      {b.booking_number || `VOY-${b.id}`}
+                    </span>
+
+                    {/* Booking Status Pill */}
+                    <span className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                      isCancelled
+                        ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
+                        : isCheckedIn
+                        ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30'
+                        : isCompleted
+                        ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
+                        : 'bg-[#35A66F]/15 text-[#236C48] dark:text-emerald-300 border border-[#35A66F]/30'
+                    }`}>
+                      {b.status === 'CHECKED_IN' ? 'CHECKED IN' : b.status}
+                    </span>
+
+                    {/* Booking Date */}
+                    {b.created_at && (
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center space-x-1">
+                        <Clock className="w-3 h-3" />
+                        <span>Booked on {new Date(b.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </span>
-                      {b.booking_experiences?.[0] && (
-                        <span className="text-orange-600 dark:text-orange-400 text-[11px] font-semibold block mt-0.5">
-                          + {b.booking_experiences[0].experience_title}
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-3 flex-wrap gap-y-1.5">
+                    {/* VeriNova Trust Badge */}
+                    <VerificationBadge
+                      status={isCancelled ? 'NEEDS_REVIEW' : 'VERIFIED'}
+                      size="sm"
+                      onClick={() => setSelectedBookingId(b.id)}
+                      showDetailsHint={true}
+                    />
+
+                    {/* Payment Pill */}
+                    <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-500/20">
+                      <CreditCard className="w-3 h-3" />
+                      <span>{isCancelled ? 'Refund Processed' : 'Paid via Razorpay'}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Structured Card Body (Clean Columns) */}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-6 items-center">
+                  {/* Column 1: Guest Information (xl:col-span-3) */}
+                  <div className="xl:col-span-3 flex items-start space-x-3.5 min-w-0">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#091B29] to-[#087F8C] text-white font-serif font-bold text-lg flex items-center justify-center shrink-0 shadow-md shadow-[#087F8C]/10">
+                      {guestName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 space-y-0.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                        Guest Traveler
+                      </span>
+                      <h3 className="text-sm font-serif font-bold text-[#091B29] dark:text-white truncate">
+                        {guestName}
+                      </h3>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate flex items-center space-x-1">
+                        <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="truncate">{guestEmail}</span>
+                      </p>
+                      {guestPhone && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate flex items-center space-x-1">
+                          <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>{guestPhone}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Column 2: Accommodation Details (xl:col-span-3) */}
+                  <div className="xl:col-span-3 space-y-1 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800/80 pt-4 md:pt-0 md:pl-6 min-w-0">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                      Property & Room Stay
+                    </span>
+                    <strong className="text-xs font-bold text-[#091B29] dark:text-white block truncate">
+                      {propertyName}
+                    </strong>
+                    <div className="flex items-center space-x-1 text-[11px] text-slate-600 dark:text-slate-300">
+                      <Bed className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8] shrink-0" />
+                      <span className="truncate">{roomName}</span>
+                    </div>
+                    {experience && (
+                      <span className="inline-flex items-center space-x-1 text-[11px] text-orange-600 dark:text-orange-400 font-semibold bg-orange-50 dark:bg-orange-950/30 px-2 py-0.5 rounded-md border border-orange-200 dark:border-orange-900/40">
+                        <Flame className="w-3 h-3 text-orange-500 shrink-0" />
+                        <span className="truncate">{experience.experience_title}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Column 3: Dates & Occupancy (xl:col-span-3) */}
+                  <div className="xl:col-span-3 space-y-1 border-t xl:border-t-0 xl:border-l border-slate-100 dark:border-slate-800/80 pt-4 xl:pt-0 xl:pl-6 min-w-0">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                      Check-In / Check-Out
+                    </span>
+                    <div className="flex items-center space-x-1.5 text-xs font-bold text-[#091B29] dark:text-white">
+                      <Calendar className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8] shrink-0" />
+                      <span>{b.check_in} ➔ {b.check_out}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{b.total_nights || 1} Night(s) • {b.total_guests || 2} Guest(s)</span>
+                    </div>
+                  </div>
+
+                  {/* Column 4: Payout & Actions (xl:col-span-3) */}
+                  <div className="xl:col-span-3 flex flex-row xl:flex-col items-center xl:items-end justify-between xl:justify-center gap-4 border-t xl:border-t-0 xl:border-l border-slate-100 dark:border-slate-800/80 pt-4 xl:pt-0 xl:pl-6 shrink-0">
+                    {/* Gross Payout Amount */}
+                    <div className="text-left xl:text-right">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                        Gross Payout
+                      </span>
+                      <span className="text-xl font-serif font-black text-orange-600 dark:text-orange-400 block">
+                        ₹{b.total_amount?.toLocaleString('en-IN')}
+                      </span>
+                      {isCancelled && b.refund && (
+                        <span className="text-[10px] text-rose-500 block font-semibold">
+                          Refund: ₹{b.refund.refund_amount?.toLocaleString('en-IN')} ({b.refund.refund_percentage}%)
                         </span>
                       )}
-                    </td>
-                    <td className="py-4 text-slate-600 dark:text-slate-300">
-                      <div>{b.check_in} to {b.check_out}</div>
-                      <span className="text-[10px] text-slate-400">({b.total_nights}N • {b.total_guests} Guests)</span>
-                    </td>
-                    <td className="py-4 font-bold text-orange-600 dark:text-orange-400 font-serif text-sm">
-                      ₹{b.total_amount?.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4">
-                      <div className="space-y-1">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          b.status === 'CANCELLED'
-                            ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30'
-                            : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                        }`}>
-                          {b.status}
-                        </span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-mono">
-                          Razorpay
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <VerificationBadge
-                        status={b.status === 'CANCELLED' ? 'NEEDS_REVIEW' : 'VERIFIED'}
-                        size="sm"
-                        onClick={() => setSelectedBookingId(b.id)}
-                        showDetailsHint={true}
-                      />
-                    </td>
-                    <td className="py-4 text-right">
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+                      {/* Check-In Action Button */}
+                      {isConfirmed && (
+                        <button
+                          type="button"
+                          onClick={() => handleCheckIn(b.id)}
+                          disabled={isActionBusy}
+                          className="px-3.5 py-2 bg-gradient-to-r from-[#087F8C] to-[#066570] hover:from-[#066570] hover:to-[#044c54] text-white rounded-xl text-xs font-bold shadow-md shadow-[#087F8C]/20 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          <span>{isActionBusy ? 'Updating...' : 'Mark Checked-In'}</span>
+                        </button>
+                      )}
+
+                      {/* Check-Out Action Button */}
+                      {isCheckedIn && (
+                        <button
+                          type="button"
+                          onClick={() => handleCheckOut(b.id)}
+                          disabled={isActionBusy}
+                          className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{isActionBusy ? 'Updating...' : 'Mark Checked-Out'}</span>
+                        </button>
+                      )}
+
+                      {/* Tax Invoice Modal Button */}
                       <button
                         type="button"
                         onClick={() => setInvoiceBooking(b)}
-                        className="px-2.5 py-1 bg-[#FFF8F0] dark:bg-slate-800 hover:bg-orange-100 dark:hover:bg-slate-700 text-[#F97360] dark:text-orange-400 border border-orange-200 dark:border-slate-700 rounded-lg text-[11px] font-bold transition-all inline-flex items-center space-x-1 cursor-pointer"
+                        className="px-3 py-2 bg-[#FFFDF7] dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-slate-700 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all inline-flex items-center space-x-1 cursor-pointer shadow-2xs"
                       >
-                        <FileText className="w-3 h-3" />
-                        <span>Tax Invoice</span>
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Invoice</span>
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -155,3 +483,5 @@ export const ProviderBookings = () => {
 };
 
 export default ProviderBookings;
+
+

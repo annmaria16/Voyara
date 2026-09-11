@@ -23,6 +23,7 @@ import {
   Check,
   X,
   Loader2,
+  Image as ImageIcon,
   Navigation,
 } from 'lucide-react';
 
@@ -166,10 +167,10 @@ export const AdminProperties = () => {
               key={tab.key}
               type="button"
               onClick={() => setStatusFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
                 statusFilter === tab.key
-                  ? 'bg-gradient-to-r from-[#F97360] to-orange-500 text-white shadow-xs'
-                  : 'bg-white dark:bg-[#131D2E] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-orange-500'
+                  ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-md shadow-teal-900/20'
+                  : 'bg-white dark:bg-[#0F273D] text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800 hover:border-[#087F8C]'
               }`}
             >
               <span>{tab.label}</span>
@@ -192,13 +193,13 @@ export const AdminProperties = () => {
 
       {loading ? (
         <div className="py-20 flex flex-col items-center justify-center space-y-3">
-          <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="w-8 h-8 border-3 border-[#087F8C] border-t-transparent rounded-full animate-spin"></div>
           <p className="text-xs text-slate-500">Loading property verification requests...</p>
         </div>
       ) : filteredProperties.length === 0 ? (
-        <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-16 text-center border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
+        <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-16 text-center border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
           <ShieldCheck className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="text-base font-bold text-[#102A43] dark:text-white">No property requests found</h3>
+          <h3 className="text-base font-bold text-[#091B29] dark:text-white">No property requests found</h3>
           <p className="text-xs text-slate-500">There are currently no property requests in "{statusFilter.replace('_', ' ')}".</p>
         </div>
       ) : (
@@ -214,7 +215,7 @@ export const AdminProperties = () => {
             return (
               <div
                 key={p.id}
-                className="bg-white dark:bg-[#131D2E] rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-orange-500/50 transition-all flex flex-col lg:flex-row gap-6 items-start justify-between"
+                className="bg-white dark:bg-[#0F273D] rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-[#087F8C]/50 hover:shadow-md transition-all flex flex-col lg:flex-row gap-6 items-start justify-between"
               >
                 {/* Left: Thumbnail & Property Details */}
                 <div className="flex flex-col sm:flex-row gap-5 items-start w-full lg:w-2/3">
@@ -242,17 +243,28 @@ export const AdminProperties = () => {
                   <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-[11px] font-bold text-slate-400 dark:text-slate-500">#{p.id}</span>
-                      <h3 className="text-base font-bold font-serif text-[#102A43] dark:text-white truncate">
+                      <h3 className="text-base font-bold font-serif text-[#091B29] dark:text-white truncate">
                         {p.name}
                       </h3>
                       {getVerificationBadge(p.verification_status)}
+                      {p.trust_score !== undefined && (
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${
+                          p.trust_score >= 80
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : p.trust_score >= 60
+                            ? 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                        }`}>
+                          Trust {p.trust_score}/100
+                        </span>
+                      )}
                     </div>
 
                     {/* Host Details */}
                     <div className="flex items-center space-x-3 text-xs text-slate-600 dark:text-slate-300 flex-wrap gap-y-1">
                       <div className="flex items-center space-x-1">
-                        <User className="w-3.5 h-3.5 text-orange-500" />
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">{p.provider_name || `Host #${p.provider_id}`}</span>
+                        <User className="w-3.5 h-3.5 text-[#087F8C]" />
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{p.provider_name || `Stay Partner #${p.provider_id}`}</span>
                       </div>
                       {p.provider_email && (
                         <div className="flex items-center space-x-1 text-slate-500 dark:text-slate-400 text-[11px]">
@@ -265,40 +277,32 @@ export const AdminProperties = () => {
                     {/* Location & GPS */}
                     <div className="flex items-center space-x-2 text-xs text-slate-600 dark:text-slate-300 flex-wrap">
                       <div className="flex items-center space-x-1">
-                        <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                        <MapPin className="w-3.5 h-3.5 text-[#087F8C]" />
                         <span>{p.city}, {p.state}, {p.country || 'India'}</span>
                       </div>
                       {p.latitude && p.longitude && (
-                        <span className="font-mono text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                        <span className="font-mono text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md">
                           GPS: {p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}
+                        </span>
+                      )}
+                      {p.property_identity_fingerprint && (
+                        <span className="font-mono text-[9px] text-[#087F8C] dark:text-[#27B7A8] bg-[#087F8C]/10 px-1.5 py-0.5 rounded border border-[#087F8C]/20">
+                          {p.property_identity_fingerprint}
                         </span>
                       )}
                     </div>
 
-                    {/* Ownership Proof & Submission Date */}
+                    {/* Supporting Evidence & Submission Date */}
                     <div className="flex items-center space-x-4 pt-1 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap gap-y-1">
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
                         <span>Submitted: {p.created_at ? new Date(p.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}</span>
                       </div>
 
-                      {p.ownership_proof_url ? (
-                        <a
-                          href={adminApi.getOwnershipProofUrl(p.id)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center space-x-1 text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>Ownership Proof Attached</span>
-                          <ExternalLink className="w-2.5 h-2.5" />
-                        </a>
-                      ) : (
-                        <span className="inline-flex items-center space-x-1 text-amber-600 dark:text-amber-400">
-                          <AlertTriangle className="w-3 h-3" />
-                          <span>No Proof Doc</span>
-                        </span>
-                      )}
+                      <span className="inline-flex items-center space-x-1 text-[#087F8C] dark:text-[#27B7A8] font-bold">
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        <span>{p.images?.length || 0} Photos</span>
+                      </span>
 
                       <span className="text-slate-400">•</span>
                       <span className="text-slate-600 dark:text-slate-300 font-medium">
@@ -338,9 +342,9 @@ export const AdminProperties = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedPropertyId(p.id)}
-                      className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer inline-flex items-center space-x-1.5"
+                      className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-[#087F8C]/10 text-slate-800 dark:text-slate-200 hover:text-[#087F8C] font-bold rounded-xl text-xs transition-colors cursor-pointer inline-flex items-center space-x-1.5 border border-slate-200/60 dark:border-slate-700"
                     >
-                      <Eye className="w-3.5 h-3.5 text-orange-500" />
+                      <Eye className="w-3.5 h-3.5 text-[#087F8C]" />
                       <span>Review Dossier</span>
                     </button>
 
@@ -349,7 +353,7 @@ export const AdminProperties = () => {
                         type="button"
                         disabled={isProcessing}
                         onClick={() => handleQuickAction(p.id, 'APPROVE', 'Approved by Administrator')}
-                        className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer inline-flex items-center space-x-1.5 disabled:opacity-50"
+                        className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer inline-flex items-center space-x-1.5 disabled:opacity-50"
                       >
                         {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
                         <span>Approve</span>
@@ -396,9 +400,9 @@ export const AdminProperties = () => {
       {/* Reject / Request Review Reason Dialog */}
       {reasonModal.open && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#131D2E] border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+          <div className="bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold font-serif text-slate-900 dark:text-white">
+              <h3 className="text-base font-bold font-serif text-[#091B29] dark:text-white">
                 {reasonModal.action === 'REJECT' ? 'Reject Property Listing' : 'Request Changes / Review'}
               </h3>
               <button
@@ -411,7 +415,7 @@ export const AdminProperties = () => {
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Enter the reason for <strong>'{reasonModal.propertyName}'</strong>. This reason will be stored in PostgreSQL and sent as an in-app notification to the Host.
+              Enter the reason for <strong>'{reasonModal.propertyName}'</strong>. This reason will be stored in PostgreSQL and sent as an in-app notification to the Stay Partner.
             </p>
 
             <textarea
@@ -424,7 +428,7 @@ export const AdminProperties = () => {
               }
               value={reasonText}
               onChange={(e) => setReasonText(e.target.value)}
-              className="w-full p-3 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
+              className="w-full p-3 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
             />
 
             <div className="flex items-center justify-end space-x-2 pt-2">

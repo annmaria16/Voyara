@@ -12,7 +12,8 @@ class NotificationService:
         title: str,
         message: str,
         type: str = "INFO",
-        link: Optional[str] = None
+        link: Optional[str] = None,
+        booking_id: Optional[int] = None
     ) -> Notification:
         """Create and persist an in-app notification for a specific user."""
         notification = Notification(
@@ -21,6 +22,7 @@ class NotificationService:
             message=message.strip(),
             type=type.strip(),
             link=link.strip() if link else None,
+            booking_id=booking_id,
             is_read=False
         )
         db.add(notification)

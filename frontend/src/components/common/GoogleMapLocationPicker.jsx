@@ -39,6 +39,8 @@ export const GoogleMapLocationPicker = ({
   initialCity = '',
   initialState = '',
   initialAddress = '',
+  pincode = '',
+  readOnly = false,
 }) => {
   const [currentLat, setCurrentLat] = useState(latitude || 10.0889);
   const [currentLng, setCurrentLng] = useState(longitude || 77.0595);
@@ -186,10 +188,10 @@ export const GoogleMapLocationPicker = ({
       className: 'voyara-map-marker',
       html: `
         <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center;">
-          <div style="background: #0f172a; color: #ffffff; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); margin-bottom: 2px;">
-            📍 Property Location
+          <div style="background: #091B29; color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); margin-bottom: 2px;">
+            📍 Sanctuary Location
           </div>
-          <div style="width: 32px; height: 32px; border-radius: 50%; background: #F97360; color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 2px solid white;">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: #F97316; color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 2px solid white;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
               <circle cx="12" cy="10" r="3"></circle>
@@ -204,25 +206,27 @@ export const GoogleMapLocationPicker = ({
 
     const marker = window.L.marker([initialLat, initialLng], {
       icon: customIcon,
-      draggable: true,
+      draggable: !readOnly,
     }).addTo(map);
 
-    // Marker drag handler with automatic reverse geocoding
-    marker.on('dragend', () => {
-      const position = marker.getLatLng();
-      const newLat = parseFloat(position.lat.toFixed(6));
-      const newLng = parseFloat(position.lng.toFixed(6));
-      handleCoordinateSelection(newLat, newLng, true);
-    });
+    if (!readOnly) {
+      // Marker drag handler with automatic reverse geocoding
+      marker.on('dragend', () => {
+        const position = marker.getLatLng();
+        const newLat = parseFloat(position.lat.toFixed(6));
+        const newLng = parseFloat(position.lng.toFixed(6));
+        handleCoordinateSelection(newLat, newLng, true);
+      });
 
-    // Map click handler (moves marker automatically & updates coordinates with reverse geocoding)
-    map.on('click', (e) => {
-      const { lat, lng } = e.latlng;
-      const newLat = parseFloat(lat.toFixed(6));
-      const newLng = parseFloat(lng.toFixed(6));
-      marker.setLatLng([newLat, newLng]);
-      handleCoordinateSelection(newLat, newLng, true);
-    });
+      // Map click handler (moves marker automatically & updates coordinates with reverse geocoding)
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        const newLat = parseFloat(lat.toFixed(6));
+        const newLng = parseFloat(lng.toFixed(6));
+        marker.setLatLng([newLat, newLng]);
+        handleCoordinateSelection(newLat, newLng, true);
+      });
+    }
 
     leafletMapRef.current = map;
     leafletMarkerRef.current = marker;
@@ -321,7 +325,7 @@ export const GoogleMapLocationPicker = ({
     }
   };
 
-  // Live Autocomplete Suggestions (Swiggy style searching)
+  // Live Autocomplete Suggestions (Pincode bounded & Swiggy style searching)
   const handleSearchInputChange = (e) => {
     const val = e.target.value;
     setSearchQuery(val);
@@ -340,25 +344,50 @@ export const GoogleMapLocationPicker = ({
     debounceTimerRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          val.trim()
-        )}&countrycodes=in&limit=5&addressdetails=1`;
+        const queryWithPin = pincode && !val.includes(pincode)
+          ? `${val.trim()}, ${pincode}, India`
+          : `${val.trim()}, India`;
 
-        const res = await fetch(endpoint, {
+        const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          queryWithPin
+        )}&countrycodes=in&limit=6&addressdetails=1`;
+
+        let res = await fetch(endpoint, {
           headers: {
             'Accept-Language': 'en',
             'User-Agent': 'Voyara-Location-Picker/1.0',
           },
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setSuggestions(data);
-            setShowSuggestions(true);
-          } else {
-            setSuggestions([]);
+        let data = res.ok ? await res.json() : [];
+
+        // Fallback to broader search if pincode combination returned nothing
+        if ((!data || data.length === 0) && pincode && queryWithPin !== `${val.trim()}, India`) {
+          const fallbackEndpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            val.trim()
+          )}&countrycodes=in&limit=5&addressdetails=1`;
+          res = await fetch(fallbackEndpoint, {
+            headers: {
+              'Accept-Language': 'en',
+              'User-Agent': 'Voyara-Location-Picker/1.0',
+            },
+          });
+          if (res.ok) data = await res.json();
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
+          // Sort results prioritizing matches with the pincode if provided
+          if (pincode) {
+            data.sort((a, b) => {
+              const aHasPin = a.address?.postcode === pincode || a.display_name?.includes(pincode);
+              const bHasPin = b.address?.postcode === pincode || b.display_name?.includes(pincode);
+              return bHasPin - aHasPin;
+            });
           }
+          setSuggestions(data);
+          setShowSuggestions(true);
+        } else {
+          setSuggestions([]);
         }
       } catch (err) {
         console.warn('Autocomplete fetch warning:', err);
@@ -422,18 +451,36 @@ export const GoogleMapLocationPicker = ({
     setShowSuggestions(false);
 
     try {
+      const queryWithPin = pincode && !searchQuery.includes(pincode)
+        ? `${searchQuery.trim()}, ${pincode}, India`
+        : `${searchQuery.trim()}, India`;
+
       const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        searchQuery.trim()
+        queryWithPin
       )}&countrycodes=in&limit=1&addressdetails=1`;
 
-      const res = await fetch(endpoint, {
+      let res = await fetch(endpoint, {
         headers: {
           'Accept-Language': 'en',
           'User-Agent': 'Voyara-Location-Picker/1.0',
         },
       });
 
-      const data = await res.json();
+      let data = res.ok ? await res.json() : [];
+
+      if ((!data || data.length === 0) && pincode && queryWithPin !== `${searchQuery.trim()}, India`) {
+        const fallbackEndpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          searchQuery.trim()
+        )}&countrycodes=in&limit=1&addressdetails=1`;
+        res = await fetch(fallbackEndpoint, {
+          headers: {
+            'Accept-Language': 'en',
+            'User-Agent': 'Voyara-Location-Picker/1.0',
+          },
+        });
+        if (res.ok) data = await res.json();
+      }
+
       if (data && data.length > 0) {
         handleSelectSuggestion(data[0]);
       } else {
@@ -482,14 +529,23 @@ export const GoogleMapLocationPicker = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-            Property Map Location (India Only) *
+            {readOnly ? 'Property Map Location' : 'Property Map Location (India Only) *'}
           </label>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Search your place/area or tap anywhere on the map. The readable address and coordinates will auto-fill.
+            {readOnly
+              ? '📍 Verified GPS coordinates (Locked after approval)'
+              : 'Search your place/area or tap anywhere on the map. The readable address and coordinates will auto-fill.'}
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {pincode && (
+            <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-500/30 rounded-xl text-xs font-mono font-bold shadow-xs">
+              <MapPin className="w-3.5 h-3.5 text-orange-500" />
+              <span>Pincode: {pincode}</span>
+            </span>
+          )}
+
           {hasSelected ? (
             <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-mono font-bold shadow-xs">
               <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -503,99 +559,101 @@ export const GoogleMapLocationPicker = ({
         </div>
       </div>
 
-      {/* Swiggy-like Live Autocomplete Search Input */}
-      <div ref={searchContainerRef} className="relative">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search area, landmark, street, town (e.g. Munnar, Pothamedu, Calangute Beach)..."
-              value={searchQuery}
-              onChange={handleSearchInputChange}
-              onFocus={() => {
-                if (suggestions.length > 0) setShowSuggestions(true);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleManualSearchSubmit();
-                }
-              }}
-              className="w-full pl-10 pr-8 py-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500 font-medium placeholder-slate-400"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setSuggestions([]);
-                  setShowSuggestions(false);
+      {/* Swiggy-like Live Autocomplete Search Input (editable mode only) */}
+      {!readOnly && (
+        <div ref={searchContainerRef} className="relative">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search area, landmark, street, town (e.g. Munnar, Pothamedu, Calangute Beach)..."
+                value={searchQuery}
+                onChange={handleSearchInputChange}
+                onFocus={() => {
+                  if (suggestions.length > 0) setShowSuggestions(true);
                 }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          <button
-            type="button"
-            disabled={searching}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleManualSearchSubmit();
-            }}
-            className="px-4 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50 shrink-0 flex items-center space-x-1.5"
-          >
-            {searching ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Searching...</span>
-              </>
-            ) : (
-              <>
-                <Crosshair className="w-3.5 h-3.5" />
-                <span>Locate on Map</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Floating Autocomplete Dropdown (Swiggy style) */}
-        {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#131D2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800/60 max-h-60 overflow-y-auto custom-scrollbar">
-            {suggestions.map((item, idx) => {
-              const primaryName = item.name || item.display_name?.split(',')[0] || 'Location';
-              const secondaryText = item.display_name;
-
-              return (
-                <div
-                  key={idx}
-                  onClick={() => handleSelectSuggestion(item)}
-                  className="p-3 hover:bg-[#FFF8F0]/70 dark:hover:bg-slate-800/80 cursor-pointer transition-colors flex items-start space-x-3"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleManualSearchSubmit();
+                  }
+                }}
+                className="w-full pl-10 pr-8 py-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500 font-medium placeholder-slate-400"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSuggestions([]);
+                    setShowSuggestions(false);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0 mt-0.5">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                      {primaryName}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                      {secondaryText}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-      {searchError && (
+            <button
+              type="button"
+              disabled={searching}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleManualSearchSubmit();
+              }}
+              className="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] text-white font-bold rounded-xl text-xs shadow-md shadow-orange-500/20 transition-all cursor-pointer disabled:opacity-50 shrink-0 flex items-center space-x-1.5"
+            >
+              {searching ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Searching...</span>
+                </>
+              ) : (
+                <>
+                  <Crosshair className="w-3.5 h-3.5" />
+                  <span>Locate on Map</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Floating Autocomplete Dropdown (Swiggy style) */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#131D2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800/60 max-h-60 overflow-y-auto custom-scrollbar">
+              {suggestions.map((item, idx) => {
+                const primaryName = item.name || item.display_name?.split(',')[0] || 'Location';
+                const secondaryText = item.display_name;
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => handleSelectSuggestion(item)}
+                    className="p-3 hover:bg-[#FFF8F0]/70 dark:hover:bg-slate-800/80 cursor-pointer transition-colors flex items-start space-x-3"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {primaryName}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                        {secondaryText}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {searchError && !readOnly && (
         <p className="text-xs text-rose-500 font-semibold flex items-center space-x-1">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>{searchError}</span>
@@ -628,7 +686,7 @@ export const GoogleMapLocationPicker = ({
             </p>
           ) : (
             <p className="text-xs text-slate-400 font-medium italic">
-              Search a place or click on the map to pin your property's address.
+              {readOnly ? 'Verified location pinned.' : "Search a place or click on the map to pin your property's address."}
             </p>
           )}
 
@@ -640,24 +698,26 @@ export const GoogleMapLocationPicker = ({
         </div>
       </div>
 
-      {/* Quick Destination Chips */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar text-xs">
-        <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">Quick Pin (India):</span>
-        {POPULAR_LOCATIONS.map((loc) => (
-          <button
-            key={loc.name}
-            type="button"
-            onClick={() => handlePresetClick(loc)}
-            className="px-2.5 py-1 rounded-lg bg-[#FFF8F0] dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-orange-500 shrink-0 transition-all cursor-pointer shadow-2xs"
-          >
-            {loc.name}
-          </button>
-        ))}
-      </div>
+      {/* Quick Destination Chips (editable mode only) */}
+      {!readOnly && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar text-xs">
+          <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">Quick Pin (India):</span>
+          {POPULAR_LOCATIONS.map((loc) => (
+            <button
+              key={loc.name}
+              type="button"
+              onClick={() => handlePresetClick(loc)}
+              className="px-2.5 py-1 rounded-lg bg-[#FFF8F0] dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-orange-500 shrink-0 transition-all cursor-pointer shadow-2xs"
+            >
+              {loc.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Interactive Map Canvas Container */}
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm aspect-16/9 sm:aspect-21/9 bg-slate-900">
-        <div ref={mapContainerRef} className="w-full h-full z-0 cursor-crosshair" />
+        <div ref={mapContainerRef} className={`w-full h-full z-0 ${readOnly ? 'cursor-default' : 'cursor-crosshair'}`} />
 
         {/* Map Floating Zoom Controls */}
         <div className="absolute top-3 right-3 z-10 flex flex-col space-y-1.5">

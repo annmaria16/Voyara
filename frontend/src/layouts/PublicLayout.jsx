@@ -5,7 +5,7 @@ import { Footer } from '../components/layout/Footer';
 
 export const PublicLayout = () => {
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF8F0] dark:bg-[#0B1320] text-[#102A43] dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col bg-[#FFFDF7] dark:bg-[#091B29] text-[#17324D] dark:text-slate-100 transition-colors duration-200">
       <Navbar />
       <main className="flex-1">
         <Outlet />
@@ -14,3 +14,4 @@ export const PublicLayout = () => {
     </div>
   );
 };
+

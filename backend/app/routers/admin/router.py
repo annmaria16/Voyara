@@ -15,8 +15,10 @@ from app.routers.admin.users import router as users_router
 from app.routers.admin.properties import router as properties_router
 from app.routers.admin.bookings import router as bookings_router
 from app.routers.admin.verification import router as verification_router
+from app.routers.admin.verinova import router as verinova_router
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
 
 @router.get("/dashboard")
 def get_admin_dashboard(
@@ -132,3 +134,5 @@ router.include_router(users_router)
 router.include_router(properties_router)
 router.include_router(bookings_router)
 router.include_router(verification_router)
+router.include_router(verinova_router)
+

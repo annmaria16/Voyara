@@ -88,7 +88,12 @@ class AvailabilityService:
         return {"message": "Room block removed successfully", "success": True}
 
     @staticmethod
-    def get_property_calendar(db: Session, property_id: int) -> dict:
+    def get_property_calendar(db: Session, property_id: int, provider_id: Optional[int] = None) -> dict:
+        if provider_id is not None:
+            prop = db.query(Property).filter(Property.id == property_id, Property.provider_id == provider_id).first()
+            if not prop:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found or access denied.")
+
         closures = db.query(PropertyAvailability).filter(PropertyAvailability.property_id == property_id).all()
         room_ids = [r.id for r in db.query(Room.id).filter(Room.property_id == property_id).all()]
         room_blocks = db.query(RoomAvailability).filter(RoomAvailability.room_id.in_(room_ids)).all() if room_ids else []
@@ -202,12 +207,12 @@ class AvailabilityService:
             RoomAvailability.end_date >= check_in
         ).first()
 
-        # 3. Sum Confirmed/Verified Overlapping Booked Quantities
+        # 3. Sum Confirmed/Verified/Checked-In Overlapping Booked Quantities
         booked_qty = db.query(
             func.coalesce(func.sum(BookingRoom.quantity), 0)
         ).join(Booking).filter(
             BookingRoom.room_id == room.id,
-            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED]),
+            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.CHECKED_IN]),
             Booking.check_in < check_out,
             Booking.check_out > check_in
         ).scalar() or 0

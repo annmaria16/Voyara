@@ -50,7 +50,7 @@ export const AdminSupport = () => {
     'Booking Inquiry',
     'Stay Experience',
     'Payment / Verification',
-    'Host Listing Help',
+    'Stay Partner Listing Help',
     'General Inquiry',
     'Other'
   ];
@@ -163,31 +163,31 @@ export const AdminSupport = () => {
       {/* 1. Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center space-x-1.5 px-3 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold mb-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+          <div className="inline-flex items-center space-x-1.5 px-3 py-0.5 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-[11px] font-bold mb-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
             <span>Admin Help & Support Request Console</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black font-serif text-[#102A43] dark:text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black font-serif text-[#091B29] dark:text-white tracking-tight">
             Help & Support Requests
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Filter, inspect user details, and reply to customer & host inquiries directly in real-time.
+            Filter, inspect user details, and reply to traveler & stay partner inquiries directly in real-time.
           </p>
         </div>
 
         {/* Dedicated Support Email Badge */}
         <div className="flex items-center gap-3">
-          <div className="px-3.5 py-2 rounded-2xl bg-orange-500/10 dark:bg-orange-500/15 border border-[#F97360]/30 text-xs font-bold text-[#F97360] flex items-center space-x-2">
-            <Mail className="w-4 h-4 text-[#F97360]" />
+          <div className="px-3.5 py-2 rounded-2xl bg-orange-500/10 dark:bg-orange-500/15 border border-orange-500/30 text-xs font-bold text-orange-600 dark:text-orange-400 flex items-center space-x-2">
+            <Mail className="w-4 h-4 text-orange-500" />
             <span>Help & Support: <strong>adminvoyara@gmail.com</strong></span>
           </div>
           <button
             type="button"
             onClick={fetchTickets}
-            className="p-2 bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
+            className="p-2 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-[#FFFDF7] dark:hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
             title="Refresh Inquiries"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-500' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#087F8C]' : ''}`} />
           </button>
         </div>
       </div>
@@ -198,15 +198,15 @@ export const AdminSupport = () => {
           onClick={() => setStatusFilter('ALL')}
           className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
             statusFilter === 'ALL'
-              ? 'bg-white dark:bg-[#131D2E] border-orange-500 shadow-md ring-2 ring-orange-500/20'
-              : 'bg-white dark:bg-[#131D2E] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+              ? 'bg-white dark:bg-[#0F273D] border-[#087F8C] shadow-md ring-2 ring-[#087F8C]/20'
+              : 'bg-white dark:bg-[#0F273D] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total Requests</span>
             <MessageSquare className="w-4 h-4 text-slate-400" />
           </div>
-          <p className="text-xl sm:text-2xl font-black font-serif text-[#102A43] dark:text-white mt-1">
+          <p className="text-xl sm:text-2xl font-black font-serif text-[#091B29] dark:text-white mt-1">
             {metrics.total}
           </p>
         </button>
@@ -215,8 +215,8 @@ export const AdminSupport = () => {
           onClick={() => setStatusFilter('OPEN')}
           className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
             statusFilter === 'OPEN'
-              ? 'bg-white dark:bg-[#131D2E] border-amber-500 shadow-md ring-2 ring-amber-500/20'
-              : 'bg-white dark:bg-[#131D2E] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+              ? 'bg-white dark:bg-[#0F273D] border-amber-500 shadow-md ring-2 ring-amber-500/20'
+              : 'bg-white dark:bg-[#0F273D] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -232,15 +232,15 @@ export const AdminSupport = () => {
           onClick={() => setStatusFilter('IN_PROGRESS')}
           className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
             statusFilter === 'IN_PROGRESS'
-              ? 'bg-white dark:bg-[#131D2E] border-blue-500 shadow-md ring-2 ring-blue-500/20'
-              : 'bg-white dark:bg-[#131D2E] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+              ? 'bg-white dark:bg-[#0F273D] border-teal-500 shadow-md ring-2 ring-teal-500/20'
+              : 'bg-white dark:bg-[#0F273D] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-blue-600 dark:text-blue-400">In Progress</span>
-            <RefreshCw className="w-4 h-4 text-blue-500" />
+            <span className="text-xs font-bold text-teal-600 dark:text-teal-400">In Progress</span>
+            <RefreshCw className="w-4 h-4 text-teal-500" />
           </div>
-          <p className="text-xl sm:text-2xl font-black font-serif text-blue-600 dark:text-blue-400 mt-1">
+          <p className="text-xl sm:text-2xl font-black font-serif text-teal-600 dark:text-teal-400 mt-1">
             {metrics.inProgressCount}
           </p>
         </button>
@@ -249,8 +249,8 @@ export const AdminSupport = () => {
           onClick={() => setStatusFilter('RESOLVED')}
           className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
             statusFilter === 'RESOLVED'
-              ? 'bg-white dark:bg-[#131D2E] border-emerald-500 shadow-md ring-2 ring-emerald-500/20'
-              : 'bg-white dark:bg-[#131D2E] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+              ? 'bg-white dark:bg-[#0F273D] border-emerald-500 shadow-md ring-2 ring-emerald-500/20'
+              : 'bg-white dark:bg-[#0F273D] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -264,7 +264,7 @@ export const AdminSupport = () => {
       </div>
 
       {/* 3. Filter Bar (Status, Category, Search, Date Sort) */}
-      <div className="bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-2xs space-y-3">
+      <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Search bar */}
           <form onSubmit={handleSearchSubmit} className="flex-1 relative">
@@ -274,11 +274,11 @@ export const AdminSupport = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by user name, email, subject, or message..."
-              className="w-full pl-10 pr-24 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-orange-500"
+              className="w-full pl-10 pr-24 py-2.5 bg-slate-50 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-[#087F8C]"
             />
             <button
               type="submit"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#F97360] hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] hover:from-[#091B29] hover:to-[#087F8C] text-white text-xs font-bold rounded-lg transition-all cursor-pointer shadow-xs"
             >
               Search
             </button>
@@ -287,7 +287,7 @@ export const AdminSupport = () => {
           {/* Filters Row */}
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Category Filter */}
-            <div className="flex items-center space-x-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs">
+            <div className="flex items-center space-x-1.5 bg-slate-50 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs">
               <Tag className="w-3.5 h-3.5 text-slate-400" />
               <select
                 value={categoryFilter}
@@ -306,7 +306,7 @@ export const AdminSupport = () => {
             <button
               type="button"
               onClick={() => setDateSort(dateSort === 'desc' ? 'asc' : 'desc')}
-              className="flex items-center space-x-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className="flex items-center space-x-1.5 bg-slate-50 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               title="Toggle Date Order"
             >
               <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
@@ -333,10 +333,10 @@ export const AdminSupport = () => {
       </div>
 
       {/* 4. Support Requests Table / List */}
-      <div className="bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+      <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         {loading ? (
           <div className="p-16 flex flex-col items-center justify-center space-y-3">
-            <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-3 border-[#087F8C] border-t-transparent rounded-full animate-spin"></div>
             <p className="text-xs text-slate-400 font-medium">Loading Help & Support Requests from PostgreSQL...</p>
           </div>
         ) : tickets.length === 0 ? (
@@ -357,7 +357,7 @@ export const AdminSupport = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/75 dark:bg-[#091B29]/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                   <th className="py-3 px-4">Ticket</th>
                   <th className="py-3 px-4">User Details</th>
                   <th className="py-3 px-4">Category</th>
@@ -398,7 +398,7 @@ export const AdminSupport = () => {
                           <div
                             className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
                               isHost
-                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                                ? 'bg-teal-500/15 text-[#087F8C] dark:text-[#27B7A8]'
                                 : 'bg-orange-500/15 text-orange-600 dark:text-orange-400'
                             }`}
                           >
@@ -406,17 +406,17 @@ export const AdminSupport = () => {
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center space-x-1.5">
-                              <span className="font-bold text-slate-900 dark:text-white truncate max-w-[140px]">
+                              <span className="font-bold text-[#091B29] dark:text-white truncate max-w-[140px]">
                                 {ticket.user?.name || ticket.user_name || 'Registered User'}
                               </span>
                               <span
                                 className={`text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-sm ${
                                   isHost
-                                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                    ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300'
                                     : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                                 }`}
                               >
-                                {isHost ? 'Host' : 'Guest'}
+                                {isHost ? 'Stay Partner' : 'Traveler'}
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-400 truncate max-w-[160px]">
@@ -428,14 +428,14 @@ export const AdminSupport = () => {
 
                       {/* Category */}
                       <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FFF8F0] dark:bg-slate-900 text-[#F97360] border border-[#F97360]/20">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FFFDF7] dark:bg-[#091B29] text-[#087F8C] dark:text-[#27B7A8] border border-[#087F8C]/20">
                           {ticket.category}
                         </span>
                       </td>
 
                       {/* Subject & snippet */}
                       <td className="py-3.5 px-4 max-w-xs">
-                        <p className="font-bold text-slate-900 dark:text-white truncate">
+                        <p className="font-bold text-[#091B29] dark:text-white truncate">
                           {ticket.subject}
                         </p>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
@@ -467,7 +467,7 @@ export const AdminSupport = () => {
                             e.stopPropagation();
                             handleOpenTicket(ticket);
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-[#F97360] text-xs font-bold transition-all flex items-center space-x-1 ml-auto group-hover:bg-[#F97360] group-hover:text-white cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-[#087F8C]/10 hover:bg-[#087F8C] text-[#087F8C] hover:text-white text-xs font-bold transition-all flex items-center space-x-1 ml-auto cursor-pointer"
                         >
                           <span>Review & Reply</span>
                           <ChevronRight className="w-3.5 h-3.5" />
@@ -485,11 +485,11 @@ export const AdminSupport = () => {
       {/* 5. Interactive Ticket Review & Reply Modal / Drawer */}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs overflow-y-auto">
-          <div className="relative w-full max-w-4xl bg-white dark:bg-[#0B1323] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-6 flex flex-col max-h-[92vh]">
+          <div className="relative w-full max-w-4xl bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-6 flex flex-col max-h-[92vh]">
             {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-gradient-to-r from-white via-[#FFF8F0]/30 to-white dark:from-[#0B1323] dark:via-[#101E35] dark:to-[#0B1323] shrink-0">
+            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-gradient-to-r from-white via-[#FFFDF7] to-white dark:from-[#0F273D] dark:via-[#091B29] dark:to-[#0F273D] shrink-0">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] flex items-center justify-center shrink-0">
                   <LifeBuoy className="w-5 h-5" />
                 </div>
                 <div>
@@ -498,11 +498,11 @@ export const AdminSupport = () => {
                       Ticket #{selectedTicket.id}
                     </span>
                     <StatusBadge status={selectedTicket.status} size="sm" />
-                    <span className="text-[10px] font-bold text-[#F97360] uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-500/10">
+                    <span className="text-[10px] font-bold text-[#087F8C] dark:text-[#27B7A8] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#087F8C]/10">
                       {selectedTicket.category}
                     </span>
                   </div>
-                  <h2 className="text-base sm:text-lg font-bold font-serif text-slate-900 dark:text-white mt-0.5">
+                  <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white mt-0.5">
                     {selectedTicket.subject}
                   </h2>
                 </div>
@@ -527,7 +527,7 @@ export const AdminSupport = () => {
                     onClick={() => handleStatusChange('IN_PROGRESS')}
                     className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
                       selectedTicket.status === 'IN_PROGRESS'
-                        ? 'bg-blue-600 text-white shadow-xs'
+                        ? 'bg-[#087F8C] text-white shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                     }`}
                   >
@@ -561,10 +561,10 @@ export const AdminSupport = () => {
               {/* Left Column (4 cols): User Profile & Ticket Metadata */}
               <div className="lg:col-span-4 space-y-4">
                 {/* User Details Card */}
-                <div className="p-4 rounded-2xl bg-[#FFF8F0]/60 dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 space-y-3.5">
+                <div className="p-4 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200/80 dark:border-slate-800 space-y-3.5">
                   <div className="flex items-center space-x-2 border-b border-slate-200/60 dark:border-slate-800 pb-2.5">
-                    <User className="w-4 h-4 text-orange-500" />
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                    <User className="w-4 h-4 text-[#087F8C]" />
+                    <h3 className="text-xs font-bold text-[#091B29] dark:text-white uppercase tracking-wider">
                       User Profile Details
                     </h3>
                   </div>
@@ -572,7 +572,7 @@ export const AdminSupport = () => {
                   <div className="space-y-2.5 text-xs">
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Full Name</span>
-                      <p className="font-bold text-slate-900 dark:text-white">
+                      <p className="font-bold text-[#091B29] dark:text-white">
                         {selectedTicket.user?.name || selectedTicket.user_name || 'N/A'}
                       </p>
                     </div>
@@ -618,14 +618,14 @@ export const AdminSupport = () => {
                 </div>
 
                 {/* Ticket Reference Info */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 space-y-2.5 text-xs">
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#091B29] border border-slate-200/80 dark:border-slate-800 space-y-2.5 text-xs">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Ticket Metadata
                   </h4>
 
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                     <span>Submitted:</span>
-                    <span className="font-medium text-slate-900 dark:text-white">
+                    <span className="font-medium text-[#091B29] dark:text-white">
                       {selectedTicket.created_at
                         ? new Date(selectedTicket.created_at).toLocaleString('en-IN', {
                             day: 'numeric',
@@ -657,7 +657,7 @@ export const AdminSupport = () => {
               {/* Right Column (8 cols): Complete Conversation Thread & Reply Box */}
               <div className="lg:col-span-8 flex flex-col space-y-4">
                 {/* Conversation History Stream */}
-                <div className="flex-1 bg-slate-50 dark:bg-[#070D18] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4 min-h-[260px] max-h-[380px] overflow-y-auto custom-scrollbar">
+                <div className="flex-1 bg-slate-50 dark:bg-[#091B29]/60 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4 min-h-[260px] max-h-[380px] overflow-y-auto custom-scrollbar">
                   <div className="text-center">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-900 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-800">
                       Support Thread Started
@@ -705,7 +705,7 @@ export const AdminSupport = () => {
                             className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed font-medium ${
                               isAdminMsg
                                 ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-tr-xs shadow-xs'
-                                : 'bg-white dark:bg-[#131D2E] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 rounded-tl-xs shadow-2xs'
+                                : 'bg-white dark:bg-[#0F273D] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 rounded-tl-xs shadow-2xs'
                             }`}
                           >
                             <p className="whitespace-pre-wrap">{msg.message}</p>
@@ -715,8 +715,8 @@ export const AdminSupport = () => {
                     })
                   ) : (
                     // Fallback to initial message
-                    <div className="p-3.5 bg-white dark:bg-[#131D2E] rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200">
-                      <p className="font-bold text-slate-900 dark:text-white mb-1">Original Inquiry:</p>
+                    <div className="p-3.5 bg-white dark:bg-[#0F273D] rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200">
+                      <p className="font-bold text-[#091B29] dark:text-white mb-1">Original Inquiry:</p>
                       <p className="whitespace-pre-wrap">{selectedTicket.message}</p>
                     </div>
                   )}
@@ -748,7 +748,7 @@ export const AdminSupport = () => {
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                       placeholder="Type your response to the user. This will be added to the conversation history and visible to the user immediately..."
-                      className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-orange-500 resize-none"
+                      className="w-full p-3 bg-slate-50 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-[#087F8C] resize-none"
                     />
                   </div>
 
@@ -758,7 +758,7 @@ export const AdminSupport = () => {
                       <select
                         value={replyStatus}
                         onChange={(e) => setReplyStatus(e.target.value)}
-                        className="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
+                        className="bg-slate-100 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
                       >
                         <option value="IN_PROGRESS">In Progress</option>
                         <option value="RESOLVED">Resolved</option>
@@ -780,7 +780,7 @@ export const AdminSupport = () => {
                       <button
                         type="submit"
                         disabled={submittingReply || !replyText.trim()}
-                        className="px-5 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-orange-500/20 flex items-center space-x-1.5 cursor-pointer"
+                        className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-orange-500/20 flex items-center space-x-1.5 cursor-pointer"
                       >
                         <Send className="w-3.5 h-3.5" />
                         <span>{submittingReply ? 'Sending...' : 'Send Reply'}</span>

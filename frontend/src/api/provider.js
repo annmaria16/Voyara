@@ -6,6 +6,16 @@ export const providerApi = {
     return response.data;
   },
 
+  getTrust: async () => {
+    const response = await api.get('/provider/trust');
+    return response.data;
+  },
+
+  getPropertyTrust: async (propertyId) => {
+    const response = await api.get(`/provider/properties/${propertyId}/trust`);
+    return response.data;
+  },
+
   // Properties
   getProperties: async () => {
     const response = await api.get('/provider/properties');
@@ -32,12 +42,23 @@ export const providerApi = {
     return response.data;
   },
 
+  getGuestInformation: async (propertyId) => {
+    const response = await api.get(`/provider/properties/${propertyId}/guest-information`);
+    return response.data;
+  },
+
+  updateGuestInformation: async (propertyId, guestInformationMessage) => {
+    const response = await api.put(`/provider/properties/${propertyId}/guest-information`, {
+      guest_information_message: guestInformationMessage,
+    });
+    return response.data;
+  },
+
   lookupPincode: async (pincode) => {
     const clean = String(pincode).trim();
     if (!/^[1-9][0-9]{5}$/.test(clean)) {
       throw new Error('Pincode must be a 6-digit Indian postal code.');
     }
-    // 1. Try direct fetch
     try {
       const res = await fetch(`https://api.postalpincode.in/pincode/${clean}`);
       if (res.ok) {
@@ -59,11 +80,9 @@ export const providerApi = {
       console.warn('Direct pincode fetch failed, falling back to backend proxy:', e);
     }
 
-    // 2. Fallback to backend proxy
     const response = await api.get(`/provider/pincode/${clean}`);
     return response.data;
   },
-
 
   // Rooms
   getPropertyRooms: async (propertyId) => {
@@ -133,9 +152,37 @@ export const providerApi = {
     return response.data;
   },
 
+  // Cancellation Policy
+  getCancellationPolicy: async (propertyId) => {
+    const response = await api.get(`/provider/properties/${propertyId}/cancellation-policy`);
+    return response.data;
+  },
+
+  updateCancellationPolicy: async (propertyId, cancellationRefundPercentage) => {
+    const response = await api.put(`/provider/properties/${propertyId}/cancellation-policy`, {
+      cancellation_refund_percentage: cancellationRefundPercentage,
+    });
+    return response.data;
+  },
+
   // Bookings
   getBookings: async () => {
     const response = await api.get('/provider/bookings');
+    return response.data;
+  },
+
+  checkInGuest: async (bookingId) => {
+    const response = await api.post(`/provider/bookings/${bookingId}/check-in`);
+    return response.data;
+  },
+
+  checkOutGuest: async (bookingId) => {
+    const response = await api.post(`/provider/bookings/${bookingId}/check-out`);
+    return response.data;
+  },
+
+  getBookingRefund: async (bookingId) => {
+    const response = await api.get(`/provider/bookings/${bookingId}/refund`);
     return response.data;
   },
 };

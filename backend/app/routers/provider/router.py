@@ -9,12 +9,14 @@ from app.models.property import Property
 from app.models.room import Room
 from app.models.experience import Experience
 from app.models.booking import Booking, BookingStatus
-from app.schemas.booking import BookingResponse
+from app.schemas.booking import BookingResponse, RefundResponse
 from app.services.bookings.booking_service import BookingService
 from app.routers.provider.properties import router as properties_router
 from app.routers.provider.rooms import router as rooms_router
 from app.routers.provider.availability import router as availability_router
 from app.routers.provider.experiences import router as experiences_router
+from app.routers.provider.verinova import router as verinova_router
+
 
 router = APIRouter(prefix="/provider", tags=["Provider"])
 
@@ -80,7 +82,38 @@ def get_provider_bookings(
     """Get all bookings for properties owned by this provider."""
     return BookingService.get_provider_bookings(db, provider.id)
 
+@router.post("/bookings/{booking_id}/check-in", response_model=BookingResponse)
+def check_in_guest(
+    booking_id: int,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Mark a confirmed booking as CHECKED_IN."""
+    return BookingService.check_in_booking(db, booking_id, provider.id)
+
+@router.post("/bookings/{booking_id}/check-out", response_model=BookingResponse)
+def check_out_guest(
+    booking_id: int,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Mark a checked-in booking as COMPLETED."""
+    return BookingService.check_out_booking(db, booking_id, provider.id)
+
+@router.get("/bookings/{booking_id}/refund", response_model=RefundResponse)
+def get_provider_booking_refund(
+    booking_id: int,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Get refund breakdown for a cancelled booking owned by this provider."""
+    # Ensure provider owns the property of this booking
+    booking = BookingService.get_booking_by_id(db, booking_id, provider_id=provider.id)
+    return BookingService.get_booking_refund(db, booking.id)
+
 router.include_router(properties_router)
 router.include_router(rooms_router)
 router.include_router(availability_router)
 router.include_router(experiences_router)
+router.include_router(verinova_router)
+

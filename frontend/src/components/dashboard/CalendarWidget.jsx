@@ -59,8 +59,8 @@ export const CalendarWidget = ({
       {/* Month & Controls */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
-          <CalendarIcon className="w-4 h-4 text-[#F97360]" />
-          <span className="text-sm font-bold text-[#102A43] dark:text-white font-sans">
+          <CalendarIcon className="w-4 h-4 text-[#087F8C]" />
+          <span className="text-sm font-bold text-[#091B29] dark:text-white font-sans">
             Availability Overview — {currentMonth} {currentYear}
           </span>
         </div>
@@ -68,16 +68,16 @@ export const CalendarWidget = ({
           <button
             type="button"
             onClick={handlePrevMonth}
-            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             type="button"
             onClick={handleNextMonth}
-            className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -85,17 +85,17 @@ export const CalendarWidget = ({
       {/* Days of Week Header */}
       <div className="grid grid-cols-7 gap-1 text-center mb-2">
         {daysOfWeek.map((day) => (
-          <div key={day} className="text-[10px] font-bold uppercase text-slate-400">
+          <div key={day} className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             {day}
           </div>
         ))}
       </div>
 
       {/* Days Grid */}
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-1.5 text-center">
         {/* Empty padding cells for first day */}
         {Array.from({ length: firstDayIndex }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-7 w-7 mx-auto" />
+          <div key={`empty-${i}`} className="h-8 w-8 mx-auto" />
         ))}
 
         {daysArray.map((day) => {
@@ -108,14 +108,14 @@ export const CalendarWidget = ({
               key={day}
               type="button"
               onClick={() => setSelectedDay(day)}
-              className={`h-7 w-7 mx-auto rounded-lg text-xs font-semibold flex items-center justify-center transition-all relative cursor-pointer ${
+              className={`h-8 w-8 mx-auto rounded-xl text-xs font-semibold flex items-center justify-center transition-all relative cursor-pointer ${
                 isSelected
-                  ? 'bg-gradient-to-r from-[#F97360] to-orange-500 text-white shadow-xs scale-105 font-bold'
+                  ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-md shadow-teal-700/20 scale-105 font-bold'
                   : isBooked
                   ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 font-bold'
                   : isBlocked
                   ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30 font-bold'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent'
               }`}
             >
               {day}
@@ -133,15 +133,15 @@ export const CalendarWidget = ({
       {/* Mini Legend */}
       <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
         <div className="flex items-center space-x-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#35A66F]"></span>
           <span>Available</span>
         </div>
         <div className="flex items-center space-x-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#F97360]"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
           <span>{bookedDates.length > 0 ? `${bookedDates.length} Booked Days` : 'Booked'}</span>
         </div>
         <div className="flex items-center space-x-1.5">
-          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
           <span>{blockedDates.length > 0 ? `${blockedDates.length} Blocked Days` : 'Blocked'}</span>
         </div>
       </div>

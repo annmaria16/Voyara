@@ -68,12 +68,12 @@ export const AreaLineChart = ({
       dotFill: '#8B5CF6',
     },
     orange: {
-      stroke: '#F97360',
-      darkStroke: '#FB923C',
-      glow: 'rgba(249, 115, 96, 0.4)',
-      gradientStart: 'rgba(249, 115, 96, 0.3)',
-      gradientEnd: 'rgba(249, 115, 96, 0.0)',
-      dotFill: '#F97360',
+      stroke: '#F97316',
+      darkStroke: '#EA580C',
+      glow: 'rgba(249, 115, 22, 0.4)',
+      gradientStart: 'rgba(249, 115, 22, 0.3)',
+      gradientEnd: 'rgba(249, 115, 22, 0.0)',
+      dotFill: '#F97316',
     },
   };
 
@@ -192,7 +192,7 @@ export const AreaLineChart = ({
                 cx={p.x}
                 cy={p.y}
                 r={isHovered ? 5 : 3.5}
-                fill={isHovered ? '#F97360' : scheme.dotFill}
+                fill={isHovered ? '#F97316' : scheme.dotFill}
                 stroke="#FFFFFF"
                 strokeWidth="2"
                 className="shadow-md"
@@ -257,8 +257,8 @@ export const BarChart = ({
 
   const barGradients = {
     sunset: {
-      start: '#F97360',
-      end: '#FF8A73',
+      start: '#F97316',
+      end: '#EA580C',
     },
     emerald: {
       start: '#10B981',
@@ -409,10 +409,10 @@ export const BarChart = ({
  */
 export const DonutChart = ({
   segments = [
-    { label: 'Goa', percentage: 35, color: '#F97360' },
-    { label: 'Kerala', percentage: 25, color: '#10B981' },
-    { label: 'Manali', percentage: 20, color: '#FB923C' },
-    { label: 'Udaipur', percentage: 12, color: '#34D399' },
+    { label: 'Goa', percentage: 35, color: '#F97316' },
+    { label: 'Kerala', percentage: 25, color: '#087F8C' },
+    { label: 'Manali', percentage: 20, color: '#0F9D9A' },
+    { label: 'Udaipur', percentage: 12, color: '#35A66F' },
     { label: 'Others', percentage: 8, color: '#94A3B8' },
   ],
   size = 140,

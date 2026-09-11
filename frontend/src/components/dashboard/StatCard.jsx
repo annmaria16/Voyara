@@ -7,7 +7,7 @@ export const StatCard = ({
   change,
   changeType = 'increase',
   icon: Icon,
-  accentColor = 'emerald', // 'emerald' | 'blue' | 'orange' | 'coral' | 'purple'
+  accentColor = 'teal', // 'teal' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple'
   variant = 'pastel', // 'pastel' | 'solid-gradient' | 'standard'
 }) => {
   const isIncrease = changeType === 'increase' || (typeof change === 'string' && change.includes('+'));
@@ -16,17 +16,20 @@ export const StatCard = ({
   // 1. SOLID GRADIENT VARIANT (Used for punchy Admin stats in both Light & Dark modes)
   if (variant === 'solid-gradient') {
     const solidGradients = {
-      emerald: 'bg-gradient-to-br from-[#00B894] to-[#00A885] text-white shadow-lg shadow-emerald-500/25 border-emerald-400/30',
-      blue: 'bg-gradient-to-br from-[#0984E3] to-[#2E86DE] text-white shadow-lg shadow-blue-500/25 border-blue-400/30',
-      orange: 'bg-gradient-to-br from-[#F97360] to-[#E65100] text-white shadow-lg shadow-orange-500/25 border-orange-400/30',
-      coral: 'bg-gradient-to-br from-[#FF7675] to-[#F97360] text-white shadow-lg shadow-rose-500/25 border-rose-400/30',
+      teal: 'bg-gradient-to-br from-[#087F8C] to-[#0F9D9A] text-white shadow-lg shadow-teal-500/25 border-teal-400/30',
+      emerald: 'bg-gradient-to-br from-[#35A66F] to-[#2E8B5D] text-white shadow-lg shadow-emerald-500/25 border-emerald-400/30',
+      green: 'bg-gradient-to-br from-[#35A66F] to-[#2E8B5D] text-white shadow-lg shadow-emerald-500/25 border-emerald-400/30',
+      blue: 'bg-gradient-to-br from-[#087F8C] to-[#0284C7] text-white shadow-lg shadow-sky-500/25 border-cyan-400/30',
+      orange: 'bg-gradient-to-br from-orange-500 to-[#EA580C] text-white shadow-lg shadow-orange-500/25 border-orange-400/30',
+      yellow: 'bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25 border-amber-400/30',
+      coral: 'bg-gradient-to-br from-orange-500 to-[#EA580C] text-white shadow-lg shadow-orange-500/25 border-orange-400/30',
       purple: 'bg-gradient-to-br from-[#6C5CE7] to-[#8E44AD] text-white shadow-lg shadow-purple-500/25 border-purple-400/30',
     };
 
     return (
       <div
-        className={`rounded-2xl p-5 border transition-all duration-200 hover:-translate-y-1 flex flex-col justify-between ${
-          solidGradients[accentColor] || solidGradients.emerald
+        className={`rounded-3xl p-5 sm:p-6 border transition-all duration-200 hover:-translate-y-1 flex flex-col justify-between ${
+          solidGradients[accentColor] || solidGradients.teal
         }`}
       >
         <div className="flex items-start justify-between">
@@ -34,7 +37,7 @@ export const StatCard = ({
             {title}
           </p>
           {Icon && (
-            <div className="w-8 h-8 rounded-xl bg-white/25 backdrop-blur-xs flex items-center justify-center text-white shrink-0">
+            <div className="w-9 h-9 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white shrink-0 shadow-xs">
               <Icon className="w-4 h-4" />
             </div>
           )}
@@ -67,40 +70,48 @@ export const StatCard = ({
     );
   }
 
-  // 2. PASTEL & GLOW VARIANT (Soft pastel in Light mode, glowing neon border card in Dark mode)
+  // 2. PASTEL & GLOW VARIANT (Soft pastel in Light mode, glowing card in Dark mode)
   if (variant === 'pastel') {
     const pastelStyles = {
+      teal: {
+        container:
+          'bg-gradient-to-br from-[#E6F7F7] via-[#F0FDFD] to-[#D1F2F2] dark:from-[#091B29] dark:via-[#0F273D] dark:to-[#081B26] border-teal-200 dark:border-teal-500/40 shadow-xs dark:shadow-lg dark:shadow-teal-950/40',
+        title: 'text-[#087F8C] dark:text-teal-300 font-bold',
+        number: 'text-[#065A63] dark:text-teal-200',
+        iconBg: 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-xs',
+        badge: 'bg-teal-500/15 text-[#087F8C] dark:text-teal-300',
+      },
       emerald: {
         container:
-          'bg-gradient-to-br from-[#E6F7F2] via-[#F0FDF8] to-[#D1F2E8] dark:from-[#0C1E28] dark:via-[#112433] dark:to-[#0B1A24] border-[#A7E8D4] dark:border-emerald-500/40 shadow-xs dark:shadow-lg dark:shadow-emerald-950/40',
-        title: 'text-[#0D7A5F] dark:text-emerald-300 font-bold',
-        number: 'text-[#0A5D48] dark:text-[#34D399]',
-        iconBg: 'bg-[#10B981] text-white shadow-xs',
-        badge: 'bg-[#10B981]/15 text-[#0D7A5F] dark:text-emerald-300',
+          'bg-gradient-to-br from-[#E6F7F2] via-[#F0FDF8] to-[#D1F2E8] dark:from-[#091B29] dark:via-[#0E2822] dark:to-[#091B29] border-emerald-200 dark:border-emerald-500/40 shadow-xs dark:shadow-lg dark:shadow-emerald-950/40',
+        title: 'text-[#2E8B5D] dark:text-emerald-300 font-bold',
+        number: 'text-[#1E6B45] dark:text-emerald-200',
+        iconBg: 'bg-emerald-600 text-white shadow-xs',
+        badge: 'bg-emerald-500/15 text-[#2E8B5D] dark:text-emerald-300',
       },
       blue: {
         container:
-          'bg-gradient-to-br from-[#E6F4FB] via-[#F0F9FF] to-[#D1ECF9] dark:from-[#0C2032] dark:via-[#10273D] dark:to-[#0A1A2A] border-[#A8DDF7] dark:border-cyan-500/40 shadow-xs dark:shadow-lg dark:shadow-sky-950/40',
-        title: 'text-[#0A6C9E] dark:text-cyan-300 font-bold',
-        number: 'text-[#08557D] dark:text-[#38BDF8]',
-        iconBg: 'bg-[#0284C7] text-white shadow-xs',
-        badge: 'bg-[#0284C7]/15 text-[#0A6C9E] dark:text-cyan-300',
+          'bg-gradient-to-br from-[#E6F4FB] via-[#F0F9FF] to-[#D1ECF9] dark:from-[#091B29] dark:via-[#0F273D] dark:to-[#091B29] border-sky-200 dark:border-cyan-500/40 shadow-xs dark:shadow-lg dark:shadow-sky-950/40',
+        title: 'text-[#087F8C] dark:text-cyan-300 font-bold',
+        number: 'text-[#065A63] dark:text-cyan-200',
+        iconBg: 'bg-[#087F8C] text-white shadow-xs',
+        badge: 'bg-[#087F8C]/15 text-[#087F8C] dark:text-cyan-300',
       },
       orange: {
         container:
-          'bg-gradient-to-br from-[#FFEFEA] via-[#FFF6F2] to-[#FFE0D6] dark:from-[#231818] dark:via-[#2C1D1D] dark:to-[#1C1212] border-[#FFC2B0] dark:border-orange-500/40 shadow-xs dark:shadow-lg dark:shadow-orange-950/40',
-        title: 'text-[#C84928] dark:text-orange-300 font-bold',
-        number: 'text-[#A8371B] dark:text-[#FB923C]',
-        iconBg: 'bg-gradient-to-r from-[#F97360] to-[#E65100] text-white shadow-xs',
-        badge: 'bg-[#F97360]/15 text-[#C84928] dark:text-orange-300',
+          'bg-gradient-to-br from-[#FFF5EE] via-[#FFFDF7] to-[#FFE8D6] dark:from-[#1C120C] dark:via-[#26180F] dark:to-[#140C08] border-orange-200 dark:border-orange-500/40 shadow-xs dark:shadow-lg dark:shadow-orange-950/40',
+        title: 'text-orange-700 dark:text-orange-300 font-bold',
+        number: 'text-orange-900 dark:text-orange-200',
+        iconBg: 'bg-gradient-to-r from-orange-500 to-[#EA580C] text-white shadow-xs',
+        badge: 'bg-orange-500/15 text-orange-700 dark:text-orange-300',
       },
       coral: {
         container:
-          'bg-gradient-to-br from-[#FFF0F5] via-[#FFF5F8] to-[#FFE0EB] dark:from-[#23121E] dark:via-[#2D1627] dark:to-[#1C0D17] border-[#FFC2D6] dark:border-rose-500/40 shadow-xs dark:shadow-lg dark:shadow-rose-950/40',
-        title: 'text-[#B82B5A] dark:text-rose-300 font-bold',
-        number: 'text-[#961E46] dark:text-[#F472B6]',
-        iconBg: 'bg-[#E11D48] text-white shadow-xs',
-        badge: 'bg-[#E11D48]/15 text-[#B82B5A] dark:text-rose-300',
+          'bg-gradient-to-br from-[#FFF5EE] via-[#FFFDF7] to-[#FFE8D6] dark:from-[#1C120C] dark:via-[#26180F] dark:to-[#140C08] border-orange-200 dark:border-orange-500/40 shadow-xs dark:shadow-lg dark:shadow-orange-950/40',
+        title: 'text-orange-700 dark:text-orange-300 font-bold',
+        number: 'text-orange-900 dark:text-orange-200',
+        iconBg: 'bg-gradient-to-r from-orange-500 to-[#EA580C] text-white shadow-xs',
+        badge: 'bg-orange-500/15 text-orange-700 dark:text-orange-300',
       },
       purple: {
         container:
@@ -112,11 +123,11 @@ export const StatCard = ({
       },
     };
 
-    const scheme = pastelStyles[accentColor] || pastelStyles.emerald;
+    const scheme = pastelStyles[accentColor] || pastelStyles.teal || pastelStyles.emerald;
 
     return (
       <div
-        className={`rounded-2xl p-5 border transition-all duration-200 hover:-translate-y-1 flex flex-col justify-between group ${scheme.container}`}
+        className={`rounded-3xl p-5 sm:p-6 border transition-all duration-200 hover:-translate-y-1 flex flex-col justify-between group ${scheme.container}`}
       >
         <div className="flex items-start justify-between">
           <p className={`text-xs font-bold uppercase tracking-wider font-sans ${scheme.title}`}>
@@ -124,9 +135,9 @@ export const StatCard = ({
           </p>
           {Icon && (
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${scheme.iconBg}`}
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 shadow-xs ${scheme.iconBg}`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-5 h-5" />
             </div>
           )}
         </div>
@@ -139,19 +150,19 @@ export const StatCard = ({
           {change && (
             <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold">
               {!isNeutral && isIncrease && (
-                <span className={`inline-flex items-center font-bold px-2 py-0.5 rounded-full text-[11px] ${scheme.badge}`}>
+                <span className={`inline-flex items-center font-bold px-2.5 py-0.5 rounded-full text-[11px] ${scheme.badge}`}>
                   <TrendingUp className="w-3 h-3 mr-1" />
                   {change}
                 </span>
               )}
               {!isNeutral && !isIncrease && (
-                <span className="inline-flex items-center font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-full text-[11px]">
+                <span className="inline-flex items-center font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 px-2.5 py-0.5 rounded-full text-[11px]">
                   <TrendingDown className="w-3 h-3 mr-1" />
                   {change}
                 </span>
               )}
               {isNeutral && (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${scheme.badge}`}>
+                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${scheme.badge}`}>
                   {change}
                 </span>
               )}
@@ -164,32 +175,33 @@ export const StatCard = ({
 
   // 3. STANDARD SLEEK CARD
   const standardAccents = {
+    teal: 'bg-teal-500/15 text-[#087F8C] dark:text-teal-400 border-teal-500/30',
     emerald: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
     blue: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30',
     orange: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30',
-    coral: 'bg-[#F97360]/15 text-[#F97360] border-[#F97360]/30',
+    coral: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30',
     purple: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30',
   };
 
   return (
-    <div className="bg-white dark:bg-[#131D2E] hover:border-slate-300 dark:hover:border-slate-700 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs dark:shadow-xl transition-all duration-200 group flex flex-col justify-between">
+    <div className="bg-white dark:bg-[#0F273D] hover:border-teal-500/40 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm dark:shadow-xl transition-all duration-200 group flex flex-col justify-between">
       <div className="flex items-start justify-between">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-sans">
           {title}
         </p>
         {Icon && (
           <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-transform duration-200 group-hover:scale-105 ${
-              standardAccents[accentColor] || standardAccents.emerald
+            className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-transform duration-200 group-hover:scale-105 ${
+              standardAccents[accentColor] || standardAccents.teal
             }`}
           >
-            <Icon className="w-4 h-4" />
+            <Icon className="w-5 h-5" />
           </div>
         )}
       </div>
 
       <div className="mt-3">
-        <h3 className="text-2xl sm:text-3xl font-black font-serif text-[#102A43] dark:text-white tracking-tight">
+        <h3 className="text-2xl sm:text-3xl font-black font-serif text-[#091B29] dark:text-white tracking-tight">
           {value}
         </h3>
 
@@ -216,4 +228,7 @@ export const StatCard = ({
     </div>
   );
 };
+
+export default StatCard;
+
 

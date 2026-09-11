@@ -120,8 +120,8 @@ export const PropertyDetails = () => {
   if (loading) {
     return (
       <div className="py-24 flex flex-col items-center justify-center space-y-4">
-        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Loading sanctuary details...</p>
+        <div className="w-10 h-10 border-4 border-[#087F8C] border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-xs font-semibold text-[#607080] dark:text-slate-300">Loading sanctuary details...</p>
       </div>
     );
   }
@@ -129,8 +129,8 @@ export const PropertyDetails = () => {
   if (!property) {
     return (
       <div className="py-20 text-center space-y-4">
-        <h2 className="text-2xl font-bold font-serif text-[#102A43] dark:text-white">Property Not Found</h2>
-        <Link to="/search" className="inline-block px-5 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 text-white font-bold rounded-xl text-xs">
+        <h2 className="text-2xl font-bold font-serif text-[#17324D] dark:text-white">Property Not Found</h2>
+        <Link to="/search" className="inline-block px-5 py-2.5 bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white font-bold rounded-xl text-xs">
           Browse Stays
         </Link>
       </div>
@@ -239,27 +239,27 @@ export const PropertyDetails = () => {
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
-            <span className="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-xs">
+            <span className="px-3 py-1 bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-xs">
               {property.property_type}
             </span>
             <VerificationBadge status="VERIFIED" />
           </div>
 
-          <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
-            <div className="flex items-center text-amber-500">
-              <Star className="w-4 h-4 fill-amber-400 text-amber-400 mr-1" />
-              <strong className="text-[#102A43] dark:text-white">{property.rating?.toFixed(1) || '4.9'}</strong>
+          <div className="flex items-center space-x-2 text-xs text-[#607080] dark:text-slate-400">
+            <div className="flex items-center text-[#F6C945]">
+              <Star className="w-4 h-4 fill-[#F6C945] text-[#F6C945] mr-1" />
+              <strong className="text-[#17324D] dark:text-white">{property.rating?.toFixed(1) || '4.9'}</strong>
             </div>
             <span>•</span>
             <span>{property.review_count || 12} Verified Reviews</span>
           </div>
         </div>
 
-        <h1 className="text-2xl sm:text-4xl font-black font-serif text-[#102A43] dark:text-white tracking-tight">
+        <h1 className="text-2xl sm:text-4xl font-black font-serif text-[#17324D] dark:text-white tracking-tight">
           {property.name}
         </h1>
-        <div className="flex items-center text-xs text-slate-500 dark:text-slate-300 space-x-1">
-          <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
+        <div className="flex items-center text-xs text-[#607080] dark:text-slate-300 space-x-1">
+          <MapPin className="w-4 h-4 text-[#F97316] shrink-0" />
           <span>{property.address}, {property.city}, {property.state}, {property.country}</span>
         </div>
       </div>
@@ -283,7 +283,7 @@ export const PropertyDetails = () => {
               type="button"
               onClick={() => setSelectedImage(idx)}
               className={`aspect-16/10 rounded-2xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 md:shrink ${
-                selectedImage === idx ? 'border-[#F97360] shadow-md scale-98' : 'border-transparent opacity-75 hover:opacity-100'
+                selectedImage === idx ? 'border-[#087F8C] shadow-md scale-98' : 'border-transparent opacity-75 hover:opacity-100'
               }`}
             >
               <img
@@ -304,40 +304,40 @@ export const PropertyDetails = () => {
         {/* Left Column: Property Description, Rooms, Experiences */}
         <div className="lg:col-span-8 space-y-8">
           {/* Description */}
-          <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <h2 className="text-lg sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">About this sanctuary</h2>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line font-light">
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-sm space-y-4">
+            <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">About this sanctuary</h2>
+            <p className="text-xs sm:text-sm text-[#607080] dark:text-slate-300 leading-relaxed whitespace-pre-line font-light">
               {property.description}
             </p>
 
             {/* Check-in / out badges */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs">
-              <div className="p-3 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800">
+              <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Check-in</span>
-                <strong className="text-[#102A43] dark:text-white">{property.check_in_time}</strong>
+                <strong className="text-[#17324D] dark:text-white">{property.check_in_time}</strong>
               </div>
-              <div className="p-3 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800">
+              <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Check-out</span>
-                <strong className="text-[#102A43] dark:text-white">{property.check_out_time}</strong>
+                <strong className="text-[#17324D] dark:text-white">{property.check_out_time}</strong>
               </div>
-              <div className="p-3 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800">
-                <span className="text-slate-400 font-bold block text-[10px] uppercase">Host Contact</span>
-                <strong className="text-[#102A43] dark:text-white truncate block">{property.contact_phone}</strong>
+              <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
+                <span className="text-slate-400 font-bold block text-[10px] uppercase">Stay Partner Contact</span>
+                <strong className="text-[#17324D] dark:text-white truncate block">{property.contact_phone}</strong>
               </div>
-              <div className="p-3 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800">
+              <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Type</span>
-                <strong className="text-[#102A43] dark:text-white">{property.property_type}</strong>
+                <strong className="text-[#17324D] dark:text-white">{property.property_type}</strong>
               </div>
             </div>
           </div>
 
           {/* Amenities Grid */}
-          <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <h2 className="text-lg sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">What this place offers</h2>
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-sm space-y-4">
+            <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">What this place offers</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {property.amenities?.map((am, i) => (
-                <div key={i} className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-[#FFF8F0]/80 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 text-xs font-semibold text-[#102A43] dark:text-slate-200">
-                  <Check className="w-4 h-4 text-emerald-500" />
+                <div key={i} className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-100 dark:border-teal-900/40 text-xs font-semibold text-[#17324D] dark:text-slate-200">
+                  <Check className="w-4 h-4 text-[#35A66F]" />
                   <span>{am.amenity_name || am}</span>
                 </div>
               ))}
@@ -348,19 +348,19 @@ export const PropertyDetails = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">Select Your Room Unit</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">All room rates verified against PostgreSQL inventory</p>
+                <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">Select Your Room Unit</h2>
+                <p className="text-xs text-[#607080] dark:text-slate-400">All room rates verified against PostgreSQL inventory</p>
               </div>
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full">
+              <span className="text-xs font-bold text-[#087F8C] dark:text-[#27B7A8] bg-[#087F8C]/10 px-3 py-1 rounded-full">
                 {property.rooms?.length || 0} Units Available
               </span>
             </div>
 
             <div className="space-y-4">
               {(!property.rooms || property.rooms.length === 0) ? (
-                <div className="p-8 text-center bg-white dark:bg-[#131D2E] rounded-3xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-2">
+                <div className="p-8 text-center bg-white dark:bg-[#0F273D] rounded-3xl border border-slate-100 dark:border-teal-900/40 text-xs text-[#607080] dark:text-slate-400 space-y-2">
                   <Bed className="w-8 h-8 text-slate-400 mx-auto" />
-                  <p className="font-bold text-sm text-[#102A43] dark:text-white">No room units currently listed</p>
+                  <p className="font-bold text-sm text-[#17324D] dark:text-white">No room units currently listed</p>
                   <p>Please check back soon or browse other verified sanctuaries.</p>
                 </div>
               ) : (
@@ -372,8 +372,8 @@ export const PropertyDetails = () => {
                     onClick={() => setSelectedRoomId(room.id)}
                     className={`p-5 rounded-3xl border-2 transition-all cursor-pointer flex flex-col sm:flex-row gap-5 ${
                       isSelected
-                        ? 'bg-[#FFF8F0]/80 dark:bg-slate-900/80 border-emerald-500 shadow-md'
-                        : 'bg-white dark:bg-[#131D2E] border-slate-200/80 dark:border-slate-800 hover:border-emerald-400'
+                        ? 'bg-[#FFFDF7] dark:bg-[#091B29] border-[#087F8C] shadow-md ring-2 ring-[#087F8C]/15'
+                        : 'bg-white dark:bg-[#0F273D] border-slate-100 dark:border-teal-900/40 hover:border-[#087F8C]/50'
                     }`}
                   >
                     <div className="sm:w-48 aspect-16/10 rounded-2xl overflow-hidden bg-gray-100 dark:bg-slate-800 shrink-0">
@@ -391,24 +391,24 @@ export const PropertyDetails = () => {
                       <div>
                         <div className="flex items-start justify-between">
                           <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8]">
                               {room.room_type}
                             </span>
-                            <h4 className="text-base font-bold font-serif text-[#102A43] dark:text-white">{room.name}</h4>
+                            <h4 className="text-base font-bold font-serif text-[#17324D] dark:text-white">{room.name}</h4>
                           </div>
                           <div className="text-right">
-                            <span className="text-lg font-bold text-[#F97360] font-serif block">
+                            <span className="text-lg font-bold text-[#F97316] font-serif block">
                               ₹{room.base_price?.toLocaleString('en-IN')}
                             </span>
                             <span className="text-[10px] text-slate-400">/ night</span>
                           </div>
                         </div>
 
-                        <p className="text-xs text-slate-500 dark:text-slate-300 mt-1 line-clamp-2">{room.description}</p>
+                        <p className="text-xs text-[#607080] dark:text-slate-300 mt-1 line-clamp-2">{room.description}</p>
 
-                        <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-[#607080] dark:text-slate-400">
                           <span className="flex items-center space-x-1">
-                            <Users className="w-3.5 h-3.5 text-emerald-500" />
+                            <Users className="w-3.5 h-3.5 text-[#087F8C]" />
                             <span>Max {room.capacity} Guests / Room</span>
                           </span>
                           <span>•</span>
@@ -416,7 +416,7 @@ export const PropertyDetails = () => {
                           {isSelected && roomQuantity > 1 && (
                             <>
                               <span>•</span>
-                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              <span className="font-semibold text-[#087F8C] dark:text-[#27B7A8]">
                                 Max {room.capacity * roomQuantity} Guests across {roomQuantity} Rooms
                               </span>
                             </>
@@ -427,13 +427,13 @@ export const PropertyDetails = () => {
                       <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                         <div className="flex flex-wrap gap-1">
                           {room.amenities?.map((a, i) => (
-                            <span key={i} className="text-[10px] bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-300 font-semibold">
+                            <span key={i} className="text-[10px] bg-[#087F8C]/10 dark:bg-[#087F8C]/20 px-2 py-0.5 rounded border border-[#087F8C]/20 text-[#087F8C] dark:text-[#27B7A8] font-semibold">
                               {a.amenity_name || a}
                             </span>
                           ))}
                         </div>
 
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${isSelected ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${isSelected ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white' : 'bg-slate-100 dark:bg-slate-800 text-[#17324D] dark:text-slate-300'}`}>
                           {isSelected ? '✓ Selected' : 'Select Unit'}
                         </span>
                       </div>
@@ -445,79 +445,82 @@ export const PropertyDetails = () => {
           </div>
 
           {/* Verified Guest Reviews & Ratings Section */}
-          <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6">
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <div className="flex items-center space-x-2">
-                  <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-                  <h2 className="text-lg sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">
+                  <Star className="w-5 h-5 text-[#F6C945] fill-[#F6C945]" />
+                  <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">
                     {reviewsData?.average_rating || property.rating || 4.8} / 5.0
                   </h2>
                   <span className="text-xs text-slate-400">
                     • {reviewsData?.review_count || property.review_count || 0} Verified Guest Review(s)
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-xs text-[#607080] dark:text-slate-400 mt-0.5">
                   100% authentic ratings from guests with completed VeriNova bookings
                 </p>
               </div>
 
-              <div className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+              <div
+                title="This property has passed Voyara's platform verification and administrative review."
+                className="inline-flex items-center space-x-1.5 text-xs font-bold text-[#35A66F] dark:text-[#35A66F] bg-[#DDF3E7] dark:bg-[#35A66F]/20 px-3.5 py-1.5 rounded-full border border-[#35A66F]/30 shadow-2xs"
+              >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Verified Stays Only</span>
+                <span>✓ Voyara Verified Stay</span>
               </div>
             </div>
 
             {/* Rating Breakdown Bars */}
             {reviewsData?.rating_breakdown && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-[#FFF8F0]/50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
                 <div>
-                  <div className="flex justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-[#17324D] dark:text-slate-300 mb-1">
                     <span>Cleanliness</span>
                     <span>{reviewsData.rating_breakdown.cleanliness}/5</span>
                   </div>
                   <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-emerald-500 h-full rounded-full"
+                      className="bg-[#087F8C] h-full rounded-full"
                       style={{ width: `${(reviewsData.rating_breakdown.cleanliness / 5) * 100}%` }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-[#17324D] dark:text-slate-300 mb-1">
                     <span>Staff</span>
                     <span>{reviewsData.rating_breakdown.staff}/5</span>
                   </div>
                   <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-emerald-500 h-full rounded-full"
+                      className="bg-[#087F8C] h-full rounded-full"
                       style={{ width: `${(reviewsData.rating_breakdown.staff / 5) * 100}%` }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-[#17324D] dark:text-slate-300 mb-1">
                     <span>Location</span>
                     <span>{reviewsData.rating_breakdown.location}/5</span>
                   </div>
                   <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-emerald-500 h-full rounded-full"
+                      className="bg-[#087F8C] h-full rounded-full"
                       style={{ width: `${(reviewsData.rating_breakdown.location / 5) * 100}%` }}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-[#17324D] dark:text-slate-300 mb-1">
                     <span>Value</span>
                     <span>{reviewsData.rating_breakdown.value}/5</span>
                   </div>
                   <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-emerald-500 h-full rounded-full"
+                      className="bg-[#087F8C] h-full rounded-full"
                       style={{ width: `${(reviewsData.rating_breakdown.value / 5) * 100}%` }}
                     />
                   </div>
@@ -531,11 +534,11 @@ export const PropertyDetails = () => {
                 {reviewsData.reviews.map((rev) => (
                   <div
                     key={rev.id}
-                    className="p-4 bg-[#FFF8F0]/30 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2"
+                    className="p-4 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40 space-y-2"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-400 to-rose-500 text-white font-bold text-xs flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#087F8C] to-[#0F9D9A] text-white font-bold text-xs flex items-center justify-center">
                           {rev.user?.full_name ? rev.user.full_name.charAt(0).toUpperCase() : 'G'}
                         </div>
                         <div>
@@ -549,14 +552,14 @@ export const PropertyDetails = () => {
                       </div>
 
                       <div className="flex items-center space-x-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-800/40">
-                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                        <Star className="w-3.5 h-3.5 text-[#F6C945] fill-[#F6C945]" />
+                        <span className="text-xs font-bold text-[#17324D] dark:text-amber-300">
                           {rev.rating.toFixed(1)}
                         </span>
                       </div>
                     </div>
 
-                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-light whitespace-pre-line">
+                    <p className="text-xs text-[#607080] dark:text-slate-300 leading-relaxed font-light whitespace-pre-line">
                       "{rev.comment}"
                     </p>
                   </div>
@@ -574,10 +577,10 @@ export const PropertyDetails = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold font-serif text-[#102A43] dark:text-white">Add Local Host Experiences</h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Optionally bundle verified activities with your stay</p>
+                  <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">Add Local Stay Partner Experiences</h2>
+                  <p className="text-xs text-[#607080] dark:text-slate-400">Optionally bundle verified activities with your stay</p>
                 </div>
-                <span className="text-xs font-bold text-[#F97360] bg-[#F97360]/15 px-2.5 py-1 rounded-full">
+                <span className="text-xs font-bold text-[#F97316] bg-[#F97316]/15 px-2.5 py-1 rounded-full">
                   Optional Add-on
                 </span>
               </div>
@@ -591,29 +594,29 @@ export const PropertyDetails = () => {
                       onClick={() => setSelectedExperienceId(isChecked ? null : exp.id)}
                       className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
                         isChecked
-                          ? 'bg-[#FFF8F0]/80 dark:bg-slate-900/80 border-[#F97360] shadow-sm'
-                          : 'bg-white dark:bg-[#131D2E] border-slate-200/80 dark:border-slate-800 hover:border-[#F97360]'
+                          ? 'bg-[#FFFDF7] dark:bg-[#091B29] border-[#F97316] shadow-sm'
+                          : 'bg-white dark:bg-[#0F273D] border-slate-100 dark:border-teal-900/40 hover:border-[#F97316]/50'
                       }`}
                     >
                       <div className="flex items-center space-x-3.5">
                         <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
-                          isChecked ? 'bg-[#F97360] border-[#F97360] text-white' : 'border-slate-300 dark:border-slate-600'
+                          isChecked ? 'bg-[#F97316] border-[#F97316] text-white' : 'border-slate-300 dark:border-slate-600'
                         }`}>
                           {isChecked && <Check className="w-3.5 h-3.5" />}
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8] bg-[#087F8C]/10 px-2 py-0.5 rounded-full">
                               {exp.experience_type}
                             </span>
                             <span className="text-xs text-slate-400">Duration: {exp.duration}</span>
                           </div>
-                          <h4 className="text-sm font-bold text-[#102A43] dark:text-white mt-0.5">{exp.title}</h4>
+                          <h4 className="text-sm font-bold text-[#17324D] dark:text-white mt-0.5">{exp.title}</h4>
                         </div>
                       </div>
 
                       <div className="text-right">
-                        <span className="text-sm font-bold text-[#F97360] font-serif">
+                        <span className="text-sm font-bold text-[#F97316] font-serif">
                           +₹{exp.price?.toLocaleString('en-IN')}
                         </span>
                         <span className="text-[10px] text-slate-400 block">
@@ -630,10 +633,10 @@ export const PropertyDetails = () => {
 
         {/* Right Column: Sticky Booking & Verification Dock */}
         <div className="lg:col-span-4">
-          <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xl space-y-6 sticky top-24">
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 border border-slate-100 dark:border-teal-900/40 shadow-xl space-y-6 sticky top-24">
             <div className="flex items-baseline justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
-                <span className="text-2xl font-bold font-serif text-[#102A43] dark:text-white">
+                <span className="text-2xl font-bold font-serif text-[#17324D] dark:text-white">
                   ₹{roomUnitPrice?.toLocaleString('en-IN') || '0'}
                 </span>
                 <span className="text-xs text-slate-400"> / night</span>
@@ -653,7 +656,7 @@ export const PropertyDetails = () => {
               <div>
                 {availLoading ? (
                   <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl text-xs text-slate-500 flex items-center space-x-2">
-                    <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-[#087F8C] border-t-transparent rounded-full animate-spin" />
                     <span>Checking live inventory...</span>
                   </div>
                 ) : isRoomSoldOut || availableRoomsCount <= 0 ? (
@@ -665,12 +668,12 @@ export const PropertyDetails = () => {
                     <p className="text-[11px] font-normal text-rose-600 dark:text-rose-400">Please choose different dates or select another room.</p>
                   </div>
                 ) : (
-                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between">
+                  <div className="p-2.5 bg-[#DDF3E7] dark:bg-[#35A66F]/20 border border-[#35A66F]/30 rounded-xl text-[#35A66F] text-xs font-semibold flex items-center justify-between">
                     <span className="flex items-center space-x-1.5">
-                      <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <Check className="w-4 h-4 text-[#35A66F]" />
                       <span>{availableRoomsCount} of {selectedRoom?.quantity} units available</span>
                     </span>
-                    <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">Available</span>
+                    <span className="text-[10px] uppercase font-bold text-[#35A66F] bg-white dark:bg-[#091B29] px-2 py-0.5 rounded-full">Available</span>
                   </div>
                 )}
               </div>
@@ -680,7 +683,7 @@ export const PropertyDetails = () => {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#17324D] dark:text-slate-300 mb-1">
                     Check-in Date
                   </label>
                   <input
@@ -689,11 +692,11 @@ export const PropertyDetails = () => {
                     min={todayStr}
                     value={checkIn}
                     onChange={(e) => handleCheckInChange(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-[#FFF8F0]/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#102A43] dark:text-white focus:outline-hidden focus:border-[#F97360]"
+                    className="w-full px-2.5 py-2 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#17324D] dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#17324D] dark:text-slate-300 mb-1">
                     Check-out Date
                   </label>
                   <input
@@ -702,7 +705,7 @@ export const PropertyDetails = () => {
                     min={minCheckoutDate}
                     value={checkOut}
                     onChange={(e) => setCheckOut(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-[#FFF8F0]/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#102A43] dark:text-white focus:outline-hidden focus:border-[#F97360]"
+                    className="w-full px-2.5 py-2 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#17324D] dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                   />
                 </div>
               </div>
@@ -710,24 +713,24 @@ export const PropertyDetails = () => {
               {/* Number of Rooms Selector */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#17324D] dark:text-slate-300">
                     Number of Rooms
                   </label>
                   <span className="text-[11px] text-slate-400">
                     Max {Math.max(1, availableRoomsCount)} available
                   </span>
                 </div>
-                <div className="flex items-center space-x-3 bg-[#FFF8F0]/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5">
+                <div className="flex items-center space-x-3 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl p-1.5">
                   <button
                     type="button"
                     disabled={roomQuantity <= 1 || isRoomSoldOut}
                     onClick={() => setRoomQuantity((prev) => Math.max(1, prev - 1))}
-                    className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                    className="w-8 h-8 rounded-lg bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                   >
                     -
                   </button>
                   <div className="flex-1 text-center">
-                    <span className="font-black text-sm text-[#102A43] dark:text-white font-serif">
+                    <span className="font-black text-sm text-[#17324D] dark:text-white font-serif">
                       {roomQuantity} {roomQuantity === 1 ? 'Room' : 'Rooms'}
                     </span>
                   </div>
@@ -735,27 +738,27 @@ export const PropertyDetails = () => {
                     type="button"
                     disabled={roomQuantity >= availableRoomsCount || isRoomSoldOut}
                     onClick={() => setRoomQuantity((prev) => Math.min(availableRoomsCount, prev + 1))}
-                    className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                    className="w-8 h-8 rounded-lg bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              {/* Dynamic Guest Count Selector (Calculated from room.capacity * roomQuantity) */}
+              {/* Dynamic Guest Count Selector */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#17324D] dark:text-slate-300">
                     Guests Count
                   </label>
-                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="text-[11px] text-[#087F8C] dark:text-[#27B7A8] font-medium">
                     Max {maxAllowedGuests} guests ({roomCapacity} guests/room × {roomQuantity} {roomQuantity === 1 ? 'room' : 'rooms'})
                   </span>
                 </div>
                 <select
                   value={guests}
                   onChange={(e) => setGuests(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#FFF8F0]/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#102A43] dark:text-white focus:outline-hidden focus:border-[#F97360] cursor-pointer"
+                  className="w-full px-3 py-2 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#17324D] dark:text-white focus:outline-hidden focus:border-[#087F8C] cursor-pointer"
                 >
                   {Array.from({ length: maxAllowedGuests }, (_, i) => i + 1).map((num) => (
                     <option key={num} value={num}>
@@ -766,8 +769,8 @@ export const PropertyDetails = () => {
               </div>
 
               {selectedExp && (
-                <div className="p-3 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8] block">
                     Experience Participants ({selectedExp.title})
                   </span>
                   <input
@@ -776,7 +779,7 @@ export const PropertyDetails = () => {
                     max={selectedExp.capacity}
                     value={experienceParticipants}
                     onChange={(e) => setExperienceParticipants(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-[#102A43] dark:text-white"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-[#17324D] dark:text-white"
                   />
                 </div>
               )}
@@ -784,48 +787,80 @@ export const PropertyDetails = () => {
 
             {/* Price Breakdown */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600 dark:text-slate-300">
+              <div className="flex justify-between text-[#607080] dark:text-slate-300">
                 <span>
                   {selectedRoom?.name} (₹{roomUnitPrice.toLocaleString('en-IN')} × {nights}n × {roomQuantity}r)
                 </span>
-                <span className="font-semibold text-[#102A43] dark:text-white">
+                <span className="font-semibold text-[#17324D] dark:text-white">
                   ₹{roomSubtotal.toLocaleString('en-IN')}
                 </span>
               </div>
 
               {selectedExp && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
                   <span>{selectedExp.title} ({experienceParticipants} pax)</span>
                   <span className="font-semibold">₹{expSubtotal.toLocaleString('en-IN')}</span>
                 </div>
               )}
 
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm font-bold text-[#102A43] dark:text-white">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm font-bold text-[#17324D] dark:text-white">
                 <span>Total Amount</span>
-                <span className="text-base text-[#F97360] font-serif">₹{grandTotal.toLocaleString('en-IN')}</span>
+                <span className="text-base text-[#F97316] font-serif">₹{grandTotal.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
             <button
               onClick={handleProceedToBooking}
               disabled={isRoomSoldOut || availableRoomsCount <= 0}
-              className="w-full py-3.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-[#F97360]/20 hover:shadow-xl transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3.5 bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white font-bold rounded-2xl shadow-lg shadow-[#F97316]/20 hover:shadow-xl transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span>{isRoomSoldOut || availableRoomsCount <= 0 ? 'Sold Out for Selected Dates' : 'Review & Confirm Booking'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
-            <div className="text-center text-[11px] text-slate-400 space-y-1">
+            <div className="text-center text-[11px] text-slate-400 space-y-1.5 pt-1">
+              <div className="p-2.5 rounded-xl bg-[#FFF8F0] dark:bg-slate-800/80 border border-orange-200/60 dark:border-slate-700 text-left space-y-1">
+                <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Cancellation & Refund Guarantee</span>
+                </div>
+                <p className="text-[10.5px] text-slate-600 dark:text-slate-400 leading-tight">
+                  • <strong>100% full refund</strong> if cancelled 2+ days before check-in.
+                  <br />
+                  • <strong>{property.cancellation_refund_percentage ?? 50}% refund</strong> if cancelled within 2 days of arrival.
+                </p>
+              </div>
               <p className="flex items-center justify-center space-x-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
                 <span>Verified by VeriNova before final confirmation</span>
               </p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Mobile Sticky Bottom CTA Dock */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#091B29]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-4 shadow-2xl flex items-center justify-between">
+        <div>
+          <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Rate</span>
+          <div className="flex items-baseline space-x-1">
+            <span className="text-lg font-bold font-serif text-[#F97316]">₹{grandTotal.toLocaleString('en-IN')}</span>
+            <span className="text-[10px] text-slate-400">/ {nights} night(s)</span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleProceedToBooking}
+          disabled={isRoomSoldOut || availableRoomsCount <= 0}
+          className="px-6 py-3 bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center space-x-1.5 disabled:opacity-50"
+        >
+          <span>{isRoomSoldOut || availableRoomsCount <= 0 ? 'Fully Booked' : 'Reserve Stay'}</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 };
 
 export default PropertyDetails;
+

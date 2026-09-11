@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.auth.jwt import decode_access_token
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, AccountStatus
 from app.models.provider import ProviderProfile
 
 security = HTTPBearer(auto_error=False)
@@ -13,7 +13,7 @@ def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
-    """Extract and validate current authenticated user from Bearer JWT."""
+    """Extract and validate current authenticated user from Bearer JWT with account safety enforcement."""
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,7 +45,17 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    if not user.is_active:
+    # Account Safety Check
+    acc_status = getattr(user, "account_status", "ACTIVE")
+    if not user.is_active or acc_status == AccountStatus.SUSPENDED.value or acc_status == "SUSPENDED":
+        reason = getattr(user, "suspension_reason", None)
+        detail_msg = f"Your account is currently suspended. Reason: {reason}" if reason else "Your account has been suspended by administration. Please contact support."
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=detail_msg,
+        )
+    
+    if acc_status == AccountStatus.DEACTIVATED.value or acc_status == "DEACTIVATED":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account has been deactivated. Please contact support.",
@@ -68,26 +78,44 @@ def get_optional_user(
         if not user_id:
             return None
         user = db.query(User).filter(User.id == int(user_id)).first()
-        if user and user.is_active:
+        if user and user.is_active and getattr(user, "account_status", "ACTIVE") == "ACTIVE":
             return user
         return None
     except Exception:
         return None
 
 def get_current_customer(user: User = Depends(get_current_user)) -> User:
-    """Ensure current user is authenticated (Customer, Provider, or Admin can act as Customer)."""
+    """Ensure current user is authenticated and active (Customer, Provider, or Admin)."""
     return user
 
 def get_current_provider(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> ProviderProfile:
-    """Ensure user is a Provider (or Admin) and returns ProviderProfile."""
+    """
+    Ensure user is an authenticated and fully verified Provider (or Admin).
+    Host accounts must complete required Phone and Email verification.
+    """
     if user.role not in [UserRole.PROVIDER, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access restricted to registered Accommodation & Experience Providers.",
         )
+    
+    # Check Host Verification (Phone & Email) for non-admin providers
+    if user.role == UserRole.PROVIDER:
+        phone_ok = getattr(user, "phone_verified", False)
+        email_ok = getattr(user, "email_verified", False)
+        if not phone_ok or not email_ok:
+            missing = []
+            if not phone_ok:
+                missing.append("phone verification")
+            if not email_ok:
+                missing.append("email verification")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Host account verification incomplete. Please complete {' and '.join(missing)} before accessing host management features.",
+            )
     
     profile = db.query(ProviderProfile).filter(ProviderProfile.user_id == user.id).first()
     if not profile:

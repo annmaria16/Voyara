@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { providerApi } from '../../api/provider';
 import { MultiImageUploadPicker } from '../../components/common/MultiImageUploadPicker';
 import { GoogleMapLocationPicker } from '../../components/common/GoogleMapLocationPicker';
-import { DocumentUploadPicker } from '../../components/common/DocumentUploadPicker';
 import { NumberStepperInput } from '../../components/common/NumberStepperInput';
 import {
   Home,
@@ -20,13 +19,11 @@ import {
   Clock,
   CheckCircle2,
   Loader2,
-  Navigation,
   Sparkles,
   Bed,
   Users,
   Layers,
   IndianRupee,
-  Sliders,
   X,
 } from 'lucide-react';
 
@@ -84,12 +81,12 @@ export const AddProperty = () => {
   const [contactEmail, setContactEmail] = useState('');
   const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutTime, setCheckOutTime] = useState('11:00');
+  const [cancellationRefundPercentage, setCancellationRefundPercentage] = useState(50);
 
-  // 3. Property Amenities, Photos & Verification Proof
+  // 3. Property Amenities & Photos
   const [amenities, setAmenities] = useState(['Wi-Fi', 'Breakfast', 'Mountain View']);
   const [customPropAmenity, setCustomPropAmenity] = useState('');
   const [images, setImages] = useState([]);
-  const [ownershipProofUrl, setOwnershipProofUrl] = useState('');
 
   // 4. Pincode Lookup & Localities State
   const [pincodeLoading, setPincodeLoading] = useState(false);
@@ -98,7 +95,9 @@ export const AddProperty = () => {
   const [availablePostOffices, setAvailablePostOffices] = useState([]);
   const [selectedPostOffice, setSelectedPostOffice] = useState('');
   const [geocodingPincode, setGeocodingPincode] = useState(false);
+  const [locationFeedback, setLocationFeedback] = useState('');
   const geocodeRequestIdRef = useRef(0);
+  const streetDebounceRef = useRef(null);
 
   // 5. Rooms / Units Configuration State
   const [rooms, setRooms] = useState([
@@ -316,7 +315,7 @@ export const AddProperty = () => {
     if (!cleanPhone) {
       errs.contactPhone = '10-digit Indian mobile number is required.';
     } else if (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
-      errs.contactPhone = 'Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9 (e.g. 9847012345).';
+      errs.contactPhone = 'Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.';
     }
 
     // 11. Contact Email
@@ -338,7 +337,7 @@ export const AddProperty = () => {
       rooms.forEach((r, idx) => {
         const roomNum = idx + 1;
         if (!r.name.trim()) {
-          errs[`room_${idx}_name`] = `Room #${roomNum}: Room Name / Title is required.`;
+          errs[`room_${idx}_name`] = `Room #${roomNum}: Room Name is required.`;
         } else if (r.name.trim().length < 3) {
           errs[`room_${idx}_name`] = `Room #${roomNum}: Name must be at least 3 characters.`;
         }
@@ -373,12 +372,6 @@ export const AddProperty = () => {
       });
     }
 
-    // 14. Ownership Proof Document
-    if (!ownershipProofUrl) {
-      errs.ownershipProof =
-        'Property Ownership / Authorization document is required for verification.';
-    }
-
     return errs;
   }, [
     name,
@@ -395,66 +388,132 @@ export const AddProperty = () => {
     contactEmail,
     images,
     rooms,
-    ownershipProofUrl,
   ]);
 
   const isFormValid = Object.keys(errors).length === 0;
 
-  // Helper to geocode a place query and automatically place the pin on the map
-  const geocodeAndMoveMap = async (placeQuery, fallbackCity, fallbackState, isLocalitySpecific = false) => {
+  // Helper to geocode street address strictly confined to the entered Indian pincode & region
+  const geocodeStreetAndPincode = async (streetText, pinText, cityText, stateText, selectedLocality = '') => {
+    const cleanPin = (pinText || '').trim();
+    const cleanStreet = (streetText || '').trim();
+    const cleanCity = (cityText || '').trim();
+    const cleanState = (stateText || '').trim();
+
+    if (!cleanPin && !cleanStreet) return;
+
     setGeocodingPincode(true);
     const reqId = ++geocodeRequestIdRef.current;
+
     try {
-      const queriesToTry = isLocalitySpecific
-        ? [
-            [placeQuery, fallbackCity && fallbackCity !== placeQuery ? fallbackCity : '', fallbackState, 'India'].filter(Boolean).join(', '),
-            [placeQuery, fallbackState, 'India'].filter(Boolean).join(', '),
-            [placeQuery, fallbackCity, 'India'].filter(Boolean).join(', '),
-            [placeQuery, 'India'].filter(Boolean).join(', '),
-          ]
-        : [
-            [placeQuery, fallbackCity && fallbackCity !== placeQuery ? fallbackCity : '', fallbackState, 'India'].filter(Boolean).join(', '),
-            [placeQuery, fallbackState, 'India'].filter(Boolean).join(', '),
-            [fallbackCity, fallbackState, 'India'].filter(Boolean).join(', '),
-            [placeQuery, 'India'].filter(Boolean).join(', '),
-          ];
+      const queriesToTry = [];
 
-      const uniqueQueries = [...new Set(queriesToTry)];
-
-      for (const q of uniqueQueries) {
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-              q
-            )}&countrycodes=in&limit=1&addressdetails=1`,
-            {
-              headers: {
-                'Accept-Language': 'en',
-                'User-Agent': 'Voyara-Pincode-Geocoding/1.0',
-              },
-            }
+      if (cleanPin && /^[1-9][0-9]{5}$/.test(cleanPin)) {
+        if (cleanStreet && cleanStreet.length >= 3) {
+          // 1. Structured query: street + postalcode in India
+          queriesToTry.push(
+            `https://nominatim.openstreetmap.org/search?format=json&street=${encodeURIComponent(
+              cleanStreet
+            )}&postalcode=${encodeURIComponent(cleanPin)}&countrycodes=in&limit=3&addressdetails=1`
           );
+          // 2. Freeform query with street + pincode + city + state
+          queriesToTry.push(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+              [cleanStreet, cleanPin, cleanCity, cleanState, 'India'].filter(Boolean).join(', ')
+            )}&countrycodes=in&limit=3&addressdetails=1`
+          );
+          // 3. Freeform query with street + pincode
+          queriesToTry.push(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+              `${cleanStreet}, ${cleanPin}, India`
+            )}&countrycodes=in&limit=3&addressdetails=1`
+          );
+          // 4. Locality + street + pincode
+          if (selectedLocality && selectedLocality !== cleanStreet) {
+            queriesToTry.push(
+              `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+                [cleanStreet, selectedLocality, cleanPin, 'India'].filter(Boolean).join(', ')
+              )}&countrycodes=in&limit=3&addressdetails=1`
+            );
+          }
+        }
+
+        // 5. Locality under that pincode
+        if (selectedLocality) {
+          queriesToTry.push(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+              [selectedLocality, cleanPin, cleanState, 'India'].filter(Boolean).join(', ')
+            )}&countrycodes=in&limit=3&addressdetails=1`
+          );
+        }
+        // 6. Direct postalcode lookup in India
+        queriesToTry.push(
+          `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(
+            cleanPin
+          )}&countrycodes=in&limit=3&addressdetails=1`
+        );
+        // 7. Pincode + City + State freeform
+        queriesToTry.push(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            [cleanCity, cleanState, cleanPin, 'India'].filter(Boolean).join(', ')
+          )}&countrycodes=in&limit=3&addressdetails=1`
+        );
+      } else if (cleanStreet && cleanStreet.length >= 4 && (cleanCity || cleanState)) {
+        queriesToTry.push(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            [cleanStreet, cleanCity, cleanState, 'India'].filter(Boolean).join(', ')
+          )}&countrycodes=in&limit=3&addressdetails=1`
+        );
+      }
+
+      let found = false;
+      for (const url of queriesToTry) {
+        try {
+          const res = await fetch(url, {
+            headers: {
+              'Accept-Language': 'en',
+              'User-Agent': 'Voyara-Pincode-Street-Geocoding/1.0',
+            },
+          });
 
           if (res.ok) {
             const data = await res.json();
             if (reqId !== geocodeRequestIdRef.current) return;
+
             if (Array.isArray(data) && data.length > 0) {
-              const newLat = parseFloat(parseFloat(data[0].lat).toFixed(6));
-              const newLng = parseFloat(parseFloat(data[0].lon).toFixed(6));
+              const validMatch =
+                data.find((item) => {
+                  const lat = parseFloat(item.lat);
+                  const lon = parseFloat(item.lon);
+                  return lat >= 6.5 && lat <= 37.5 && lon >= 68.0 && lon <= 97.5;
+                }) || data[0];
+
+              const newLat = parseFloat(parseFloat(validMatch.lat).toFixed(6));
+              const newLng = parseFloat(parseFloat(validMatch.lon).toFixed(6));
+
               if (newLat >= 6.5 && newLat <= 37.5 && newLng >= 68.0 && newLng <= 97.5) {
                 setLatitude(newLat);
                 setLongitude(newLng);
                 setHasLocationSelected(true);
+                setLocationFeedback(
+                  cleanStreet
+                    ? `📍 Map centered on "${cleanStreet}" (Pincode: ${cleanPin || 'India'})`
+                    : `📍 Map centered on Pincode ${cleanPin}`
+                );
+                found = true;
                 break;
               }
             }
           }
         } catch (subErr) {
-          console.warn(`Geocoding query "${q}" failed:`, subErr);
+          console.warn('Geocoding attempt warning:', subErr);
         }
       }
+
+      if (!found && reqId === geocodeRequestIdRef.current && cleanPin) {
+        setLocationFeedback(`📍 Map focused on area with Pincode ${cleanPin}`);
+      }
     } catch (e) {
-      console.warn('Geocoding place warning:', e);
+      console.warn('Geocoding street/pincode warning:', e);
     } finally {
       if (reqId === geocodeRequestIdRef.current) {
         setGeocodingPincode(false);
@@ -470,6 +529,7 @@ export const AddProperty = () => {
     setPincodeVerified(false);
     setAvailablePostOffices([]);
     setSelectedPostOffice('');
+    setLocationFeedback('');
 
     if (clean.length === 6) {
       setPincodeLoading(true);
@@ -491,10 +551,12 @@ export const AddProperty = () => {
           const defaultPlace = targetPlaces.length > 0 ? targetPlaces[0] : targetDistrict;
           setSelectedPostOffice(defaultPlace);
 
-          const newAddr = `${defaultPlace}, ${targetDistrict}`;
-          setAddress(newAddr);
+          const currentStreet = address.trim() || `${defaultPlace}, ${targetDistrict}`;
+          if (!address.trim()) {
+            setAddress(currentStreet);
+          }
 
-          geocodeAndMoveMap(defaultPlace, targetDistrict, targetState, false);
+          geocodeStreetAndPincode(currentStreet, clean, targetDistrict, targetState, defaultPlace);
         }
       } catch (err) {
         setPincodeError('Could not verify pincode. Please check the 6-digit postal code.');
@@ -504,20 +566,28 @@ export const AddProperty = () => {
     }
   };
 
+  // Handle Street Address changes with live debounced map recentering
+  const handleStreetAddressChange = (val) => {
+    setAddress(val);
+    setLocationFeedback('');
+
+    if (streetDebounceRef.current) {
+      clearTimeout(streetDebounceRef.current);
+    }
+
+    if (val.trim().length >= 3) {
+      streetDebounceRef.current = setTimeout(() => {
+        geocodeStreetAndPincode(val, pincode, city, state, selectedPostOffice);
+      }, 500);
+    }
+  };
+
   const handleSelectPostOffice = (placeName) => {
     if (placeName) {
       setSelectedPostOffice(placeName);
       const newAddr = `${placeName}, ${city || state}`;
       setAddress(newAddr);
-      geocodeAndMoveMap(placeName, city, state, true);
-    }
-  };
-
-  const handleAmenityToggle = (am) => {
-    if (amenities.includes(am)) {
-      setAmenities(amenities.filter((a) => a !== am));
-    } else {
-      setAmenities([...amenities, am]);
+      geocodeStreetAndPincode(placeName, pincode, city, state, placeName);
     }
   };
 
@@ -556,7 +626,7 @@ export const AddProperty = () => {
     if (!isFormValid) {
       const firstErrorKey = Object.keys(errors)[0];
       setError(`Please complete all required fields correctly (${errors[firstErrorKey]}).`);
-      window.scrollTo({ top: 120, behavior: 'smooth' });
+      window.scrollTo({ top: 80, behavior: 'smooth' });
       return;
     }
 
@@ -579,11 +649,11 @@ export const AddProperty = () => {
         location_details: locationDetails.trim() || undefined,
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
-        ownership_proof_url: ownershipProofUrl,
         contact_phone: contactPhone.trim(),
         contact_email: contactEmail.trim(),
         check_in_time: checkInTime,
         check_out_time: checkOutTime,
+        cancellation_refund_percentage: parseInt(cancellationRefundPercentage, 10) || 50,
         amenities,
         images: (images || []).map((img) => (typeof img === 'string' ? img : img.image_url)).filter(Boolean),
         rooms: rooms.map((r) => ({
@@ -599,10 +669,10 @@ export const AddProperty = () => {
       };
 
       await providerApi.createProperty(payload);
-      setSuccessMessage('Your property has been submitted for Admin verification.');
+      setSuccessMessage('Property successfully created! Redirecting to My Places...');
       setTimeout(() => {
         navigate('/provider/properties');
-      }, 1800);
+      }, 1500);
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Failed to register property.');
     } finally {
@@ -611,53 +681,46 @@ export const AddProperty = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+      {/* Top Back Navigation */}
       <button
         type="button"
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center space-x-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
+        onClick={() => navigate('/provider/properties')}
+        className="inline-flex items-center space-x-1.5 text-xs font-bold text-[#087F8C] dark:text-[#27B7A8] hover:underline cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span>Back to Properties</span>
+        <span>Back to My Places</span>
       </button>
 
-      <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-10 border border-[#FDBA9A]/30 dark:border-slate-800 shadow-md space-y-8">
+      {/* Main Form Container */}
+      <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-10 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-8">
+        {/* Page Header */}
         <div>
           <span className="text-xs uppercase font-bold tracking-widest text-orange-500">
-            List Your Sanctuary
+            List Your Property
           </span>
-          <h2 className="text-2xl sm:text-3xl font-black font-serif text-slate-900 dark:text-white mt-1">
-            Add New Property & Room Units
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Provide comprehensive information, GPS location, high-res photos, and room inventory for customer bookings and admin verification.
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#091B29] dark:text-white mt-1">
+            Add New Property
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
+            Enter your property details, location, amenities, photos, and room types.
           </p>
         </div>
 
-        {/* Verification Info Banner */}
-        <div className="p-4 bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 rounded-2xl text-amber-900 dark:text-amber-200 text-xs flex items-start space-x-3">
-          <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold block">Verification Standard</span>
-            <span className="text-[11px] text-amber-800 dark:text-amber-300">
-              All properties and room inventory undergo administrative review in PostgreSQL before going live to customers.
-            </span>
-          </div>
-        </div>
-
-        {/* Submission Error Summary */}
+        {/* Global Error Banner */}
         {error && (
           <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
-            <span className="font-bold">{error}</span>
+            <span className="font-semibold">{error}</span>
           </div>
         )}
 
+        {/* Validation Errors Summary */}
         {submitAttempted && !isFormValid && (
-          <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-rose-700 dark:text-rose-300 text-xs space-y-1">
-            <span className="font-bold block flex items-center space-x-1.5">
+          <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-rose-700 dark:text-rose-300 text-xs space-y-1.5">
+            <span className="font-bold flex items-center space-x-1.5">
               <AlertCircle className="w-4 h-4 text-rose-600" />
-              <span>Please review and fix the following {Object.keys(errors).length} issue(s):</span>
+              <span>Please complete the required fields before submitting ({Object.keys(errors).length} issue(s)):</span>
             </span>
             <ul className="list-disc pl-6 space-y-0.5 text-[11px]">
               {Object.entries(errors).map(([k, msg]) => (
@@ -667,6 +730,7 @@ export const AddProperty = () => {
           </div>
         )}
 
+        {/* Success Banner */}
         {successMessage && (
           <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 rounded-2xl text-emerald-700 dark:text-emerald-300 text-xs flex items-center space-x-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
@@ -674,32 +738,31 @@ export const AddProperty = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8 text-xs">
-          {/* 1. Basic Information */}
+        <form onSubmit={handleSubmit} className="space-y-10 text-xs">
+          {/* SECTION 1: PROPERTY INFORMATION */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center space-x-2">
-              <Home className="w-4 h-4 text-orange-500" />
-              <span>1. Basic Property Information</span>
-            </h3>
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-2.5">
+              <h2 className="text-base font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
+                <Home className="w-4 h-4 text-orange-500" />
+                <span>Property Information</span>
+              </h2>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                  <span>Property Name *</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Min 3 characters</span>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Property Name <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Whispering Pines Eco-Resort & Spa"
+                  placeholder="e.g. Misty Valley Retreat"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onBlur={() => handleBlur('name')}
-                  className={`w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden transition-colors ${
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden transition-colors ${
                     (touched.name || submitAttempted) && errors.name
                       ? 'border-rose-500 bg-rose-50/20'
-                      : touched.name && !errors.name
-                      ? 'border-emerald-500'
                       : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
                   }`}
                 />
@@ -712,13 +775,13 @@ export const AddProperty = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Property Type *
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Property Type <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={propertyType}
                   onChange={(e) => setPropertyType(e.target.value)}
-                  className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
+                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
                 >
                   {propertyTypes.map((t) => (
                     <option key={t} value={t} className="dark:bg-slate-900 text-slate-900 dark:text-white">
@@ -731,29 +794,29 @@ export const AddProperty = () => {
 
             {/* Description */}
             <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                <span>Description *</span>
-                <span className="text-[10px] text-slate-400 font-normal">
-                  {description.trim().length}/20 min chars
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                  Description <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[10px] text-slate-400">
+                  {description.trim().length} chars (min 20)
                 </span>
-              </label>
+              </div>
               <textarea
                 rows={3}
                 required
-                placeholder="Describe your property, architecture, unique stay features, scenic views, and local atmosphere in detail..."
+                placeholder="Describe the atmosphere, surroundings, views, architectural style, and highlights of your stay..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 onBlur={() => handleBlur('description')}
-                className={`w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border rounded-xl font-normal text-slate-900 dark:text-white focus:outline-hidden transition-colors ${
+                className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden transition-colors ${
                   (touched.description || submitAttempted) && errors.description
                     ? 'border-rose-500 bg-rose-50/20'
-                    : touched.description && !errors.description
-                    ? 'border-emerald-500'
                     : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
                 }`}
               />
               {(touched.description || submitAttempted) && errors.description && (
-                <p className="text-[11px] text-rose-500 font-semibold mt-0.5 flex items-center space-x-1">
+                <p className="text-[11px] text-rose-500 font-semibold mt-1 flex items-center space-x-1">
                   <AlertCircle className="w-3 h-3 shrink-0" />
                   <span>{errors.description}</span>
                 </p>
@@ -761,181 +824,184 @@ export const AddProperty = () => {
             </div>
           </div>
 
-          {/* 2. Location, Pincode & Map Selection */}
+          {/* SECTION 2: LOCATION */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
-              <span className="flex items-center space-x-2">
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-2.5">
+              <h2 className="text-base font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
                 <MapPin className="w-4 h-4 text-orange-500" />
-                <span>2. Location, Pincode & Map Pin</span>
-              </span>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                India Stays Only
-              </span>
-            </h3>
-
-            {/* Pincode & Auto-fill Lookup Field */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-orange-500/5 via-emerald-500/5 to-transparent border border-slate-200/80 dark:border-slate-800 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* 6-Digit Indian Pincode Input */}
-                <div>
-                  <label className="block font-bold text-slate-800 dark:text-slate-200 mb-1 flex items-center justify-between">
-                    <span>Postal Pincode *</span>
-                    <span className="text-[10px] text-orange-600 font-bold">Auto-fills City & GPS Map</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      maxLength={6}
-                      required
-                      placeholder="e.g. 686001 or 685612"
-                      value={pincode}
-                      onChange={(e) => handlePincodeChange(e.target.value)}
-                      onBlur={() => handleBlur('pincode')}
-                      className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-mono font-bold text-slate-900 dark:text-white focus:outline-hidden tracking-wider ${
-                        (touched.pincode || submitAttempted) && errors.pincode
-                          ? 'border-rose-500 bg-rose-50/20'
-                          : pincodeVerified
-                          ? 'border-emerald-500 bg-emerald-50/20'
-                          : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                      }`}
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-1">
-                      {pincodeLoading && <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />}
-                      {pincodeVerified && !pincodeLoading && (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      )}
-                    </div>
-                  </div>
-
-                  {(touched.pincode || submitAttempted) && errors.pincode && (
-                    <p className="text-[11px] text-rose-500 font-semibold mt-1 flex items-center space-x-1">
-                      <AlertCircle className="w-3 h-3 shrink-0" />
-                      <span>{errors.pincode}</span>
-                    </p>
-                  )}
-
-                  {pincodeError && (
-                    <p className="text-[11px] text-rose-500 font-semibold mt-1 flex items-center space-x-1">
-                      <AlertCircle className="w-3 h-3 shrink-0" />
-                      <span>{pincodeError}</span>
-                    </p>
-                  )}
-
-                  {pincodeVerified && (
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-1 flex items-center space-x-1">
-                      <Check className="w-3 h-3" />
-                      <span>Verified: {city}, {state}</span>
-                      {geocodingPincode && (
-                        <span className="text-orange-500 text-[10px] ml-1 flex items-center">
-                          <Loader2 className="w-3 h-3 animate-spin inline mr-0.5" />
-                          Pinning Map...
-                        </span>
-                      )}
-                    </p>
-                  )}
-                </div>
-
-                {/* City / District */}
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    City / Destination *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Kottayam or Munnar"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    onBlur={() => handleBlur('city')}
-                    className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden ${
-                      (touched.city || submitAttempted) && errors.city
-                        ? 'border-rose-500 bg-rose-50/20'
-                        : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                    }`}
-                  />
-                  {(touched.city || submitAttempted) && errors.city && (
-                    <p className="text-[11px] text-rose-500 font-semibold mt-1">
-                      {errors.city}
-                    </p>
-                  )}
-                </div>
-
-                {/* State */}
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    State *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Kerala"
-                    value={state}
-                    onChange={(e) => setState(e.target.value)}
-                    onBlur={() => handleBlur('state')}
-                    className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden ${
-                      (touched.state || submitAttempted) && errors.state
-                        ? 'border-rose-500 bg-rose-50/20'
-                        : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                    }`}
-                  />
-                  {(touched.state || submitAttempted) && errors.state && (
-                    <p className="text-[11px] text-rose-500 font-semibold mt-1">
-                      {errors.state}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Locality Selector if returned by Pincode API */}
-              {availablePostOffices.length > 0 && (
-                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
-                    Localities under Pincode {pincode} (Click to set address & move map pin):
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {availablePostOffices.map((poName) => {
-                      const isSelected = selectedPostOffice === poName;
-                      return (
-                        <button
-                          key={poName}
-                          type="button"
-                          onClick={() => handleSelectPostOffice(poName)}
-                          className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center space-x-1.5 ${
-                            isSelected
-                              ? 'bg-gradient-to-r from-[#F97360] to-orange-500 text-white border-orange-500 shadow-xs font-bold'
-                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-orange-500 hover:text-orange-600 text-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          <MapPin className="w-3.5 h-3.5" />
-                          <span>+ {poName}</span>
-                          {isSelected && <Check className="w-3 h-3 ml-1" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                <span>Location</span>
+              </h2>
             </div>
 
-            {/* Street Address & Country */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="sm:col-span-3">
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Street Address / Locality *
+            {/* Pincode & City/State lookup */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Pincode */}
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Postal Pincode <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    required
+                    placeholder="e.g. 685612"
+                    value={pincode}
+                    onChange={(e) => handlePincodeChange(e.target.value)}
+                    onBlur={() => handleBlur('pincode')}
+                    className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-mono font-bold text-slate-900 dark:text-white focus:outline-hidden ${
+                      (touched.pincode || submitAttempted) && errors.pincode
+                        ? 'border-rose-500 bg-rose-50/20'
+                        : pincodeVerified
+                        ? 'border-emerald-500 bg-emerald-50/10'
+                        : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
+                    }`}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                    {pincodeLoading && <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />}
+                    {pincodeVerified && !pincodeLoading && (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    )}
+                  </div>
+                </div>
+
+                {(touched.pincode || submitAttempted) && errors.pincode && (
+                  <p className="text-[11px] text-rose-500 font-semibold mt-1 flex items-center space-x-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>{errors.pincode}</span>
+                  </p>
+                )}
+
+                {pincodeError && (
+                  <p className="text-[11px] text-rose-500 font-semibold mt-1 flex items-center space-x-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>{pincodeError}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* City */}
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  City / Destination <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Thirunakkara, Kottayam"
+                  placeholder="e.g. Munnar"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  onBlur={() => handleBlur('city')}
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden ${
+                    (touched.city || submitAttempted) && errors.city
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
+                  }`}
+                />
+                {(touched.city || submitAttempted) && errors.city && (
+                  <p className="text-[11px] text-rose-500 font-semibold mt-1">
+                    {errors.city}
+                  </p>
+                )}
+              </div>
+
+              {/* State */}
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  State <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Kerala"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  onBlur={() => handleBlur('state')}
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden ${
+                    (touched.state || submitAttempted) && errors.state
+                      ? 'border-rose-500 bg-rose-50/20'
+                      : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
+                  }`}
+                />
+                {(touched.state || submitAttempted) && errors.state && (
+                  <p className="text-[11px] text-rose-500 font-semibold mt-1">
+                    {errors.state}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Locality suggestions if found */}
+            {availablePostOffices.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Select Locality under Pincode {pincode}:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {availablePostOffices.map((poName) => {
+                    const isSelected = selectedPostOffice === poName;
+                    return (
+                      <button
+                        key={poName}
+                        type="button"
+                        onClick={() => handleSelectPostOffice(poName)}
+                        className={`px-3 py-1 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                          isSelected
+                            ? 'bg-orange-500 text-white border-orange-500 font-bold'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-orange-500 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>{poName}</span>
+                        {isSelected && <Check className="w-3 h-3 ml-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Street Address & Country */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="sm:col-span-3">
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Street Address / Locality <span className="text-rose-500">*</span></span>
+                  <span className="text-[10px] text-slate-400 font-normal">Auto-centers map pin</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Pallivasal Tea Estate Road, Chithirapuram PO"
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  onBlur={() => handleBlur('address')}
-                  className={`w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${
+                  onChange={(e) => handleStreetAddressChange(e.target.value)}
+                  onBlur={() => {
+                    handleBlur('address');
+                    if (address.trim().length >= 3) {
+                      geocodeStreetAndPincode(address, pincode, city, state, selectedPostOffice);
+                    }
+                  }}
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${
                     (touched.address || submitAttempted) && errors.address
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
                   }`}
                 />
+
+                {/* Live locating and map centering status */}
+                {geocodingPincode && (
+                  <p className="text-[11px] text-orange-500 font-semibold flex items-center space-x-1.5 mt-1.5 animate-pulse">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    <span>Locating "{address || 'street'}" in Pincode {pincode || 'area'}...</span>
+                  </p>
+                )}
+
+                {!geocodingPincode && locationFeedback && (
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center space-x-1.5 mt-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>{locationFeedback}</span>
+                  </p>
+                )}
+
                 {(touched.address || submitAttempted) && errors.address && (
                   <p className="text-[11px] text-rose-500 font-semibold mt-1 flex items-center space-x-1">
                     <AlertCircle className="w-3 h-3 shrink-0" />
@@ -945,21 +1011,24 @@ export const AddProperty = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Country *
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Country <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                 />
               </div>
             </div>
 
-            {/* Google Map Location Picker */}
-            <div className="pt-2">
+            {/* Map Location */}
+            <div className="pt-2 space-y-1.5">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                Map Location <span className="text-rose-500">*</span>
+              </label>
               <GoogleMapLocationPicker
                 latitude={latitude}
                 longitude={longitude}
@@ -967,9 +1036,10 @@ export const AddProperty = () => {
                 initialCity={city}
                 initialState={state}
                 initialAddress={address}
+                pincode={pincode}
               />
               {(touched.location || submitAttempted) && errors.location && (
-                <p className="text-[11px] text-rose-500 font-semibold mt-1.5 flex items-center space-x-1">
+                <p className="text-[11px] text-rose-500 font-semibold mt-1 flex items-center space-x-1">
                   <AlertCircle className="w-3 h-3 shrink-0" />
                   <span>{errors.location}</span>
                 </p>
@@ -977,20 +1047,20 @@ export const AddProperty = () => {
             </div>
           </div>
 
-          {/* 3. Contact & Timings */}
+          {/* SECTION 3: CONTACT & STAY DETAILS */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center space-x-2">
-              <Phone className="w-4 h-4 text-orange-500" />
-              <span>3. Host Contact & Timings</span>
-            </h3>
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-2.5">
+              <h2 className="text-base font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
+                <Phone className="w-4 h-4 text-orange-500" />
+                <span>Contact & Stay Details</span>
+              </h2>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              {/* Phone */}
               <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                  <span>Contact Phone (India) *</span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {contactPhone.length}/10 digits
-                  </span>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Phone <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative flex items-center">
                   <span className="absolute left-3 font-mono font-bold text-xs text-orange-600 dark:text-orange-400 select-none pointer-events-none">
@@ -1002,14 +1072,13 @@ export const AddProperty = () => {
                     pattern="[0-9]*"
                     maxLength={10}
                     required
+                    placeholder="9876543201"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     onBlur={() => handleBlur('contactPhone')}
-                    className={`w-full pl-12 pr-3 py-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:outline-hidden transition-colors ${
+                    className={`w-full pl-12 pr-3 py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:outline-hidden transition-colors ${
                       (touched.contactPhone || submitAttempted) && errors.contactPhone
                         ? 'border-rose-500 bg-rose-50/20'
-                        : touched.contactPhone && !errors.contactPhone && contactPhone.length === 10
-                        ? 'border-emerald-500'
                         : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
                     }`}
                   />
@@ -1022,18 +1091,19 @@ export const AddProperty = () => {
                 )}
               </div>
 
+              {/* Email */}
               <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Contact Email *
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Email <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="host@voyara.com"
+                  placeholder="contact@retreat.com"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   onBlur={() => handleBlur('contactEmail')}
-                  className={`w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${
                     (touched.contactEmail || submitAttempted) && errors.contactEmail
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
@@ -1046,55 +1116,95 @@ export const AddProperty = () => {
                 )}
               </div>
 
+              {/* Check-in Time */}
               <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Check-in Time
                 </label>
                 <input
                   type="text"
                   value={checkInTime}
                   onChange={(e) => setCheckInTime(e.target.value)}
-                  className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                 />
               </div>
 
+              {/* Check-out Time */}
               <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Check-out Time
                 </label>
                 <input
                   type="text"
                   value={checkOutTime}
                   onChange={(e) => setCheckOutTime(e.target.value)}
-                  className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                 />
+              </div>
+            </div>
+
+            {/* Cancellation Policy */}
+            <div className="space-y-2 pt-2">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                Cancellation & Refund Policy
+              </label>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Select guest refund percentage if cancelled within 2 days of arrival (100% full refund applies when cancelled 2+ days prior):
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                {[
+                  { pct: 0, label: '0% Refund', sub: 'Strict' },
+                  { pct: 25, label: '25% Refund', sub: 'Moderate' },
+                  { pct: 50, label: '50% Refund', sub: 'Standard' },
+                  { pct: 75, label: '75% Refund', sub: 'Flexible' },
+                  { pct: 100, label: '100% Refund', sub: 'Full Refund' },
+                ].map((opt) => {
+                  const isSelected = cancellationRefundPercentage === opt.pct;
+                  return (
+                    <button
+                      key={opt.pct}
+                      type="button"
+                      onClick={() => setCancellationRefundPercentage(opt.pct)}
+                      className={`p-3 rounded-2xl border text-center transition-all cursor-pointer space-y-0.5 ${
+                        isSelected
+                          ? 'bg-[#087F8C] text-white border-[#087F8C] shadow-sm font-bold'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-[#087F8C]'
+                      }`}
+                    >
+                      <span className="block text-xs font-bold">{opt.label}</span>
+                      <span className={`block text-[10px] ${isSelected ? 'text-teal-100' : 'text-slate-400'}`}>
+                        {opt.sub}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
 
-          {/* 4. Property Amenities */}
+          {/* SECTION 4: PROPERTY AMENITIES */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
-              <span className="flex items-center space-x-2">
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center justify-between">
+              <h2 className="text-base font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
                 <Sparkles className="w-4 h-4 text-orange-500" />
-                <span>4. Property Amenities & Facilities</span>
-              </span>
-              <span className="text-[10px] text-orange-600 font-bold">
+                <span>Property Amenities</span>
+              </h2>
+              <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">
                 {amenities.length} selected
               </span>
-            </h3>
+            </div>
 
-            {/* Selected Amenities Badges */}
+            {/* Selected Amenities Pills */}
             {amenities.length > 0 && (
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Active Property Amenities (Click &times; to remove):
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Selected Amenities (Click ✕ to remove):
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {amenities.map((am) => (
                     <span
                       key={am}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-[#F97360] to-orange-500 text-white text-xs font-bold shadow-xs"
+                      className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-orange-500 text-white text-xs font-semibold shadow-xs"
                     >
                       <span>{am}</span>
                       <button
@@ -1124,40 +1234,38 @@ export const AddProperty = () => {
                     handleAddCustomPropAmenity();
                   }
                 }}
-                className="flex-1 p-2 bg-[#FFF8F0]/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
+                className="flex-1 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
               />
               <button
                 type="button"
                 onClick={handleAddCustomPropAmenity}
-                className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                className="px-3.5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
               >
                 + Add
               </button>
             </div>
 
-            {/* Suggested Presets */}
+            {/* Popular Suggestions */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Popular Suggestions (Click to add/remove):
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                Popular Suggestions:
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {defaultAmenitiesList.map((am) => {
-                  const checked = (amenities || []).some(
-                    (a) => a.toLowerCase() === am.toLowerCase()
-                  );
+                  const isChecked = amenities.some((a) => a.toLowerCase() === am.toLowerCase());
                   return (
                     <button
                       key={am}
                       type="button"
                       onClick={() => handleTogglePropAmenity(am)}
                       className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
-                        checked
-                          ? 'bg-gradient-to-r from-[#F97360] to-orange-500 text-white border-orange-500 shadow-2xs font-bold'
+                        isChecked
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-xs font-bold'
                           : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-orange-500 hover:text-orange-600'
                       }`}
                     >
                       <span>{am}</span>
-                      {checked ? (
+                      {isChecked ? (
                         <Check className="w-3.5 h-3.5 text-white ml-0.5" />
                       ) : (
                         <Plus className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
@@ -1169,21 +1277,23 @@ export const AddProperty = () => {
             </div>
           </div>
 
-          {/* 5. Property Photos (MultiImageUploadPicker) */}
+          {/* SECTION 5: PROPERTY PHOTOS */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
-              <span className="flex items-center space-x-2">
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center justify-between">
+              <h2 className="text-base font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
                 <Image className="w-4 h-4 text-orange-500" />
-                <span>5. Overall Property Photos *</span>
+                <span>Property Photos</span>
+              </h2>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {images.length} photo(s)
               </span>
-              <span className="text-[10px] font-semibold text-slate-400">
-                {images.length} photo(s) added
-              </span>
-            </h3>
+            </div>
 
             <MultiImageUploadPicker
-              label="Property Exterior, Grounds & Common Area Photos"
-              hint="Upload actual JPG, JPEG, PNG, or WebP photos stored securely on Voyara server"
+              title="Add Property Photos"
+              label="Add Property Photos"
+              hint="Drag & drop photos here or Browse"
+              formatsText="JPG, JPEG, PNG"
               images={images}
               onChange={(newImgs) => setImages(newImgs)}
               maxPhotos={10}
@@ -1198,20 +1308,20 @@ export const AddProperty = () => {
             )}
           </div>
 
-          {/* 6. ROOMS / UNITS CONFIGURATION */}
+          {/* SECTION 6: ROOMS & ROOM PHOTOS */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-2">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+              <h2 className="text-base font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
                 <Bed className="w-4 h-4 text-emerald-600" />
-                <span>6. Rooms & Units Configuration *</span>
-              </h3>
-              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
-                {rooms.length} Room Type(s) Added
+                <span>Rooms & Room Photos</span>
+              </h2>
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2.5 py-0.5 rounded-full">
+                {rooms.length} Room Type(s)
               </span>
             </div>
 
-            <p className="text-xs text-slate-500 dark:text-slate-400 -mt-2">
-              Define the available room types, guest capacities, inventory counts, nightly rates, and specific room photos for customer booking.
+            <p className="text-xs text-slate-500 dark:text-slate-400 -mt-3 font-light">
+              Add individual room types with their own details, pricing, guest capacity, and room photos.
             </p>
 
             {/* Room Units List */}
@@ -1221,18 +1331,18 @@ export const AddProperty = () => {
                 return (
                   <div
                     key={idx}
-                    className="p-5 sm:p-6 rounded-3xl bg-[#FFF8F0]/40 dark:bg-slate-900/60 border border-slate-200/90 dark:border-slate-800 space-y-5 shadow-xs relative"
+                    className="p-5 sm:p-6 rounded-3xl bg-[#FFFDF7]/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-5 shadow-xs"
                   >
                     {/* Room Header */}
-                    <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/80 pb-3">
-                      <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-3">
+                      <div className="flex items-center space-x-2.5">
                         <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-mono font-bold text-xs flex items-center justify-center">
                           {roomNum}
                         </span>
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                           {room.name ? room.name : `Room Type #${roomNum}`}
-                        </h4>
-                        <span className="text-[10px] px-2 py-0.5 bg-orange-500/10 text-[#F97360] font-bold rounded-md uppercase">
+                        </h3>
+                        <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold rounded-md">
                           {room.room_type}
                         </span>
                       </div>
@@ -1245,22 +1355,22 @@ export const AddProperty = () => {
                           title="Remove this room type"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span className="font-semibold text-[11px]">Remove Unit</span>
+                          <span className="font-semibold text-[11px]">Remove Room</span>
                         </button>
                       )}
                     </div>
 
-                    {/* Room Inputs Grid */}
+                    {/* Room Inputs */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {/* Room Type */}
                       <div>
-                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                          Room Type / Category *
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                          Room Type <span className="text-rose-500">*</span>
                         </label>
                         <select
                           value={room.room_type}
                           onChange={(e) => handleUpdateRoom(idx, 'room_type', e.target.value)}
-                          className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden"
+                          className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden"
                         >
                           {ROOM_TYPE_OPTIONS.map((rt) => (
                             <option key={rt} value={rt}>
@@ -1270,19 +1380,18 @@ export const AddProperty = () => {
                         </select>
                       </div>
 
-                      {/* Room Name / Title */}
+                      {/* Room Name */}
                       <div className="sm:col-span-2">
-                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                          <span>Room Name / Title *</span>
-                          <span className="text-[10px] text-slate-400 font-normal">e.g. Deluxe Mountain View Suite</span>
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                          Room Name <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="text"
                           required
-                          placeholder="e.g. Deluxe Mountain View Suite with Balcony"
+                          placeholder="e.g. Deluxe Valley Room"
                           value={room.name}
                           onChange={(e) => handleUpdateRoom(idx, 'name', e.target.value)}
-                          className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden ${
+                          className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden ${
                             submitAttempted && errors[`room_${idx}_name`]
                               ? 'border-rose-500 bg-rose-50/20'
                               : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
@@ -1298,17 +1407,16 @@ export const AddProperty = () => {
 
                     {/* Room Description */}
                     <div>
-                      <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                        <span>Room Description *</span>
-                        <span className="text-[10px] text-slate-400 font-normal">Layout, bed size, view, features</span>
+                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Description <span className="text-rose-500">*</span>
                       </label>
                       <textarea
                         rows={2}
                         required
-                        placeholder="Describe room layout, bed types, ensuite bath, scenic views, and comfort details..."
+                        placeholder="Describe room features, view, comfort, bed configuration..."
                         value={room.description}
                         onChange={(e) => handleUpdateRoom(idx, 'description', e.target.value)}
-                        className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-normal text-slate-900 dark:text-white focus:outline-hidden ${
+                        className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${
                           submitAttempted && errors[`room_${idx}_desc`]
                             ? 'border-rose-500 bg-rose-50/20'
                             : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
@@ -1321,14 +1429,14 @@ export const AddProperty = () => {
                       )}
                     </div>
 
-                    {/* Capacity, Inventory & Price Grid */}
+                    {/* Capacity, Quantity & Price */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {/* Max Guests (Capacity) */}
+                      {/* Max Guests */}
                       <NumberStepperInput
                         id={`room_${idx}_capacity`}
-                        label="Max Guests Allowed"
+                        label="Maximum Guests"
                         icon={Users}
-                        hint="Guests in 1 unit"
+                        hint="Guests per room"
                         value={room.capacity}
                         onChange={(val) => handleUpdateRoom(idx, 'capacity', val)}
                         min={1}
@@ -1336,18 +1444,18 @@ export const AddProperty = () => {
                         step={1}
                         required={true}
                         error={
-                          (submitAttempted || room.capacity === 0 || (room.capacity !== '' && parseInt(room.capacity, 10) < 1))
+                          submitAttempted || room.capacity === 0 || (room.capacity !== '' && parseInt(room.capacity, 10) < 1)
                             ? errors[`room_${idx}_capacity`]
                             : ''
                         }
                       />
 
-                      {/* Number of Units (Quantity) */}
+                      {/* Number of Units */}
                       <NumberStepperInput
                         id={`room_${idx}_quantity`}
                         label="Number of Units"
                         icon={Layers}
-                        hint="Total rooms of type"
+                        hint="Available rooms"
                         value={room.quantity}
                         onChange={(val) => handleUpdateRoom(idx, 'quantity', val)}
                         min={1}
@@ -1355,54 +1463,51 @@ export const AddProperty = () => {
                         step={1}
                         required={true}
                         error={
-                          (submitAttempted || room.quantity === 0 || (room.quantity !== '' && parseInt(room.quantity, 10) < 1))
+                          submitAttempted || room.quantity === 0 || (room.quantity !== '' && parseInt(room.quantity, 10) < 1)
                             ? errors[`room_${idx}_quantity`]
                             : ''
                         }
                       />
 
-                      {/* Price Per Night */}
+                      {/* Price per Night */}
                       <div>
-                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center space-x-1">
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center space-x-1">
                           <IndianRupee className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Price per Night (₹) *</span>
+                          <span>Price per Night (₹) <span className="text-rose-500">*</span></span>
                         </label>
                         <input
                           type="number"
                           min="100"
                           step="50"
                           required
-                          placeholder="e.g. 3500"
+                          placeholder="2500"
                           value={room.base_price}
                           onChange={(e) =>
                             handleUpdateRoom(idx, 'base_price', parseFloat(e.target.value) || 0)
                           }
-                          className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-hidden"
+                          className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500"
                         />
-                        <span className="text-[10px] text-slate-400 block mt-0.5">
-                          Base nightly price in INR
-                        </span>
                       </div>
                     </div>
 
                     {/* Room Amenities */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <label className="block font-bold text-slate-700 dark:text-slate-300">
-                          Room Amenities & Features
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                          Room Amenities
                         </label>
-                        <span className="text-[10px] text-emerald-600 font-bold">
-                          {(room.amenities || []).length} features selected
+                        <span className="text-[11px] font-semibold text-emerald-600">
+                          {(room.amenities || []).length} selected
                         </span>
                       </div>
 
-                      {/* Active Room Amenities Badges */}
+                      {/* Active Room Amenities */}
                       {(room.amenities || []).length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {(room.amenities || []).map((am) => (
                             <span
                               key={am}
-                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold shadow-2xs"
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold shadow-xs"
                             >
                               <span>{am}</span>
                               <button
@@ -1418,11 +1523,11 @@ export const AddProperty = () => {
                         </div>
                       )}
 
-                      {/* Custom Room Amenity Adder */}
+                      {/* Custom Room Amenity */}
                       <div className="flex items-center space-x-2 max-w-sm">
                         <input
                           type="text"
-                          placeholder="Add custom room feature (e.g. Jacuzzi, River View)"
+                          placeholder="Add custom feature (e.g. Jacuzzi, Balcony)"
                           value={customRoomAmenities[idx] || ''}
                           onChange={(e) =>
                             setCustomRoomAmenities((prev) => ({ ...prev, [idx]: e.target.value }))
@@ -1444,45 +1549,45 @@ export const AddProperty = () => {
                         </button>
                       </div>
 
-                      {/* Suggested Room Presets */}
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Suggested Room Features (Click to add/remove):
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {AVAILABLE_ROOM_AMENITIES.map((am) => {
-                            const checked = (room.amenities || []).some(
-                              (a) => a.toLowerCase() === am.toLowerCase()
-                            );
-                            return (
-                              <button
-                                key={am}
-                                type="button"
-                                onClick={() => handleToggleRoomAmenity(idx, am)}
-                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center space-x-1 ${
-                                  checked
-                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs font-bold'
-                                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:text-emerald-600'
-                                }`}
-                              >
-                                <span>{am}</span>
-                                {checked ? (
-                                  <Check className="w-3 h-3 text-white ml-0.5" />
-                                ) : (
-                                  <Plus className="w-3 h-3 text-slate-400 ml-0.5" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
+                      {/* Room Presets */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {AVAILABLE_ROOM_AMENITIES.map((am) => {
+                          const isChecked = (room.amenities || []).some(
+                            (a) => a.toLowerCase() === am.toLowerCase()
+                          );
+                          return (
+                            <button
+                              key={am}
+                              type="button"
+                              onClick={() => handleToggleRoomAmenity(idx, am)}
+                              className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center space-x-1 ${
+                                isChecked
+                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs font-bold'
+                                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500'
+                              }`}
+                            >
+                              <span>{am}</span>
+                              {isChecked ? (
+                                <Check className="w-3 h-3 text-white ml-0.5" />
+                              ) : (
+                                <Plus className="w-3 h-3 text-slate-400 ml-0.5" />
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
                     {/* Room Photos */}
-                    <div className="space-y-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+                    <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {room.name ? `${room.name} — Room Photos` : `Room Photos (#${roomNum})`}
+                      </div>
                       <MultiImageUploadPicker
-                        label={`Photos for Room #${roomNum} (${room.name || room.room_type})`}
-                        hint="Upload bedroom, bathroom, and balcony photos for this specific room unit (JPG, PNG, WebP)"
+                        title="Add Room Photos"
+                        label="Add Room Photos"
+                        hint="Drag & drop photos here or Browse"
+                        formatsText="JPG, JPEG, PNG"
                         images={room.images || []}
                         onChange={(newImgs) => handleUpdateRoomImages(idx, newImgs)}
                         maxPhotos={8}
@@ -1499,70 +1604,34 @@ export const AddProperty = () => {
                 );
               })}
 
-              {/* Add Another Room Type CTA */}
+              {/* + Add Another Room Button */}
               <button
                 type="button"
                 onClick={handleAddRoom}
                 className="w-full py-3.5 border-2 border-dashed border-emerald-500/60 hover:border-emerald-600 bg-emerald-500/5 hover:bg-emerald-500/10 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 rounded-2xl font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-xs"
               >
                 <Plus className="w-4 h-4" />
-                <span>+ Add Another Room Type (e.g. Suite, Villa, Standard)</span>
+                <span>+ Add Another Room</span>
               </button>
             </div>
           </div>
 
-          {/* 7. Ownership & Legal Verification Proof */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
-              <span className="flex items-center space-x-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>7. Ownership & Legal Verification *</span>
-              </span>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                Admin Only
-              </span>
-            </h3>
-
-            <DocumentUploadPicker
-              value={ownershipProofUrl}
-              onChange={setOwnershipProofUrl}
-              label="Property Ownership / Authorization Proof *"
-              hint="Upload a document (Electricity Bill, Title Deed, Lease Agreement, or Tax Receipt) that proves you own or are authorized to manage this property."
-              required={true}
-            />
-
-            {(touched.ownershipProof || submitAttempted) && errors.ownershipProof && (
-              <p className="text-[11px] text-rose-500 font-semibold flex items-center space-x-1">
-                <AlertCircle className="w-3 h-3 shrink-0" />
-                <span>{errors.ownershipProof}</span>
-              </p>
-            )}
-          </div>
-
-          {/* Submission CTA */}
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-            <div className="text-center text-[11px] text-slate-500 dark:text-slate-400">
-              By submitting, your property details, GPS pin, {rooms.length} room type(s), photos, and ownership document will be sent to the Voyara Admin Center for approval.
-            </div>
-
+          {/* SECTION 7: FINAL SUBMIT */}
+          <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-4 text-white font-bold rounded-2xl shadow-lg transition-all text-sm flex items-center justify-center space-x-2 cursor-pointer ${
-                isFormValid
-                  ? 'bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/20'
-                  : 'bg-gradient-to-r from-[#F97360]/80 to-orange-500/80 hover:from-orange-600'
-              }`}
+              className="w-full py-4 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all text-sm flex items-center justify-center space-x-2 cursor-pointer"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Submitting Property & Rooms for Verification...</span>
+                  <span>Submitting Property...</span>
                 </>
               ) : (
                 <>
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Submit Property & {rooms.length} Room Type(s) for Verification</span>
+                  <span>Submit Property & {rooms.length} Room Type(s)</span>
                 </>
               )}
             </button>

@@ -134,6 +134,61 @@ class ReviewService:
         }
 
     @staticmethod
+    def get_booking_review_eligibility(db: Session, booking_id: int, user_id: int) -> dict:
+        """Checks if a specific booking is eligible for a customer review."""
+        booking = db.query(Booking).filter(
+            Booking.id == booking_id,
+            Booking.user_id == user_id
+        ).first()
+
+        if not booking:
+            return {
+                "eligible": False,
+                "reason": "Booking reservation not found or access denied.",
+                "existing_review": None
+            }
+
+        existing_review = db.query(Review).filter(Review.booking_id == booking.id).first()
+        if existing_review:
+            return {
+                "eligible": False,
+                "already_reviewed": True,
+                "reason": "You have already submitted a review for this booking stay.",
+                "existing_review": {
+                    "id": existing_review.id,
+                    "rating": existing_review.rating,
+                    "comment": existing_review.comment,
+                    "created_at": existing_review.created_at
+                }
+            }
+
+        if booking.status in [BookingStatus.CANCELLED, BookingStatus.FAILED]:
+            return {
+                "eligible": False,
+                "already_reviewed": False,
+                "reason": "Cancelled or failed stays cannot be reviewed.",
+                "existing_review": None
+            }
+
+        today = date.today()
+        is_completed = (booking.status == BookingStatus.COMPLETED) or (booking.check_out <= today and booking.status in [BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN, BookingStatus.CHECKED_OUT])
+
+        if not is_completed:
+            return {
+                "eligible": False,
+                "already_reviewed": False,
+                "reason": f"Reviews are permitted only after checkout is complete ({booking.check_out.strftime('%d %b %Y')}).",
+                "existing_review": None
+            }
+
+        return {
+            "eligible": True,
+            "already_reviewed": False,
+            "reason": "Eligible for review",
+            "existing_review": None
+        }
+
+    @staticmethod
     def get_eligible_bookings_for_review(db: Session, user_id: int) -> List[dict]:
         """Fetch customer bookings eligible for review (checkout passed, not cancelled, no review yet)."""
         today = date.today()
@@ -143,7 +198,7 @@ class ReviewService:
 
         query = db.query(Booking).filter(
             Booking.user_id == user_id,
-            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.COMPLETED]),
+            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.CHECKED_IN, BookingStatus.CHECKED_OUT, BookingStatus.COMPLETED]),
             Booking.check_out <= today
         )
 

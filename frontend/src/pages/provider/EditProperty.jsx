@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { providerApi } from '../../api/provider';
 import { MultiImageUploadPicker } from '../../components/common/MultiImageUploadPicker';
 import { GoogleMapLocationPicker } from '../../components/common/GoogleMapLocationPicker';
-import { DocumentUploadPicker } from '../../components/common/DocumentUploadPicker';
 import { NumberStepperInput } from '../../components/common/NumberStepperInput';
 import {
   Home,
@@ -28,6 +27,7 @@ import {
   Save,
   X,
   AlertTriangle,
+  Lock,
 } from 'lucide-react';
 
 const ROOM_TYPE_OPTIONS = [
@@ -108,12 +108,17 @@ export const EditProperty = () => {
   const [contactEmail, setContactEmail] = useState('');
   const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutTime, setCheckOutTime] = useState('11:00');
+  const [guestInformationMessage, setGuestInformationMessage] = useState('');
+  const [guestMessageSaving, setGuestMessageSaving] = useState(false);
+  const [guestMessageSuccess, setGuestMessageSuccess] = useState('');
+  const [cancellationRefundPercentage, setCancellationRefundPercentage] = useState(50);
+  const [cancellationPolicySaving, setCancellationPolicySaving] = useState(false);
+  const [cancellationPolicySuccess, setCancellationPolicySuccess] = useState('');
 
-  // 3. Amenities, Photos & Verification Proof
+  // 3. Amenities & Photos
   const [amenities, setAmenities] = useState([]);
   const [customPropAmenity, setCustomPropAmenity] = useState('');
   const [images, setImages] = useState([]);
-  const [ownershipProofUrl, setOwnershipProofUrl] = useState('');
 
   // 4. Pincode Lookup
   const [pincodeLoading, setPincodeLoading] = useState(false);
@@ -122,7 +127,9 @@ export const EditProperty = () => {
   const [availablePostOffices, setAvailablePostOffices] = useState([]);
   const [selectedPostOffice, setSelectedPostOffice] = useState('');
   const [geocodingPincode, setGeocodingPincode] = useState(false);
+  const [locationFeedback, setLocationFeedback] = useState('');
   const geocodeRequestIdRef = useRef(0);
+  const streetDebounceRef = useRef(null);
 
   // 5. Rooms State
   const [rooms, setRooms] = useState([]);
@@ -132,9 +139,44 @@ export const EditProperty = () => {
   const [touched, setTouched] = useState({});
 
   const propertyTypes = ['Hotel', 'Homestay', 'Resort', 'Camp', 'Cottage', 'Villa'];
+  const isLocationLocked = verificationStatus === 'VERIFIED';
 
   const handleBlur = (field) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  // Dedicated save handler for Guest Information & Safety Message
+  const handleSaveGuestInformation = async () => {
+    if (guestInformationMessage.length > 5000) {
+      alert('Guest information message must not exceed 5000 characters.');
+      return;
+    }
+    setGuestMessageSaving(true);
+    setGuestMessageSuccess('');
+    try {
+      await providerApi.updateGuestInformation(id, guestInformationMessage);
+      setGuestMessageSuccess('Guest Information & Safety Message saved successfully in PostgreSQL!');
+      setTimeout(() => setGuestMessageSuccess(''), 4000);
+    } catch (err) {
+      alert(err.message || 'Failed to save guest information message.');
+    } finally {
+      setGuestMessageSaving(false);
+    }
+  };
+
+  // Dedicated save handler for Cancellation Policy
+  const handleSaveCancellationPolicy = async () => {
+    setCancellationPolicySaving(true);
+    setCancellationPolicySuccess('');
+    try {
+      await providerApi.updateCancellationPolicy(id, Number(cancellationRefundPercentage));
+      setCancellationPolicySuccess('Cancellation policy updated successfully in PostgreSQL!');
+      setTimeout(() => setCancellationPolicySuccess(''), 4000);
+    } catch (err) {
+      alert(err.response?.data?.detail || err.message || 'Failed to update cancellation policy.');
+    } finally {
+      setCancellationPolicySaving(false);
+    }
   };
 
   // Fetch initial property details
@@ -159,9 +201,14 @@ export const EditProperty = () => {
           setContactEmail(prop.contact_email || '');
           setCheckInTime(prop.check_in_time || '14:00');
           setCheckOutTime(prop.check_out_time || '11:00');
+          setGuestInformationMessage(prop.guest_information_message || '');
+          setCancellationRefundPercentage(
+            prop.cancellation_refund_percentage !== undefined && prop.cancellation_refund_percentage !== null
+              ? prop.cancellation_refund_percentage
+              : 50
+          );
           setVerificationStatus(prop.verification_status || 'VERIFIED');
           setVerificationReason(prop.verification_reason || '');
-          setOwnershipProofUrl(prop.ownership_proof_url || '');
 
           // Extract pincode from address if present
           const pinMatch = (prop.address || '').match(/\b([1-9][0-9]{5})\b/);
@@ -322,59 +369,126 @@ export const EditProperty = () => {
   };
 
   // --- Map and Pincode Handlers ---
-  const geocodeAndMoveMap = async (placeQuery, fallbackCity, fallbackState, isLocalitySpecific = false) => {
+  const geocodeStreetAndPincode = async (streetText, pinText, cityText, stateText, selectedLocality = '') => {
+    const cleanPin = (pinText || '').trim();
+    const cleanStreet = (streetText || '').trim();
+    const cleanCity = (cityText || '').trim();
+    const cleanState = (stateText || '').trim();
+
+    if (!cleanPin && !cleanStreet) return;
+
     setGeocodingPincode(true);
     const reqId = ++geocodeRequestIdRef.current;
+
     try {
-      const queriesToTry = isLocalitySpecific
-        ? [
-            [placeQuery, fallbackCity && fallbackCity !== placeQuery ? fallbackCity : '', fallbackState, 'India'].filter(Boolean).join(', '),
-            [placeQuery, fallbackState, 'India'].filter(Boolean).join(', '),
-            [placeQuery, fallbackCity, 'India'].filter(Boolean).join(', '),
-            [placeQuery, 'India'].filter(Boolean).join(', '),
-          ]
-        : [
-            [placeQuery, fallbackCity && fallbackCity !== placeQuery ? fallbackCity : '', fallbackState, 'India'].filter(Boolean).join(', '),
-            [placeQuery, fallbackState, 'India'].filter(Boolean).join(', '),
-            [fallbackCity, fallbackState, 'India'].filter(Boolean).join(', '),
-            [placeQuery, 'India'].filter(Boolean).join(', '),
-          ];
+      const queriesToTry = [];
 
-      const uniqueQueries = [...new Set(queriesToTry)];
-
-      for (const q of uniqueQueries) {
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-              q
-            )}&countrycodes=in&limit=1&addressdetails=1`,
-            {
-              headers: {
-                'Accept-Language': 'en',
-                'User-Agent': 'Voyara-Pincode-Geocoding/1.0',
-              },
-            }
+      if (cleanPin && /^[1-9][0-9]{5}$/.test(cleanPin)) {
+        if (cleanStreet && cleanStreet.length >= 3) {
+          // 1. Structured query: street + postalcode in India
+          queriesToTry.push(
+            `https://nominatim.openstreetmap.org/search?format=json&street=${encodeURIComponent(
+              cleanStreet
+            )}&postalcode=${encodeURIComponent(cleanPin)}&countrycodes=in&limit=3&addressdetails=1`
           );
+          // 2. Freeform query with street + pincode + city + state
+          queriesToTry.push(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+              [cleanStreet, cleanPin, cleanCity, cleanState, 'India'].filter(Boolean).join(', ')
+            )}&countrycodes=in&limit=3&addressdetails=1`
+          );
+          // 3. Freeform query with street + pincode
+          queriesToTry.push(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+              `${cleanStreet}, ${cleanPin}, India`
+            )}&countrycodes=in&limit=3&addressdetails=1`
+          );
+          // 4. Locality + street + pincode
+          if (selectedLocality && selectedLocality !== cleanStreet) {
+            queriesToTry.push(
+              `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+                [cleanStreet, selectedLocality, cleanPin, 'India'].filter(Boolean).join(', ')
+              )}&countrycodes=in&limit=3&addressdetails=1`
+            );
+          }
+        }
+
+        // 5. Locality under that pincode
+        if (selectedLocality) {
+          queriesToTry.push(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+              [selectedLocality, cleanPin, cleanState, 'India'].filter(Boolean).join(', ')
+            )}&countrycodes=in&limit=3&addressdetails=1`
+          );
+        }
+        // 6. Direct postalcode lookup in India
+        queriesToTry.push(
+          `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(
+            cleanPin
+          )}&countrycodes=in&limit=3&addressdetails=1`
+        );
+        // 7. Pincode + City + State freeform
+        queriesToTry.push(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            [cleanCity, cleanState, cleanPin, 'India'].filter(Boolean).join(', ')
+          )}&countrycodes=in&limit=3&addressdetails=1`
+        );
+      } else if (cleanStreet && cleanStreet.length >= 4 && (cleanCity || cleanState)) {
+        queriesToTry.push(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            [cleanStreet, cleanCity, cleanState, 'India'].filter(Boolean).join(', ')
+          )}&countrycodes=in&limit=3&addressdetails=1`
+        );
+      }
+
+      let found = false;
+      for (const url of queriesToTry) {
+        try {
+          const res = await fetch(url, {
+            headers: {
+              'Accept-Language': 'en',
+              'User-Agent': 'Voyara-Pincode-Street-Geocoding/1.0',
+            },
+          });
 
           if (res.ok) {
             const data = await res.json();
             if (reqId !== geocodeRequestIdRef.current) return;
+
             if (Array.isArray(data) && data.length > 0) {
-              const newLat = parseFloat(parseFloat(data[0].lat).toFixed(6));
-              const newLng = parseFloat(parseFloat(data[0].lon).toFixed(6));
+              const validMatch =
+                data.find((item) => {
+                  const lat = parseFloat(item.lat);
+                  const lon = parseFloat(item.lon);
+                  return lat >= 6.5 && lat <= 37.5 && lon >= 68.0 && lon <= 97.5;
+                }) || data[0];
+
+              const newLat = parseFloat(parseFloat(validMatch.lat).toFixed(6));
+              const newLng = parseFloat(parseFloat(validMatch.lon).toFixed(6));
+
               if (newLat >= 6.5 && newLat <= 37.5 && newLng >= 68.0 && newLng <= 97.5) {
                 setLatitude(newLat);
                 setLongitude(newLng);
+                setLocationFeedback(
+                  cleanStreet
+                    ? `📍 Map centered on "${cleanStreet}" (Pincode: ${cleanPin || 'India'})`
+                    : `📍 Map centered on Pincode ${cleanPin}`
+                );
+                found = true;
                 break;
               }
             }
           }
         } catch (subErr) {
-          console.warn(`Geocoding query "${q}" failed:`, subErr);
+          console.warn('Geocoding attempt warning:', subErr);
         }
       }
+
+      if (!found && reqId === geocodeRequestIdRef.current && cleanPin) {
+        setLocationFeedback(`📍 Map focused on area with Pincode ${cleanPin}`);
+      }
     } catch (e) {
-      console.warn('Geocoding place warning:', e);
+      console.warn('Geocoding street/pincode warning:', e);
     } finally {
       if (reqId === geocodeRequestIdRef.current) {
         setGeocodingPincode(false);
@@ -415,6 +529,7 @@ export const EditProperty = () => {
     setPincodeVerified(false);
     setAvailablePostOffices([]);
     setSelectedPostOffice('');
+    setLocationFeedback('');
 
     if (clean.length === 6) {
       setPincodeLoading(true);
@@ -433,10 +548,12 @@ export const EditProperty = () => {
 
           const defaultPlace = targetPlaces.length > 0 ? targetPlaces[0] : targetDistrict;
           setSelectedPostOffice(defaultPlace);
-          const newAddr = `${defaultPlace}, ${targetDistrict}`;
-          setAddress(newAddr);
+          const currentStreet = address.trim() || `${defaultPlace}, ${targetDistrict}`;
+          if (!address.trim()) {
+            setAddress(currentStreet);
+          }
 
-          geocodeAndMoveMap(defaultPlace, targetDistrict, targetState, false);
+          geocodeStreetAndPincode(currentStreet, clean, targetDistrict, targetState, defaultPlace);
         }
       } catch (err) {
         setPincodeError('Could not verify pincode. Please check the 6-digit postal code.');
@@ -446,12 +563,28 @@ export const EditProperty = () => {
     }
   };
 
+  // Handle Street Address changes with live debounced map recentering
+  const handleStreetAddressChange = (val) => {
+    setAddress(val);
+    setLocationFeedback('');
+
+    if (streetDebounceRef.current) {
+      clearTimeout(streetDebounceRef.current);
+    }
+
+    if (val.trim().length >= 3) {
+      streetDebounceRef.current = setTimeout(() => {
+        geocodeStreetAndPincode(val, pincode, city, state, selectedPostOffice);
+      }, 500);
+    }
+  };
+
   const handleSelectPostOffice = (placeName) => {
     if (placeName) {
       setSelectedPostOffice(placeName);
       const newAddr = `${placeName}, ${city || state}`;
       setAddress(newAddr);
-      geocodeAndMoveMap(placeName, city, state, true);
+      geocodeStreetAndPincode(placeName, pincode, city, state, placeName);
     }
   };
 
@@ -556,9 +689,10 @@ export const EditProperty = () => {
         contact_email: contactEmail.trim(),
         check_in_time: checkInTime,
         check_out_time: checkOutTime,
+        guest_information_message: guestInformationMessage.trim() || undefined,
+        cancellation_refund_percentage: parseInt(cancellationRefundPercentage, 10) || 50,
         amenities,
         images: images.map((img) => (typeof img === 'string' ? img : img.image_url)).filter(Boolean),
-        ownership_proof_url: ownershipProofUrl || undefined,
       };
 
       // 1. Update Property details in DB
@@ -613,23 +747,23 @@ export const EditProperty = () => {
       <button
         type="button"
         onClick={() => navigate('/provider/properties')}
-        className="inline-flex items-center space-x-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
+        className="inline-flex items-center space-x-1.5 text-xs font-bold text-[#087F8C] dark:text-[#27B7A8] hover:underline cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Back to Properties</span>
       </button>
 
-      <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-10 border border-[#FDBA9A]/30 dark:border-slate-800 shadow-md space-y-8">
+      <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-10 border border-slate-200/80 dark:border-slate-800 shadow-md space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <span className="text-xs uppercase font-bold tracking-widest text-orange-500">
-              Sanctuary Management
+              Property Management
             </span>
-            <h2 className="text-2xl sm:text-3xl font-black font-serif text-slate-900 dark:text-white mt-1">
+            <h2 className="text-2xl sm:text-3xl font-black font-serif text-[#091B29] dark:text-white mt-1">
               Edit Property & Room Details
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Updates saved here persist in PostgreSQL and immediately reflect on customer searches and stay listings.
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-light">
+              Updates saved here immediately reflect on traveler searches and stay listings.
             </p>
           </div>
 
@@ -637,8 +771,8 @@ export const EditProperty = () => {
             <span
               className={`px-3 py-1 rounded-full text-xs font-bold ${
                 verificationStatus === 'VERIFIED'
-                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                  : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                  ? 'bg-[#35A66F]/15 text-[#35A66F] border border-[#35A66F]/30'
+                  : 'bg-[#F6C945]/15 text-amber-700 dark:text-[#F6C945] border border-[#F6C945]/30'
               }`}
             >
               {verificationStatus === 'VERIFIED' ? '✓ Verified & Live' : verificationStatus}
@@ -756,58 +890,108 @@ export const EditProperty = () => {
                 <MapPin className="w-4 h-4 text-orange-500" />
                 <span>2. Location & GPS Position</span>
               </span>
-              <span className="text-[10px] text-emerald-600 font-bold">India Stays</span>
+              {isLocationLocked ? (
+                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                  <Lock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                  <span>Verified Location Locked</span>
+                </span>
+              ) : (
+                <span className="text-[10px] text-emerald-600 font-bold">India Stays</span>
+              )}
             </h3>
+
+            {/* Post-Approval Location Lockdown Notice */}
+            {isLocationLocked && (
+              <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 flex items-start space-x-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0 mt-0.5">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                      LOCATION
+                    </span>
+                    <span className="text-xs font-mono font-bold text-amber-800 dark:text-amber-300">
+                      {country || 'India'} • {city} • {state} • {pincode}
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-700 dark:text-amber-300/90 font-medium">
+                    🔒 Verified location cannot be changed after approval. If you need a property in another location, please create a new property.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Pincode
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Pincode</span>
+                  {isLocationLocked && <Lock className="w-3 h-3 text-slate-400" />}
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     maxLength={6}
+                    disabled={isLocationLocked}
+                    readOnly={isLocationLocked}
                     placeholder="e.g. 685612"
                     value={pincode}
-                    onChange={(e) => handlePincodeChange(e.target.value)}
-                    className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
+                    onChange={(e) => !isLocationLocked && handlePincodeChange(e.target.value)}
+                    className={`w-full p-2.5 rounded-xl font-mono font-bold ${
+                      isLocationLocked
+                        ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500'
+                    }`}
                   />
-                  {pincodeLoading && (
+                  {pincodeLoading && !isLocationLocked && (
                     <Loader2 className="w-4 h-4 text-orange-500 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  City / Destination *
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>City / Destination *</span>
+                  {isLocationLocked && <Lock className="w-3 h-3 text-slate-400" />}
                 </label>
                 <input
                   type="text"
                   required
+                  disabled={isLocationLocked}
+                  readOnly={isLocationLocked}
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
+                  onChange={(e) => !isLocationLocked && setCity(e.target.value)}
+                  className={`w-full p-2.5 rounded-xl font-semibold ${
+                    isLocationLocked
+                      ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
+                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  State *
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>State *</span>
+                  {isLocationLocked && <Lock className="w-3 h-3 text-slate-400" />}
                 </label>
                 <input
                   type="text"
                   required
+                  disabled={isLocationLocked}
+                  readOnly={isLocationLocked}
                   value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
+                  onChange={(e) => !isLocationLocked && setState(e.target.value)}
+                  className={`w-full p-2.5 rounded-xl font-semibold ${
+                    isLocationLocked
+                      ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
+                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500'
+                  }`}
                 />
               </div>
             </div>
 
-            {/* Locality Selector if returned by Pincode API */}
-            {availablePostOffices.length > 0 && (
+            {/* Locality Selector if returned by Pincode API (editable mode only) */}
+            {!isLocationLocked && availablePostOffices.length > 0 && (
               <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800">
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
                   Localities under Pincode {pincode} (Click to set address & move map pin):
@@ -822,7 +1006,7 @@ export const EditProperty = () => {
                         onClick={() => handleSelectPostOffice(poName)}
                         className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center space-x-1.5 ${
                           isSelected
-                            ? 'bg-gradient-to-r from-[#F97360] to-orange-500 text-white border-orange-500 shadow-xs font-bold'
+                            ? 'bg-gradient-to-r from-orange-500 to-[#EA580C] text-white border-orange-500 shadow-xs font-bold'
                             : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-orange-500 hover:text-orange-600 text-slate-700 dark:text-slate-300'
                         }`}
                       >
@@ -837,26 +1021,60 @@ export const EditProperty = () => {
             )}
 
             <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Street Address / Locality *
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                <span>Street Address / Locality *</span>
+                {isLocationLocked ? (
+                  <Lock className="w-3 h-3 text-slate-400" />
+                ) : (
+                  <span className="text-[10px] text-slate-400 font-normal">Auto-centers map pin</span>
+                )}
               </label>
               <input
                 type="text"
                 required
+                disabled={isLocationLocked}
+                readOnly={isLocationLocked}
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
+                onChange={(e) => !isLocationLocked && handleStreetAddressChange(e.target.value)}
+                onBlur={() => {
+                  handleBlur('address');
+                  if (!isLocationLocked && address.trim().length >= 3) {
+                    geocodeStreetAndPincode(address, pincode, city, state, selectedPostOffice);
+                  }
+                }}
+                className={`w-full p-2.5 rounded-xl ${
+                  isLocationLocked
+                    ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
+                    : 'bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500'
+                }`}
               />
+
+              {/* Live locating and map centering status */}
+              {!isLocationLocked && geocodingPincode && (
+                <p className="text-[11px] text-orange-500 font-semibold flex items-center space-x-1.5 mt-1.5 animate-pulse">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  <span>Locating "{address || 'street'}" in Pincode {pincode || 'area'}...</span>
+                </p>
+              )}
+
+              {!isLocationLocked && !geocodingPincode && locationFeedback && (
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center space-x-1.5 mt-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>{locationFeedback}</span>
+                </p>
+              )}
             </div>
 
             <div className="pt-2">
               <GoogleMapLocationPicker
                 latitude={latitude}
                 longitude={longitude}
-                onChange={handleMapChange}
+                onChange={!isLocationLocked ? handleMapChange : () => {}}
                 initialCity={city}
                 initialState={state}
                 initialAddress={address}
+                pincode={pincode}
+                readOnly={isLocationLocked}
               />
             </div>
           </div>
@@ -865,7 +1083,7 @@ export const EditProperty = () => {
           <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center space-x-2">
               <Phone className="w-4 h-4 text-orange-500" />
-              <span>3. Host Contact & Timings</span>
+              <span>3. Stay Partner Contact & Timings</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -945,6 +1163,154 @@ export const EditProperty = () => {
             </div>
           </div>
 
+          {/* Guest Information & Safety Message */}
+          <div className="space-y-4 p-6 rounded-3xl bg-[#FFF8F0]/60 dark:bg-slate-900/60 border border-orange-200/80 dark:border-teal-900/40 shadow-xs">
+            <div className="border-b border-slate-200/80 dark:border-slate-800 pb-3 flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-orange-500" />
+                  <span>Guest Information & Safety Message</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                  Add important information that guests should know after booking this property.
+                </p>
+              </div>
+              <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-md border ${
+                guestInformationMessage.length > 4500
+                  ? 'bg-rose-500/10 text-rose-600 border-rose-300 dark:border-rose-800'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+              }`}>
+                {guestInformationMessage.length} / 5000 characters
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                Message for Guests
+              </label>
+              <textarea
+                rows={8}
+                maxLength={5000}
+                value={guestInformationMessage}
+                onChange={(e) => setGuestInformationMessage(e.target.value)}
+                placeholder={"Welcome to our property!\n\nPlease follow these safety and property guidelines:\n• Carry a valid ID during check-in.\n• Check-in time is 2:00 PM.\n• Check-out time is 11:00 AM.\n• Please keep valuables safely with you.\n• Smoking is not allowed inside rooms.\n• Please maintain quiet hours after 10:00 PM.\n• Contact the property reception if you need assistance.\n\nProperty contact:\n+91 XXXXX XXXXX\n\nWe look forward to welcoming you."}
+                className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 leading-relaxed custom-scrollbar shadow-xs"
+              />
+              <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+                <span>Automatically sent to travelers when their booking is confirmed and visible on their Booking Details.</span>
+                <button
+                  type="button"
+                  onClick={handleSaveGuestInformation}
+                  disabled={guestMessageSaving}
+                  className="px-4 py-2 bg-gradient-to-r from-[#087F8C] to-[#17324D] hover:from-[#066570] hover:to-[#0F273D] text-white rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5 shrink-0 shadow-xs"
+                >
+                  {guestMessageSaving ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Guest Message</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {guestMessageSuccess && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center space-x-2 mt-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{guestMessageSuccess}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Cancellation Policy Setting */}
+          <div className="space-y-4 p-6 rounded-3xl bg-[#FFF8F0]/60 dark:bg-slate-900/60 border border-orange-200/80 dark:border-teal-900/40 shadow-xs">
+            <div className="border-b border-slate-200/80 dark:border-slate-800 pb-3 flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-2">
+                  <ShieldCheck className="w-4 h-4 text-orange-500" />
+                  <span>Cancellation & Refund Policy</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                  Configure the refund percentage guests receive if they cancel within 2 days of check-in.
+                </p>
+              </div>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                100% Free Cancellation Tier: 2+ Days Prior
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 space-y-1">
+                <strong className="text-slate-900 dark:text-white block font-sans">Voyara Guarantee Standard:</strong>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  All guests enjoy <strong>100% full refund</strong> if they cancel up to 2 full days before check-in time. If cancelled within 2 days of arrival, your chosen policy below applies:
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
+                {[
+                  { pct: 0, label: '0% Refund', sub: 'Strict (No refund)' },
+                  { pct: 25, label: '25% Refund', sub: 'Stay Partner retains 75%' },
+                  { pct: 50, label: '50% Refund', sub: 'Standard (Recommended)' },
+                  { pct: 75, label: '75% Refund', sub: 'Stay Partner retains 25%' },
+                  { pct: 100, label: '100% Refund', sub: 'Flexible (Full refund)' },
+                ].map((opt) => {
+                  const selected = cancellationRefundPercentage === opt.pct;
+                  return (
+                    <button
+                      key={opt.pct}
+                      type="button"
+                      onClick={() => setCancellationRefundPercentage(opt.pct)}
+                      className={`p-3 rounded-2xl border text-center transition-all cursor-pointer space-y-1 ${
+                        selected
+                          ? 'bg-gradient-to-tr from-[#087F8C] to-[#17324D] text-white border-[#087F8C] shadow-md shadow-[#087F8C]/20'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-[#087F8C]/50'
+                      }`}
+                    >
+                      <strong className="block text-sm font-serif">{opt.label}</strong>
+                      <span className={`block text-[10px] ${selected ? 'text-teal-200' : 'text-slate-400'}`}>
+                        {opt.sub}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-2">
+                <span>Current policy: <strong>{cancellationRefundPercentage}% refund</strong> for cancellations under 2 days before check-in.</span>
+                <button
+                  type="button"
+                  onClick={handleSaveCancellationPolicy}
+                  disabled={cancellationPolicySaving}
+                  className="px-4 py-2 bg-gradient-to-r from-[#087F8C] to-[#17324D] hover:from-[#066570] hover:to-[#0F273D] text-white rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5 shrink-0 shadow-xs"
+                >
+                  {cancellationPolicySaving ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving Policy...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Cancellation Policy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {cancellationPolicySuccess && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center space-x-2 mt-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{cancellationPolicySuccess}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* 4. Property Amenities */}
           <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
@@ -965,7 +1331,7 @@ export const EditProperty = () => {
                   {amenities.map((am) => (
                     <span
                       key={am}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-[#F97360] to-orange-500 text-white text-xs font-bold shadow-xs"
+                      className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-orange-500 to-[#EA580C] text-white text-xs font-bold shadow-xs"
                     >
                       <span>{am}</span>
                       <button
@@ -1023,7 +1389,7 @@ export const EditProperty = () => {
                       onClick={() => handleTogglePropAmenity(am)}
                       className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
                         checked
-                          ? 'bg-gradient-to-r from-[#F97360] to-orange-500 text-white border-orange-500 shadow-2xs font-bold'
+                          ? 'bg-gradient-to-r from-orange-500 to-[#EA580C] text-white border-orange-500 shadow-2xs font-bold'
                           : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-orange-500 hover:text-orange-600'
                       }`}
                     >
@@ -1085,7 +1451,7 @@ export const EditProperty = () => {
                         <h4 className="text-sm font-bold text-slate-900 dark:text-white">
                           {room.name || `Room Unit #${roomNum}`}
                         </h4>
-                        <span className="text-[10px] px-2 py-0.5 bg-orange-500/10 text-[#F97360] font-bold rounded-md uppercase">
+                        <span className="text-[10px] px-2 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold rounded-md uppercase">
                           {room.room_type}
                         </span>
                         {room.id && (
@@ -1316,31 +1682,24 @@ export const EditProperty = () => {
             </div>
           </div>
 
-          {/* 7. Ownership Document (if needed to update) */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
-              <span className="flex items-center space-x-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>7. Legal Ownership Document</span>
-              </span>
-              <span className="text-[10px] text-emerald-600 font-bold">Admin Only</span>
-            </h3>
-
-            <DocumentUploadPicker
-              value={ownershipProofUrl}
-              onChange={setOwnershipProofUrl}
-              label="Property Ownership / Authorization Proof"
-              hint="Leave unchanged if already verified, or upload updated ownership/license agreement."
-              required={false}
-            />
+          {/* 7. Voyara Trust & Platform Verification Notice */}
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-[#087F8C]/10 via-[#0F273D]/5 to-[#087F8C]/10 border border-[#087F8C]/30 text-xs space-y-3">
+            <div className="flex items-center space-x-2.5 text-[#087F8C] dark:text-[#27B7A8]">
+              <ShieldCheck className="w-5 h-5 shrink-0" />
+              <h3 className="text-sm font-bold font-serif">Voyara Trust Assessment Standards</h3>
+            </div>
+            <p className="text-slate-600 dark:text-slate-300 leading-relaxed font-light">
+              Voyara evaluates stay partner and property trust using multiple platform signals (phone verification, email verification, authentic photos, pricing consistency, accurate location, and complete profile). It does not legally certify property ownership.
+            </p>
           </div>
+
 
           {/* Save CTA */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
             <button
               type="submit"
               disabled={saveLoading}
-              className="w-full py-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all text-sm flex items-center justify-center space-x-2 cursor-pointer"
+              className="w-full py-4 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 transition-all text-sm flex items-center justify-center space-x-2 cursor-pointer"
             >
               {saveLoading ? (
                 <>

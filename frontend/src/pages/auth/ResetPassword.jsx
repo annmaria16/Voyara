@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { authApi } from '../../api/auth';
-import { Lock, KeyRound, CheckCircle2, AlertCircle, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Lock, KeyRound, CheckCircle2, AlertCircle, Eye, EyeOff, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 export const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -49,7 +49,6 @@ export const ResetPassword = () => {
 
   const isPasswordValid = isPasswordSecure(newPassword);
   const passwordsMatch = newPassword.length > 0 && confirmPassword.length > 0 && newPassword === confirmPassword;
-  const passwordsMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
 
   const getTokenError = () => {
     if (!touched.token) return '';
@@ -106,46 +105,54 @@ export const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0] dark:bg-[#070D18] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="min-h-screen bg-[#FFFDF7] dark:bg-[#091B29] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors relative overflow-hidden">
+      {/* Ambient background orbs */}
+      <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#087F8C]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-[#F97316]/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="text-center">
           <Link to="/" className="inline-block group mb-3">
             <img
               src="/logo.png"
               alt="VOYARA"
-              className="h-16 w-auto mx-auto object-contain rounded-2xl shadow-lg border border-[#FDBA9A]/40 dark:border-slate-800 transition-transform duration-300 group-hover:scale-105"
+              className="h-16 w-auto mx-auto object-contain rounded-2xl shadow-lg border border-[#087F8C]/20 dark:border-teal-900/40 transition-transform duration-300 group-hover:scale-105"
             />
           </Link>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-bold font-serif text-[#102A43] dark:text-white">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#087F8C]/10 dark:bg-[#087F8C]/20 text-[#087F8C] dark:text-[#27B7A8] text-xs font-semibold mb-2">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Secure Password Update</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold font-serif text-[#17324D] dark:text-white">
             Create a new password
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-xs sm:text-sm text-[#607080] dark:text-slate-400">
             Choose a strong password to secure your Voyara account.
           </p>
         </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-[#131D2E] py-8 px-6 sm:px-10 rounded-3xl shadow-xl border border-[#FDBA9A]/30 dark:border-slate-800 space-y-6">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <div className="bg-white dark:bg-[#0F273D] py-8 px-6 sm:px-10 rounded-3xl shadow-xl border border-slate-100 dark:border-teal-900/40 space-y-6">
           
           {/* SUCCESS STATE */}
           {success ? (
             <div className="text-center space-y-4 py-4 animate-in fade-in-50 zoom-in-95 duration-200">
-              <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-full flex items-center justify-center mx-auto text-emerald-600 dark:text-emerald-400 shadow-sm">
+              <div className="w-14 h-14 bg-[#DDF3E7] dark:bg-[#35A66F]/20 border border-[#35A66F]/30 rounded-full flex items-center justify-center mx-auto text-[#35A66F] shadow-sm">
                 <CheckCircle2 className="w-8 h-8 stroke-[2.5]" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-[#102A43] dark:text-white">
-                  Password reset successful.
+                <h3 className="text-lg font-bold text-[#17324D] dark:text-white">
+                  Password reset successful!
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-[#607080] dark:text-slate-400">
                   You can now sign in to your Voyara account with your new password.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="w-full py-3 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-xl text-sm shadow-md shadow-[#F97360]/20 transition-all cursor-pointer"
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white font-bold rounded-2xl text-sm shadow-md shadow-[#F97316]/20 transition-all cursor-pointer"
               >
                 Go to Login
               </button>
@@ -157,23 +164,23 @@ export const ResetPassword = () => {
                 <AlertCircle className="w-8 h-8 stroke-[2.5]" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-[#102A43] dark:text-white">
-                  This password reset link is invalid or has expired.
+                <h3 className="text-lg font-bold text-[#17324D] dark:text-white">
+                  This reset link is invalid or expired
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-[#607080] dark:text-slate-400">
                   Password reset links expire for your security. Please request a fresh reset link.
                 </p>
               </div>
               <div className="pt-2 space-y-2">
                 <Link
                   to="/forgot-password"
-                  className="w-full py-3 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-xl text-sm shadow-md shadow-[#F97360]/20 transition-all flex items-center justify-center"
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white font-bold rounded-2xl text-sm shadow-md shadow-[#F97316]/20 transition-all flex items-center justify-center"
                 >
                   Request a New Link
                 </Link>
                 <Link
                   to="/login"
-                  className="block text-center text-xs text-slate-500 dark:text-slate-400 hover:text-[#F97360]"
+                  className="block text-center text-xs text-[#607080] dark:text-slate-400 hover:text-[#087F8C]"
                 >
                   Back to Sign In
                 </Link>
@@ -189,20 +196,20 @@ export const ResetPassword = () => {
                 </div>
               )}
 
-              {/* Reset Token - hidden if passed via URL, shown if accessed directly */}
+              {/* Reset Token */}
               {tokenFromUrl ? (
-                <div className="p-2.5 bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-xs flex items-center justify-between text-emerald-800 dark:text-emerald-300">
+                <div className="p-2.5 bg-[#DDF3E7] dark:bg-[#35A66F]/20 border border-[#35A66F]/40 rounded-xl text-xs flex items-center justify-between text-[#35A66F]">
                   <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#35A66F] shrink-0" />
                     <span className="font-semibold">Secure reset link verified</span>
                   </div>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">1-Time Valid</span>
+                  <span className="text-[10px] text-[#35A66F] font-mono">1-Time Valid</span>
                 </div>
               ) : (
                 <div>
                   <label
                     htmlFor="reset-token"
-                    className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1"
+                    className="block text-xs font-bold uppercase tracking-wider text-[#17324D] dark:text-slate-300 mb-1"
                   >
                     Reset Token
                   </label>
@@ -216,8 +223,8 @@ export const ResetPassword = () => {
                       value={token}
                       onChange={(e) => setToken(e.target.value)}
                       onBlur={() => setTouched((p) => ({ ...p, token: true }))}
-                      className={`w-full pl-10 pr-4 py-2.5 bg-[#FFF8F0]/50 dark:bg-slate-900 border rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:bg-white dark:focus:bg-slate-900 transition-all ${
-                        getTokenError() ? 'border-rose-400' : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                      className={`w-full pl-10 pr-4 py-2.5 bg-[#FFFDF7]/50 dark:bg-[#091B29] border rounded-xl text-xs font-mono text-[#17324D] dark:text-white focus:outline-hidden focus:bg-white dark:focus:bg-[#091B29] transition-all ${
+                        getTokenError() ? 'border-rose-400' : 'border-slate-200 dark:border-slate-700 focus:border-[#087F8C] focus:ring-2 focus:ring-[#087F8C]/20'
                       }`}
                     />
                   </div>
@@ -231,7 +238,7 @@ export const ResetPassword = () => {
               <div>
                 <label
                   htmlFor="reset-new-password"
-                  className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1"
+                  className="block text-xs font-bold uppercase tracking-wider text-[#17324D] dark:text-slate-300 mb-1"
                 >
                   New Password
                 </label>
@@ -249,14 +256,14 @@ export const ResetPassword = () => {
                       if (error) setError('');
                     }}
                     onBlur={() => setTouched((p) => ({ ...p, newPassword: true }))}
-                    className={`w-full pl-10 pr-10 py-2.5 bg-[#FFF8F0]/50 dark:bg-slate-900 border rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:bg-white dark:focus:bg-slate-900 transition-all ${
+                    className={`w-full pl-10 pr-10 py-2.5 bg-[#FFFDF7]/50 dark:bg-[#091B29] border rounded-xl text-sm text-[#17324D] dark:text-white focus:outline-hidden focus:bg-white dark:focus:bg-[#091B29] transition-all ${
                       newPassword.length > 0
                         ? isPasswordValid
-                          ? 'border-emerald-400 ring-2 ring-emerald-100 focus:border-emerald-500'
-                          : 'border-amber-400 ring-2 ring-amber-100 focus:border-amber-500'
+                          ? 'border-[#35A66F] ring-2 ring-[#35A66F]/20 focus:border-[#35A66F]'
+                          : 'border-amber-400 ring-2 ring-amber-100 dark:ring-amber-900/40 focus:border-amber-500'
                         : touched.newPassword
                         ? 'border-rose-400 ring-2 ring-rose-100'
-                        : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                        : 'border-slate-200 dark:border-slate-700 focus:border-[#087F8C] focus:ring-2 focus:ring-[#087F8C]/20'
                     }`}
                   />
                   <button
@@ -272,8 +279,8 @@ export const ResetPassword = () => {
                 {/* Live Password Strength Indicator */}
                 {newPassword.length > 0 ? (
                   isPasswordValid ? (
-                    <div className="mt-1.5 flex items-center space-x-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium animate-in fade-in-50">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div className="mt-1.5 flex items-center space-x-1.5 text-xs text-[#35A66F] font-medium animate-in fade-in-50">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#35A66F] shrink-0" />
                       <span>Password meets all strength requirements</span>
                     </div>
                   ) : (
@@ -291,7 +298,7 @@ export const ResetPassword = () => {
               <div>
                 <label
                   htmlFor="reset-confirm-password"
-                  className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1"
+                  className="block text-xs font-bold uppercase tracking-wider text-[#17324D] dark:text-slate-300 mb-1"
                 >
                   Confirm New Password
                 </label>
@@ -309,14 +316,14 @@ export const ResetPassword = () => {
                       if (error) setError('');
                     }}
                     onBlur={() => setTouched((p) => ({ ...p, confirmPassword: true }))}
-                    className={`w-full pl-10 pr-10 py-2.5 bg-[#FFF8F0]/50 dark:bg-slate-900 border rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:bg-white dark:focus:bg-slate-900 transition-all ${
+                    className={`w-full pl-10 pr-10 py-2.5 bg-[#FFFDF7]/50 dark:bg-[#091B29] border rounded-xl text-sm text-[#17324D] dark:text-white focus:outline-hidden focus:bg-white dark:focus:bg-[#091B29] transition-all ${
                       confirmPassword.length > 0
                         ? passwordsMatch
-                          ? 'border-emerald-400 ring-2 ring-emerald-100 focus:border-emerald-500'
-                          : 'border-rose-400 ring-2 ring-rose-100 focus:border-rose-500'
+                          ? 'border-[#35A66F] ring-2 ring-[#35A66F]/20 focus:border-[#35A66F]'
+                          : 'border-rose-400 ring-2 ring-rose-100 dark:ring-rose-950 focus:border-rose-500'
                         : touched.confirmPassword
                         ? 'border-rose-400 ring-2 ring-rose-100'
-                        : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                        : 'border-slate-200 dark:border-slate-700 focus:border-[#087F8C] focus:ring-2 focus:ring-[#087F8C]/20'
                     }`}
                   />
                   <button
@@ -332,8 +339,8 @@ export const ResetPassword = () => {
                 {/* Live Confirm Password Match Indicator */}
                 {confirmPassword.length > 0 ? (
                   passwordsMatch ? (
-                    <div className="mt-1.5 flex items-center space-x-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium animate-in fade-in-50">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div className="mt-1.5 flex items-center space-x-1.5 text-xs text-[#35A66F] font-medium animate-in fade-in-50">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#35A66F] shrink-0" />
                       <span>Passwords match</span>
                     </div>
                   ) : (
@@ -351,7 +358,7 @@ export const ResetPassword = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-xl shadow-md shadow-[#F97360]/20 transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 mt-4"
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white font-bold rounded-2xl shadow-md shadow-[#F97316]/20 transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 mt-4"
               >
                 {loading ? (
                   <div className="flex items-center space-x-2">
@@ -366,7 +373,7 @@ export const ResetPassword = () => {
               <div className="text-center pt-2">
                 <Link
                   to="/login"
-                  className="inline-flex items-center space-x-1 text-xs text-slate-500 dark:text-slate-400 hover:text-[#F97360]"
+                  className="inline-flex items-center space-x-1 text-xs text-[#607080] dark:text-slate-400 hover:text-[#087F8C] dark:hover:text-[#27B7A8] transition-colors"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back to Sign In</span>
@@ -380,3 +387,5 @@ export const ResetPassword = () => {
     </div>
   );
 };
+
+export default ResetPassword;

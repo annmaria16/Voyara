@@ -11,15 +11,15 @@ export const DashboardLayout = ({ role, title, children }) => {
   const activeRole = (role || user?.role || 'CUSTOMER').toUpperCase();
 
   const defaultTitles = {
-    CUSTOMER: 'TRAVELLER DASHBOARD',
-    PROVIDER: 'PROVIDER DASHBOARD',
-    ADMIN: 'ADMIN DASHBOARD',
+    CUSTOMER: 'TRAVELER DASHBOARD',
+    PROVIDER: 'STAY PARTNER DASHBOARD',
+    ADMIN: 'VOYARA CONTROL CENTER',
   };
 
   const headerTitle = title || defaultTitles[activeRole] || 'DASHBOARD';
 
   return (
-    <div className="min-h-screen flex bg-[#FFF8F0] dark:bg-[#0B1320] text-[#102A43] dark:text-slate-100 font-sans antialiased selection:bg-[#F97360] selection:text-white transition-colors duration-200">
+    <div className="min-h-screen flex bg-[#FFFDF7] dark:bg-[#091B29] text-[#091B29] dark:text-slate-100 font-sans antialiased selection:bg-orange-500 selection:text-white transition-colors duration-200">
       {/* Sidebar */}
       <DashboardSidebar
         role={activeRole}

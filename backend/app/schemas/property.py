@@ -48,6 +48,8 @@ class PropertyCreate(BaseModel):
     contact_email: str
     check_in_time: str = "14:00"
     check_out_time: str = "11:00"
+    guest_information_message: Optional[str] = None
+    cancellation_refund_percentage: int = 50
     amenities: List[str] = []
     images: List[str] = []  # List of image URLs
     ownership_proof_url: Optional[str] = None
@@ -73,6 +75,8 @@ class PropertyUpdate(BaseModel):
     contact_email: Optional[str] = None
     check_in_time: Optional[str] = None
     check_out_time: Optional[str] = None
+    guest_information_message: Optional[str] = None
+    cancellation_refund_percentage: Optional[int] = None
     is_active: Optional[bool] = None
     amenities: Optional[List[str]] = None
     images: Optional[List[str]] = None
@@ -83,10 +87,33 @@ class PropertyUpdate(BaseModel):
     def validate_phone(cls, v: Optional[str]) -> Optional[str]:
         return clean_indian_phone(v)
 
+# Dedicated Host Welcome & Safety Message Schemas
+class GuestInformationMessageRequest(BaseModel):
+    guest_information_message: Optional[str] = None
+
+class GuestInformationMessageResponse(BaseModel):
+    property_id: int
+    property_name: str
+    guest_information_message: Optional[str] = None
+    message: Optional[str] = "Success"
+
+# Dedicated Host Cancellation Policy Schemas
+class CancellationPolicyRequest(BaseModel):
+    cancellation_refund_percentage: int  # 0, 25, 50, 75, 100
+
+class CancellationPolicyResponse(BaseModel):
+    property_id: int
+    property_name: str
+    cancellation_refund_percentage: int
+    policy_description: str
+    message: Optional[str] = "Success"
+
 # Customer-safe Property Response (never exposes private ownership documents or internal admin notes)
 class PropertyResponse(BaseModel):
     id: int
     provider_id: int
+    host_name: Optional[str] = None
+    provider_business_name: Optional[str] = None
     name: str
     property_type: str
     description: str
@@ -101,8 +128,13 @@ class PropertyResponse(BaseModel):
     contact_email: str
     check_in_time: str
     check_out_time: str
+    guest_information_message: Optional[str] = None
+    cancellation_refund_percentage: int = 50
     is_active: bool
     verification_status: str = "VERIFIED"
+    trust_score: Optional[int] = 0
+    trust_assessment_status: Optional[str] = None
+    property_identity_fingerprint: Optional[str] = None
     rating: float
     review_count: int
     featured: bool
@@ -134,10 +166,16 @@ class ProviderPropertyResponse(BaseModel):
     contact_email: str
     check_in_time: str
     check_out_time: str
+    guest_information_message: Optional[str] = None
+    cancellation_refund_percentage: int = 50
     is_active: bool
     verification_status: str
     ownership_proof_url: Optional[str] = None
     verification_reason: Optional[str] = None
+    trust_score: Optional[int] = 0
+    trust_assessment_status: Optional[str] = None
+    evidence_status: Optional[str] = None
+    property_identity_fingerprint: Optional[str] = None
     rating: float
     review_count: int
     featured: bool
@@ -147,6 +185,8 @@ class ProviderPropertyResponse(BaseModel):
     rooms: List[RoomResponse] = []
     min_price: Optional[float] = None
     room_count: Optional[int] = 0
+    room_types_count: Optional[int] = 0
+    total_units: Optional[int] = 0
     experience_count: Optional[int] = 0
 
     class Config:
@@ -189,10 +229,16 @@ class AdminPropertyResponse(BaseModel):
     contact_email: str
     check_in_time: str
     check_out_time: str
+    guest_information_message: Optional[str] = None
+    cancellation_refund_percentage: int = 50
     is_active: bool
     verification_status: str
     ownership_proof_url: Optional[str] = None
     verification_reason: Optional[str] = None
+    trust_score: Optional[int] = 0
+    trust_assessment_status: Optional[str] = None
+    evidence_status: Optional[str] = None
+    property_identity_fingerprint: Optional[str] = None
     verified_by: Optional[int] = None
     verified_at: Optional[datetime] = None
     reviewed_by: Optional[int] = None
@@ -207,3 +253,4 @@ class AdminPropertyResponse(BaseModel):
 
     class Config:
         from_attributes = True
+

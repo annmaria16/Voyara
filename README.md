@@ -125,7 +125,36 @@ npm run dev
 | :--- | :--- | :--- | :--- |
 | **Traveler (Customer)** | `john.traveler@example.com` | `TravelerVoyara2026!` | `/customer` |
 | **Host (Provider)** | `kerala.stays@voyara.com` | `HostVoyara2026!` | `/provider` |
-| **Super Admin** | `adminvoyara@gmail.com` | `admin123` | `/admin` |
+| **Super Admin** | `adminvoyara@gmail.com` | `Admin@123` | `/admin` |
+
+---
+
+## 📱 OTP & SMS Provider Configuration
+
+Voyara supports two distinct OTP operational modes:
+
+### 1. Development & Automated Testing Mode (`OTP_PROVIDER=development`)
+- **Default for local development and automated testing**.
+- **Zero 2Factor SMS credits consumed**: Outbound carrier SMS requests are suppressed server-side.
+- **Predictable Test OTP**: Standard development OTP code **`123456`** is enabled in development/test mode for seamless automated browser testing (Antigravity / Selenium / Pytest).
+- **Production Guard**: The server refuses to start if `ENVIRONMENT=production` and `OTP_PROVIDER=development`.
+
+```env
+# backend/.env
+ENVIRONMENT=development
+OTP_PROVIDER=development
+```
+
+### 2. Live Production Mode (`OTP_PROVIDER=2factor`)
+- Dispatches real SMS directly to the physical SIM card over the Indian carrier network via the 2Factor.in API.
+- Fixed development OTPs (`123456`) are strictly rejected.
+
+```env
+# backend/.env
+ENVIRONMENT=production
+OTP_PROVIDER=2factor
+TWOFACTOR_API_KEY=your_actual_2factor_api_key
+```
 
 ---
 

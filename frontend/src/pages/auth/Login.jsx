@@ -160,73 +160,64 @@ export const Login = () => {
   const passwordError = getPasswordError();
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0] dark:bg-[#070D18] py-6 sm:py-10 px-3 sm:px-6 lg:px-8 flex flex-col justify-center items-center font-sans overflow-x-hidden transition-colors">
-      <div className="w-full max-w-5xl bg-white dark:bg-[#131D2E] rounded-3xl shadow-2xl border border-[#FDBA9A]/30 dark:border-slate-800 overflow-hidden grid grid-cols-1 lg:grid-cols-12 my-auto">
+    <div className="min-h-screen bg-[#FFFDF7] dark:bg-[#091B29] py-6 sm:py-10 px-3 sm:px-6 lg:px-8 flex flex-col justify-center items-center font-sans overflow-x-hidden transition-colors">
+      <div className="w-full max-w-5xl bg-white dark:bg-[#0F273D] rounded-3xl shadow-2xl border border-[#E0ECEF] dark:border-white/10 overflow-hidden grid grid-cols-1 lg:grid-cols-12 my-auto">
         
         {/* LEFT COLUMN: Hero Visual & Value Props */}
-        <div className="lg:col-span-6 relative hidden lg:flex flex-col justify-between p-8 sm:p-10 text-white overflow-hidden">
+        <div className="lg:col-span-6 relative hidden lg:flex flex-col justify-between p-8 sm:p-12 text-white overflow-hidden">
           {/* Background Image with warm overlay */}
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
-              backgroundImage: `url('/auth-stay-login.jpg')`,
+              backgroundImage: `url('https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=85')`,
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0F172A]/80 via-[#0F172A]/50 to-[#0F172A]/95" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#091B29] via-[#091B29]/65 to-[#091B29]/40" />
 
           {/* Top Brand & Slogan */}
           <div className="relative z-10 space-y-2">
-            <h2 className="text-4xl xl:text-5xl font-bold font-serif leading-tight tracking-tight text-white drop-shadow-md">
-              Find <br />
-              Your <br />
-              Place.
-            </h2>
-            <p className="text-emerald-400 text-sm font-medium pt-1 drop-shadow-xs">
+            <span className="text-[11px] font-extrabold tracking-widest text-[#F6C945] uppercase">
               Stay. Explore. Experience.
+            </span>
+            <h2 className="text-4xl xl:text-5xl font-black font-serif leading-tight tracking-tight text-white drop-shadow-md">
+              Find Your Place.
+            </h2>
+            <p className="text-white/85 text-sm font-light leading-relaxed">
+              Discover authentic Indian homestays, cottages, villas, and unforgettable host adventures.
             </p>
           </div>
 
           {/* Bottom Value Badges */}
-          <div className="relative z-10 space-y-3 my-auto pt-16">
-            <div className="p-3.5 rounded-2xl bg-slate-900/70 backdrop-blur-md border border-white/10 flex items-start space-x-3.5 shadow-lg">
-              <div className="p-2 bg-emerald-500/20 rounded-xl text-emerald-400 shrink-0 mt-0.5">
-                <ShieldCheck className="w-4 h-4" />
+          <div className="relative z-10 space-y-3 my-auto pt-12">
+            <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-start space-x-3.5 shadow-lg">
+              <div className="p-2 bg-[#087F8C]/40 rounded-xl text-[#27B7A8] shrink-0 mt-0.5">
+                <ShieldCheck className="w-4 h-4 text-[#F6C945]" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white tracking-wide">Trusted & Secure</h4>
-                <p className="text-[11px] text-slate-300 leading-snug">VeriNova cryptographic verification audit protection.</p>
+                <h4 className="text-xs font-bold text-white tracking-wide">VeriNova Integrity</h4>
+                <p className="text-[11px] text-white/70 leading-snug">Every reservation is independently verified for rate and inventory accuracy.</p>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-slate-900/70 backdrop-blur-md border border-white/10 flex items-start space-x-3.5 shadow-lg">
-              <div className="p-2 bg-orange-500/20 rounded-xl text-[#F97360] shrink-0 mt-0.5">
-                <MapPin className="w-4 h-4" />
+            <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-start space-x-3.5 shadow-lg">
+              <div className="p-2 bg-[#F97316]/30 rounded-xl text-[#F6C945] shrink-0 mt-0.5">
+                <MapPin className="w-4 h-4 text-[#F97316]" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white tracking-wide">Curated Stays</h4>
-                <p className="text-[11px] text-slate-300 leading-snug">Handpicked hill-station and beachside sanctuaries.</p>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-slate-900/70 backdrop-blur-md border border-white/10 flex items-start space-x-3.5 shadow-lg">
-              <div className="p-2 bg-emerald-500/20 rounded-xl text-emerald-400 shrink-0 mt-0.5">
-                <Headphones className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-white tracking-wide">24/7 Concierge Support</h4>
-                <p className="text-[11px] text-slate-300 leading-snug">Dedicated assistance for all trips and inquiries.</p>
+                <h4 className="text-xs font-bold text-white tracking-wide">Handpicked Stays</h4>
+                <p className="text-[11px] text-white/70 leading-snug">Curated homestays, tea estate lodges, and coastal hideaways.</p>
               </div>
             </div>
           </div>
 
           {/* Footer Copyright */}
-          <div className="relative z-10 pt-4 border-t border-white/10 text-[11px] text-slate-400">
-            © 2026 Voyara. All rights reserved.
+          <div className="relative z-10 pt-4 border-t border-white/10 text-[11px] text-white/60">
+            © {new Date().getFullYear()} Voyara Inc. Find Your Place.
           </div>
         </div>
 
         {/* RIGHT COLUMN: Authentication Card */}
-        <div className="lg:col-span-6 p-6 sm:p-10 lg:p-12 flex flex-col justify-center bg-white dark:bg-[#131D2E]">
+        <div className="lg:col-span-6 p-6 sm:p-10 lg:p-12 flex flex-col justify-center bg-white dark:bg-[#0F273D]">
           <div className="max-w-md w-full mx-auto space-y-6">
             
             {/* Logo & Header */}
@@ -235,32 +226,32 @@ export const Login = () => {
                 <img
                   src="/logo.png"
                   alt="VOYARA"
-                  className="h-16 w-auto mx-auto object-contain rounded-2xl shadow-sm transition-transform duration-300 group-hover:scale-105"
+                  className="h-14 w-auto mx-auto object-contain rounded-2xl shadow-sm transition-transform duration-300 group-hover:scale-105"
                 />
               </Link>
-              <h1 className="text-2xl sm:text-3xl font-bold font-serif text-[#102A43] dark:text-white pt-1">
-                Welcome back
+              <h1 className="text-2xl sm:text-3xl font-black font-serif text-[#17324D] dark:text-white pt-1">
+                Welcome back to Voyara
               </h1>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                Sign in to continue your Voyara journey.
+              <p className="text-xs sm:text-sm text-[#607080] dark:text-slate-400 font-light">
+                Your next place is waiting.
               </p>
             </div>
 
             {/* Registration Success Banner */}
             {registeredSuccess && (
-              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-start space-x-3 text-emerald-900 dark:text-emerald-300 text-xs sm:text-sm animate-in fade-in-50 duration-200">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div className="p-4 bg-[#DDF3E7] dark:bg-emerald-950/40 border border-[#35A66F]/40 rounded-2xl flex items-start space-x-3 text-[#236C48] dark:text-emerald-300 text-xs sm:text-sm animate-in fade-in-50 duration-200">
+                <CheckCircle2 className="w-5 h-5 text-[#35A66F] shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold block text-emerald-800 dark:text-emerald-300">Account Created Successfully!</span>
-                  <span className="text-emerald-700 dark:text-emerald-400">Please sign in with your email and password.</span>
+                  <span className="font-bold block text-[#236C48] dark:text-emerald-300">Account Created Successfully!</span>
+                  <span className="text-[#236C48]/90 dark:text-emerald-400">Please sign in with your email and password.</span>
                 </div>
               </div>
             )}
 
             {/* Context Notice */}
             {!registeredSuccess && redirectNotice && (
-              <div className="p-3.5 bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center space-x-2.5 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
-                <Sparkles className="w-4 h-4 text-[#F97360] shrink-0" />
+              <div className="p-3.5 bg-[#DDF3E7]/80 dark:bg-emerald-950/40 border border-[#35A66F]/30 rounded-2xl flex items-center space-x-2.5 text-[#087F8C] dark:text-emerald-300 text-xs font-medium">
+                <Sparkles className="w-4 h-4 text-[#F97316] shrink-0" />
                 <span>{redirectNotice}</span>
               </div>
             )}
@@ -298,7 +289,7 @@ export const Login = () => {
                       if (error) setError('');
                     }}
                     onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
-                    className={`w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all ${
+                    className={`w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-sm text-[#17324D] dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#087F8C]/20 focus:border-[#087F8C] transition-all ${
                       emailError ? 'border-rose-400 ring-2 ring-rose-100' : 'border-slate-200 dark:border-slate-700'
                     }`}
                   />
@@ -319,7 +310,7 @@ export const Login = () => {
                   </label>
                   <Link
                     to="/forgot-password"
-                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:underline font-semibold"
+                    className="text-xs text-[#087F8C] dark:text-[#27B7A8] hover:underline font-bold"
                   >
                     Forgot password?
                   </Link>
@@ -338,7 +329,7 @@ export const Login = () => {
                       if (error) setError('');
                     }}
                     onBlur={() => setTouched((prev) => ({ ...prev, password: true }))}
-                    className={`w-full pl-10 pr-10 py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all ${
+                    className={`w-full pl-10 pr-10 py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-sm text-[#17324D] dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#087F8C]/20 focus:border-[#087F8C] transition-all ${
                       passwordError ? 'border-rose-400 ring-2 ring-rose-100' : 'border-slate-200 dark:border-slate-700'
                     }`}
                   />
@@ -363,7 +354,7 @@ export const Login = () => {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded-md border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-0"
+                    className="w-4 h-4 rounded-md border-slate-300 dark:border-slate-700 text-[#087F8C] focus:ring-[#087F8C] focus:ring-offset-0"
                   />
                   <span>Remember me</span>
                 </label>
@@ -373,7 +364,7 @@ export const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 active:scale-[0.99] text-white font-bold rounded-xl shadow-md shadow-[#F97360]/20 transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50"
+                className="w-full py-3.5 px-4 bg-[#F97316] hover:bg-[#FF8A3D] active:scale-[0.99] text-white font-bold rounded-xl shadow-md shadow-orange-950/20 transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50 font-sans"
               >
                 {loading ? (
                   <div className="flex items-center space-x-2">
@@ -392,7 +383,7 @@ export const Login = () => {
             {/* DIVIDER: OR */}
             <div className="relative flex items-center justify-center my-4">
               <div className="border-t border-slate-200 dark:border-slate-700 w-full"></div>
-              <span className="bg-white dark:bg-[#131D2E] px-3 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
+              <span className="bg-white dark:bg-[#0F273D] px-3 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider shrink-0">
                 or
               </span>
               <div className="border-t border-slate-200 dark:border-slate-700 w-full"></div>
@@ -409,7 +400,7 @@ export const Login = () => {
             {/* Bottom Registration CTA */}
             <div className="pt-2 text-center text-xs text-slate-600 dark:text-slate-400">
               New to Voyara?{' '}
-              <Link to="/register" className="font-bold text-[#F97360] hover:text-[#e05e4b] hover:underline">
+              <Link to="/register" className="font-bold text-[#087F8C] dark:text-[#27B7A8] hover:underline">
                 Create Account
               </Link>
             </div>

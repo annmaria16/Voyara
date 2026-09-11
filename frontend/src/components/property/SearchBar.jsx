@@ -106,7 +106,7 @@ export const SearchBar = ({ initialValues = {}, onSearch, compact = false }) => 
         <div className="lg:col-span-2">
           <button
             type="submit"
-            className="w-full h-full py-3 px-5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-xl lg:rounded-full shadow-lg hover:shadow-orange-500/25 transition-all flex items-center justify-center space-x-2 cursor-pointer group"
+            className="w-full h-full py-3 px-5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] text-white font-bold rounded-xl lg:rounded-full shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all flex items-center justify-center space-x-2 cursor-pointer group"
           >
             <Search className="w-4 h-4 group-hover:scale-110 transition-transform" />
             <span className="text-sm">Search</span>

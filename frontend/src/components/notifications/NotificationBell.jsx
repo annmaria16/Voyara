@@ -11,7 +11,10 @@ import {
   Check,
   X,
   ExternalLink,
-  Clock
+  MessageSquare,
+  Calendar,
+  Sparkles,
+  Clock,
 } from 'lucide-react';
 
 export const NotificationBell = () => {
@@ -113,6 +116,24 @@ export const NotificationBell = () => {
 
   const getNotificationIcon = (type) => {
     switch (type) {
+      case 'BOOKING_CONFIRMED':
+        return (
+          <div className="w-8 h-8 rounded-xl bg-teal-500/15 text-[#087F8C] dark:text-teal-400 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4" />
+          </div>
+        );
+      case 'HOST_MESSAGE':
+        return (
+          <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <MessageSquare className="w-4 h-4" />
+          </div>
+        );
+      case 'CHECKIN_REMINDER':
+        return (
+          <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <Clock className="w-4 h-4" />
+          </div>
+        );
       case 'PROPERTY_APPROVED':
         return (
           <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -133,7 +154,7 @@ export const NotificationBell = () => {
         );
       case 'PROPERTY_SUBMITTED':
         return (
-          <div className="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-teal-500/15 text-[#087F8C] dark:text-teal-400 flex items-center justify-center shrink-0">
             <Building className="w-4 h-4" />
           </div>
         );
@@ -152,12 +173,12 @@ export const NotificationBell = () => {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-[#FFF8F0] dark:hover:bg-slate-800 transition-colors cursor-pointer"
+        className="relative p-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-[#087F8C] dark:hover:text-teal-400 hover:bg-teal-50/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
         title="Notifications"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 min-w-4.5 h-4.5 px-1 bg-gradient-to-r from-rose-500 to-[#F97360] text-white text-[10px] font-black font-mono rounded-full flex items-center justify-center shadow-xs border-2 border-white dark:border-slate-900 animate-pulse">
+          <span className="absolute top-1 right-1 min-w-4.5 h-4.5 px-1 bg-gradient-to-r from-orange-500 to-[#EA580C] text-white text-[10px] font-black font-mono rounded-full flex items-center justify-center shadow-xs border-2 border-white dark:border-[#091B29] animate-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -165,11 +186,11 @@ export const NotificationBell = () => {
 
       {/* Dropdown Card */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-[#131D2E] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-[#0F273D] border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[80vh]">
           {/* Header */}
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-[#FFF8F0]/40 dark:bg-slate-900/60">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-[#FFFDF7] dark:bg-[#091B29]">
             <div className="flex items-center space-x-2">
-              <span className="font-bold font-serif text-sm text-slate-900 dark:text-white">
+              <span className="font-bold font-serif text-sm text-[#091B29] dark:text-white">
                 Notifications
               </span>
               {unreadCount > 0 && (
@@ -183,7 +204,7 @@ export const NotificationBell = () => {
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer flex items-center space-x-1"
+                className="text-[11px] font-bold text-[#087F8C] dark:text-teal-400 hover:underline cursor-pointer flex items-center space-x-1"
               >
                 <Check className="w-3 h-3" />
                 <span>Mark all read</span>
@@ -217,17 +238,17 @@ export const NotificationBell = () => {
                   className={`p-3.5 flex items-start space-x-3 cursor-pointer transition-colors ${
                     notif.is_read
                       ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50 opacity-80'
-                      : 'bg-[#FFF8F0]/60 dark:bg-slate-900/80 hover:bg-[#FFF8F0] dark:hover:bg-slate-800 font-medium'
+                      : 'bg-[#FFFDF7] dark:bg-[#091B29]/60 hover:bg-teal-50/40 dark:hover:bg-slate-800/80 font-medium'
                   }`}
                 >
                   {getNotificationIcon(notif.type)}
 
                   <div className="flex-1 min-w-0 space-y-0.5">
                     <div className="flex items-center justify-between gap-1">
-                      <h4 className={`text-xs text-slate-900 dark:text-white truncate ${notif.is_read ? 'font-semibold' : 'font-bold'}`}>
+                      <h4 className={`text-xs text-[#091B29] dark:text-white truncate ${notif.is_read ? 'font-semibold' : 'font-bold'}`}>
                         {notif.title}
                       </h4>
-                      <span className="text-[10px] text-slate-400 whitespace-nowrap shrink-0">
+                      <span className="text-[10px] text-slate-400 whitespace-nowrap shrink-0 font-mono">
                         {formatTimeAgo(notif.created_at)}
                       </span>
                     </div>
@@ -251,3 +272,4 @@ export const NotificationBell = () => {
 };
 
 export default NotificationBell;
+

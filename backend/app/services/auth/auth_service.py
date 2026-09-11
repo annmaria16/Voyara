@@ -8,12 +8,13 @@ from sqlalchemy.orm import Session
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from app.config import settings
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, AccountStatus
 from app.models.provider import ProviderProfile
 from app.schemas.auth import RegisterRequest, LoginRequest, GoogleAuthRequest
 from app.auth.password import hash_password, verify_password
 from app.auth.jwt import create_access_token
 from app.services.email.email_service import EmailService
+from app.services.auth.otp_service import OtpService, clean_indian_phone_strict
 
 def validate_password_strength(password: str) -> None:
     """Validate that password meets all security requirements."""
@@ -44,33 +45,8 @@ def validate_password_strength(password: str) -> None:
         )
 
 def normalize_phone(phone: str) -> str:
-    """Clean and validate canonical international phone number."""
-    if not phone or not phone.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Please enter a valid phone number."
-        )
-    cleaned = re.sub(r"[\s\-\(\)\.]", "", phone.strip())
-    if not cleaned.startswith("+"):
-        if cleaned.isdigit():
-            cleaned = "+" + cleaned
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Please enter a valid international phone number with country code."
-            )
-    digits_only = cleaned.lstrip("+")
-    if not digits_only.isdigit() or len(digits_only) < 7 or len(digits_only) > 15:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Please enter a valid phone number."
-        )
-    if len(set(digits_only)) == 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Please enter a valid phone number."
-        )
-    return cleaned
+    """Clean and validate Indian phone number."""
+    return clean_indian_phone_strict(phone)
 
 class AuthService:
     @staticmethod
@@ -83,7 +59,7 @@ class AuthService:
             )
 
         email_clean = data.email.lower().strip()
-        phone_clean = normalize_phone(data.phone)
+        phone_clean = clean_indian_phone_strict(data.phone)
 
         # Validate password complexity
         validate_password_strength(data.password)
@@ -112,13 +88,26 @@ class AuthService:
                 detail="Administrator accounts cannot be created via public registration."
             )
 
+        is_provider = (role == UserRole.PROVIDER)
+
+        # For Hosts, require phone & email verification before full activation
+        # For Travelers, activate directly
+        phone_verified = not is_provider
+        email_verified = not is_provider
+        initial_status = AccountStatus.PENDING_VERIFICATION.value if is_provider else AccountStatus.ACTIVE.value
+
         user = User(
             email=email_clean,
             name=name_clean,
             phone=phone_clean,
             hashed_password=hash_password(data.password),
             role=role,
-            is_active=True
+            is_active=True,
+            account_status=initial_status,
+            phone_verified=phone_verified,
+            phone_verified_at=datetime.utcnow() if phone_verified else None,
+            email_verified=email_verified,
+            email_verified_at=datetime.utcnow() if email_verified else None
         )
         db.add(user)
 
@@ -145,13 +134,13 @@ class AuthService:
                 )
 
         # If provider, create associated provider profile
-        if role == UserRole.PROVIDER:
+        if is_provider:
             provider_profile = ProviderProfile(
                 user_id=user.id,
                 business_name=data.business_name.strip() if data.business_name else f"{user.name} Stays",
                 contact_phone=user.phone,
                 contact_email=user.email,
-                verification_status="VERIFIED"
+                verification_status="PENDING"
             )
             db.add(provider_profile)
             try:
@@ -159,11 +148,37 @@ class AuthService:
             except Exception:
                 db.rollback()
 
+            # Trigger initial phone OTP and email verification
+            try:
+                OtpService.send_phone_otp(db, phone=user.phone, user_id=user.id)
+            except Exception as e:
+                print(f"[OTP NOTICE] Initial phone OTP error: {e}")
+
+            try:
+                OtpService.send_email_verification(db, email=user.email, user_id=user.id)
+            except Exception as e:
+                print(f"[EMAIL NOTICE] Initial email verification error: {e}")
+
+            return {
+                "message": "Host registration initiated. Please verify your mobile number and email address to activate your host account.",
+                "success": True,
+                "email": user.email,
+                "role": user.role.value,
+                "phone": user.phone,
+                "phone_verified": False,
+                "email_verified": False,
+                "verification_required": True
+            }
+
         return {
             "message": "Your Voyara account has been created successfully. Please sign in to continue.",
             "success": True,
             "email": user.email,
-            "role": user.role.value
+            "role": user.role.value,
+            "phone": user.phone,
+            "phone_verified": True,
+            "email_verified": True,
+            "verification_required": False
         }
 
     @staticmethod
@@ -176,11 +191,43 @@ class AuthService:
                 detail="Incorrect email or password.",
             )
 
-        if not user.is_active:
+        acc_status = getattr(user, "account_status", "ACTIVE")
+        if not user.is_active or acc_status in ["SUSPENDED", AccountStatus.SUSPENDED.value]:
+            reason = getattr(user, "suspension_reason", None)
+            detail_msg = f"Your account has been suspended. Reason: {reason}" if reason else "Your account has been suspended. Please contact support."
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Your account is currently unavailable. Please contact support.",
+                detail=detail_msg,
             )
+
+        if acc_status in ["DEACTIVATED", AccountStatus.DEACTIVATED.value]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your account has been deactivated. Please contact support.",
+            )
+
+        # Strict Host Verification Gating: Hosts can only sign in after both mobile number and email verification have succeeded
+        if user.role == UserRole.PROVIDER:
+            phone_ok = getattr(user, "phone_verified", False)
+            email_ok = getattr(user, "email_verified", False)
+            if not phone_ok or not email_ok:
+                missing = []
+                if not phone_ok:
+                    missing.append("mobile number OTP verification")
+                if not email_ok:
+                    missing.append("email verification")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Host registration is incomplete. Please complete your {' and '.join(missing)} before signing in.",
+                )
+
+            # Auto-activate Host status if both verifications are complete
+            if acc_status == AccountStatus.PENDING_VERIFICATION.value:
+                user.account_status = AccountStatus.ACTIVE.value
+                if getattr(user, "provider_profile", None):
+                    user.provider_profile.verification_status = "VERIFIED"
+                db.commit()
+                acc_status = AccountStatus.ACTIVE.value
 
         token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role.value})
 
@@ -193,7 +240,10 @@ class AuthService:
                 "email": user.email,
                 "phone": user.phone,
                 "role": user.role.value,
-                "is_active": user.is_active
+                "is_active": user.is_active,
+                "account_status": acc_status,
+                "phone_verified": getattr(user, "phone_verified", False),
+                "email_verified": getattr(user, "email_verified", False)
             }
         }
 
@@ -321,10 +371,19 @@ class AuthService:
 
         # 2. Existing user found
         if user:
-            if not user.is_active:
+            acc_status = getattr(user, "account_status", "ACTIVE")
+            if not user.is_active or acc_status in ["SUSPENDED", AccountStatus.SUSPENDED.value]:
+                reason = getattr(user, "suspension_reason", None)
+                detail_msg = f"Your account has been suspended. Reason: {reason}" if reason else "Your account has been suspended. Please contact support."
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Your account is currently unavailable. Please contact support."
+                    detail=detail_msg
+                )
+
+            if acc_status in ["DEACTIVATED", AccountStatus.DEACTIVATED.value]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Your account has been deactivated. Please contact support."
                 )
 
             # Safely link Google identity if not already linked
@@ -332,6 +391,8 @@ class AuthService:
                 user.google_sub = google_sub
                 if getattr(user, "auth_provider", None) in [None, "local"]:
                     user.auth_provider = "google"
+                # Since verified through Google, email is verified
+                user.email_verified = True
                 db.commit()
                 db.refresh(user)
 
@@ -346,7 +407,10 @@ class AuthService:
                     "email": user.email,
                     "phone": user.phone,
                     "role": user.role.value,
-                    "is_active": user.is_active
+                    "is_active": user.is_active,
+                    "account_status": acc_status,
+                    "phone_verified": getattr(user, "phone_verified", False),
+                    "email_verified": getattr(user, "email_verified", False)
                 }
             }
 
@@ -371,7 +435,7 @@ class AuthService:
                 detail="Google signup only supports Traveler or Host accounts."
             )
 
-        phone_clean = normalize_phone(data.phone)
+        phone_clean = clean_indian_phone_strict(data.phone)
 
         # Check phone uniqueness in PostgreSQL
         existing_phone = db.query(User).filter(User.phone == phone_clean).first()
@@ -381,9 +445,11 @@ class AuthService:
                 detail="This phone number is already registered with another account."
             )
 
-        # Generate secure random unusable hashed password for Google-authenticated user
         rand_pw = secrets.token_urlsafe(32)
         hashed_pw = hash_password(rand_pw)
+
+        is_provider = (data.role == UserRole.PROVIDER)
+        initial_status = AccountStatus.PENDING_VERIFICATION.value if is_provider else AccountStatus.ACTIVE.value
 
         new_user = User(
             email=email,
@@ -393,27 +459,35 @@ class AuthService:
             hashed_password=hashed_pw,
             auth_provider="google",
             google_sub=google_sub,
-            is_active=True
+            is_active=True,
+            account_status=initial_status,
+            phone_verified=not is_provider,  # Host needs phone OTP
+            email_verified=True  # Email verified via Google
         )
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
 
-        # If Host (Provider), create associated provider profile
-        if data.role == UserRole.PROVIDER:
+        # If Host (Provider), create associated provider profile and send phone OTP
+        if is_provider:
             biz_name = data.business_name.strip() if data.business_name and data.business_name.strip() else f"{new_user.name} Stays"
             provider_profile = ProviderProfile(
                 user_id=new_user.id,
                 business_name=biz_name,
                 contact_phone=new_user.phone,
                 contact_email=new_user.email,
-                verification_status="VERIFIED"
+                verification_status="PENDING"
             )
             db.add(provider_profile)
             try:
                 db.commit()
             except Exception:
                 db.rollback()
+
+            try:
+                OtpService.send_phone_otp(db, phone=new_user.phone, user_id=new_user.id)
+            except Exception as e:
+                print(f"[OTP NOTICE] Google signup phone OTP error: {e}")
 
         token = create_access_token(data={"sub": str(new_user.id), "email": new_user.email, "role": new_user.role.value})
 
@@ -427,12 +501,15 @@ class AuthService:
                 "email": new_user.email,
                 "phone": new_user.phone,
                 "role": new_user.role.value,
-                "is_active": new_user.is_active
+                "is_active": new_user.is_active,
+                "account_status": "ACTIVE",
+                "phone_verified": new_user.phone_verified,
+                "email_verified": new_user.email_verified
             }
         }
 
     @staticmethod
-    def update_profile(db: Session, user: User, data: UserUpdate) -> User:
+    def update_profile(db: Session, user: User, data) -> User:
         if data.name is not None:
             clean_name = data.name.strip()
             if len(clean_name) < 2:
@@ -470,4 +547,3 @@ class AuthService:
         user.hashed_password = hash_password(new_password)
         db.commit()
         return {"message": "Password updated successfully.", "success": True}
-

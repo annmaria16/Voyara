@@ -36,9 +36,9 @@ export const BookingPage = () => {
   if (!bookingState) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-2xl font-bold font-serif text-[#102A43] dark:text-white">No Booking Selected</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-300">Please choose a stay and room unit first.</p>
-        <Link to="/search" className="inline-block px-5 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 text-white font-bold rounded-xl text-xs">
+        <h2 className="text-2xl font-bold font-serif text-[#17324D] dark:text-white">No Booking Selected</h2>
+        <p className="text-sm text-[#607080] dark:text-slate-300">Please choose a stay and room unit first.</p>
+        <Link to="/search" className="inline-block px-5 py-2.5 bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white font-bold rounded-xl text-xs">
           Browse Stays
         </Link>
       </div>
@@ -116,7 +116,7 @@ export const BookingPage = () => {
           property_name: property_name,
         },
         theme: {
-          color: '#F97360',
+          color: '#087F8C',
         },
         modal: {
           ondismiss: async () => {
@@ -204,7 +204,7 @@ export const BookingPage = () => {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="inline-flex items-center space-x-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+          className="inline-flex items-center space-x-1.5 text-xs font-bold text-[#087F8C] dark:text-[#27B7A8] hover:underline cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to stay details</span>
@@ -214,12 +214,12 @@ export const BookingPage = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2 mb-1">
-            <span className="text-xs bg-gradient-to-r from-[#F97360] to-orange-500 text-white font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+            <span className="text-xs bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
               Step 2 of 2 • Secure Checkout
             </span>
             <VerificationBadge status="VERIFIED" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black font-serif text-[#102A43] dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-black font-serif text-[#17324D] dark:text-white">
             Review & Pay with Razorpay
           </h1>
         </div>
@@ -243,13 +243,13 @@ export const BookingPage = () => {
 
       {/* Full-screen / inline verification overlay when confirming signature */}
       {verifyingPayment && (
-        <div className="p-6 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700 rounded-3xl flex items-center space-x-4 animate-pulse">
-          <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin shrink-0"></div>
+        <div className="p-6 bg-[#DDF3E7] dark:bg-[#35A66F]/20 border border-[#35A66F]/40 rounded-3xl flex items-center space-x-4 animate-pulse">
+          <div className="w-6 h-6 border-3 border-[#35A66F] border-t-transparent rounded-full animate-spin shrink-0"></div>
           <div>
-            <h4 className="font-bold text-sm text-emerald-900 dark:text-emerald-200">
+            <h4 className="font-bold text-sm text-[#17324D] dark:text-[#35A66F]">
               Verifying Cryptographic Payment Signature...
             </h4>
-            <p className="text-xs text-emerald-700 dark:text-emerald-400">
+            <p className="text-xs text-[#35A66F] dark:text-slate-300">
               Running VeriNova™ double-booking and transactional consistency checks. Please do not close your browser.
             </p>
           </div>
@@ -260,62 +260,62 @@ export const BookingPage = () => {
         {/* Left Column: Guest info & Notes */}
         <div className="lg:col-span-7 space-y-6">
           {/* Guest Identity Card */}
-          <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <h2 className="text-base sm:text-lg font-bold font-serif text-[#102A43] dark:text-white flex items-center space-x-2">
-              <Users className="w-5 h-5 text-emerald-500" />
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-sm space-y-4">
+            <h2 className="text-base sm:text-lg font-bold font-serif text-[#17324D] dark:text-white flex items-center space-x-2">
+              <Users className="w-5 h-5 text-[#087F8C]" />
               <span>Guest Information</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-3.5 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800">
+              <div className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Primary Guest</span>
-                <strong className="text-[#102A43] dark:text-white text-sm block">{user?.name || 'Voyara Traveler'}</strong>
+                <strong className="text-[#17324D] dark:text-white text-sm block">{user?.name || 'Voyara Traveler'}</strong>
               </div>
 
-              <div className="p-3.5 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800">
+              <div className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Contact Phone</span>
-                <strong className="text-[#102A43] dark:text-white text-sm block">{user?.phone || 'Verified'}</strong>
+                <strong className="text-[#17324D] dark:text-white text-sm block">{user?.phone || 'Verified'}</strong>
               </div>
 
-              <div className="p-3.5 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800 sm:col-span-2">
+              <div className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40 sm:col-span-2">
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Contact Email</span>
-                <strong className="text-[#102A43] dark:text-white text-sm block">{user?.email}</strong>
+                <strong className="text-[#17324D] dark:text-white text-sm block">{user?.email}</strong>
               </div>
             </div>
           </div>
 
           {/* Special Requests */}
-          <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
-            <h2 className="text-base sm:text-lg font-bold font-serif text-[#102A43] dark:text-white">
-              Special Requests / Host Notes
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-sm space-y-3">
+            <h2 className="text-base sm:text-lg font-bold font-serif text-[#17324D] dark:text-white">
+              Special Requests / Stay Partner Notes
             </h2>
             <textarea
               rows={3}
               value={customerNotes}
               onChange={(e) => setCustomerNotes(e.target.value)}
               placeholder="e.g. Late check-in arrival around 6 PM, dietary preference for breakfast..."
-              className="w-full px-4 py-3 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs text-[#102A43] dark:text-white focus:outline-hidden focus:border-[#F97360] resize-none"
+              className="w-full px-4 py-3 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs text-[#17324D] dark:text-white focus:outline-hidden focus:border-[#087F8C] focus:ring-2 focus:ring-[#087F8C]/20 resize-none"
             />
           </div>
 
           {/* Razorpay Trust & Payment Methods Banner */}
-          <div className="p-5 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 text-white border border-slate-800 shadow-lg space-y-3">
+          <div className="p-5 rounded-3xl bg-gradient-to-br from-[#17324D] via-[#087F8C]/90 to-[#091B29] text-white border border-teal-500/30 shadow-lg space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs border border-blue-400/30">
+                <div className="w-8 h-8 rounded-xl bg-white/20 text-[#27B7A8] flex items-center justify-center font-bold text-xs border border-white/20">
                   <CreditCard className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-100">Razorpay 256-Bit Encrypted Payment</h4>
-                  <p className="text-[10px] text-slate-400">UPI, Credit/Debit Cards, NetBanking, Wallets supported</p>
+                  <h4 className="text-xs font-bold text-white">Razorpay 256-Bit Encrypted Payment</h4>
+                  <p className="text-[10px] text-slate-200">UPI, Credit/Debit Cards, NetBanking, Wallets supported</p>
                 </div>
               </div>
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#DDF3E7] text-[#35A66F] font-bold">
                 100% Safe
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-semibold text-slate-300">
+            <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-semibold text-slate-200">
               <span className="px-2.5 py-1 bg-white/10 rounded-lg border border-white/10">⚡ Google Pay / PhonePe / Paytm</span>
               <span className="px-2.5 py-1 bg-white/10 rounded-lg border border-white/10">💳 Visa / Mastercard / RuPay</span>
               <span className="px-2.5 py-1 bg-white/10 rounded-lg border border-white/10">🏦 Net Banking (50+ Banks)</span>
@@ -325,17 +325,17 @@ export const BookingPage = () => {
 
         {/* Right Column: Reservation Breakdown */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xl space-y-6">
-            <h2 className="text-base sm:text-lg font-bold font-serif text-[#102A43] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-xl space-y-6">
+            <h2 className="text-base sm:text-lg font-bold font-serif text-[#17324D] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">
               Reservation Summary
             </h2>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-2xl border border-slate-200/70 dark:border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400">{property_type}</span>
-                <h4 className="text-sm font-bold text-[#102A43] dark:text-white">{property_name}</h4>
-                <p className="text-slate-500 dark:text-slate-400">{property_city} • {room_name}</p>
-                <div className="flex items-center space-x-3 pt-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40 space-y-1">
+                <span className="text-[10px] font-bold uppercase text-[#087F8C] dark:text-[#27B7A8]">{property_type}</span>
+                <h4 className="text-sm font-bold text-[#17324D] dark:text-white">{property_name}</h4>
+                <p className="text-[#607080] dark:text-slate-400">{property_city} • {room_name}</p>
+                <div className="flex items-center space-x-3 pt-1 text-[11px] font-semibold text-[#607080] dark:text-slate-300">
                   <span>🏢 {room_quantity} {room_quantity === 1 ? 'Room' : 'Rooms'}</span>
                   <span>•</span>
                   <span>👥 {guests} {guests === 1 ? 'Guest' : 'Guests'}</span>
@@ -343,45 +343,45 @@ export const BookingPage = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-3 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-xl border border-slate-200/70 dark:border-slate-800">
+                <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-100 dark:border-teal-900/40">
                   <span className="text-slate-400 font-bold block text-[10px] uppercase">Check-in</span>
-                  <strong className="text-[#102A43] dark:text-white">{check_in}</strong>
+                  <strong className="text-[#17324D] dark:text-white">{check_in}</strong>
                 </div>
-                <div className="p-3 bg-[#FFF8F0]/70 dark:bg-slate-900/60 rounded-xl border border-slate-200/70 dark:border-slate-800">
+                <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-100 dark:border-teal-900/40">
                   <span className="text-slate-400 font-bold block text-[10px] uppercase">Check-out</span>
-                  <strong className="text-[#102A43] dark:text-white">{check_out}</strong>
+                  <strong className="text-[#17324D] dark:text-white">{check_out}</strong>
                 </div>
               </div>
 
               {experience_title && (
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800/60 space-y-0.5">
-                  <span className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-400">Bundled Experience</span>
-                  <h5 className="font-bold text-emerald-900 dark:text-emerald-300">{experience_title}</h5>
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400">{experience_participants} participant(s)</p>
+                <div className="p-3 bg-[#DDF3E7] dark:bg-[#35A66F]/20 rounded-xl border border-[#35A66F]/30 space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase text-[#35A66F]">Bundled Experience</span>
+                  <h5 className="font-bold text-[#17324D] dark:text-emerald-300">{experience_title}</h5>
+                  <p className="text-[11px] text-[#35A66F]">{experience_participants} participant(s)</p>
                 </div>
               )}
             </div>
 
             {/* Price Calculations */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600 dark:text-slate-300">
+              <div className="flex justify-between text-[#607080] dark:text-slate-300">
                 <span>{room_name} (₹{room_price?.toLocaleString('en-IN')} × {nights}n × {room_quantity}r)</span>
-                <span className="font-bold text-[#102A43] dark:text-white">₹{room_subtotal.toLocaleString('en-IN')}</span>
+                <span className="font-bold text-[#17324D] dark:text-white">₹{room_subtotal.toLocaleString('en-IN')}</span>
               </div>
 
               {experience_title && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
                   <span>Experience Add-on</span>
                   <span className="font-bold">₹{experience_subtotal.toLocaleString('en-IN')}</span>
                 </div>
               )}
 
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm font-bold text-[#102A43] dark:text-white">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm font-bold text-[#17324D] dark:text-white">
                 <div>
                   <span>Total Amount Due</span>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-semibold">Includes All Taxes & VeriNova Audit</span>
+                  <span className="text-[10px] text-[#35A66F] block font-semibold">Includes All Taxes & VeriNova Audit</span>
                 </div>
-                <span className="text-xl text-[#F97360] font-serif font-black">₹{total_amount.toLocaleString('en-IN')}</span>
+                <span className="text-xl text-[#F97316] font-serif font-black">₹{total_amount.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
@@ -389,7 +389,7 @@ export const BookingPage = () => {
             <button
               type="submit"
               disabled={loading || verifyingPayment}
-              className="w-full py-4 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-[#F97360]/25 hover:shadow-xl transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50"
+              className="w-full py-4 bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white font-bold rounded-2xl shadow-lg shadow-[#F97316]/25 hover:shadow-xl transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50"
             >
               {loading || verifyingPayment ? (
                 <>
@@ -406,7 +406,7 @@ export const BookingPage = () => {
 
             <div className="text-center">
               <span className="text-[10px] text-slate-400 flex items-center justify-center space-x-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <ShieldCheck className="w-3.5 h-3.5 text-[#35A66F]" />
                 <span>Protected by VeriNova™ Transaction Verification</span>
               </span>
             </div>

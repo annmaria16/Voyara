@@ -250,14 +250,14 @@ export const ProfilePage = () => {
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-12">
       {/* 1. Header Profile Banner */}
-      <div className="relative bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs overflow-hidden">
+      <div className="relative bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm overflow-hidden">
         {/* Subtle decorative background gradient */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-emerald-500/10 via-[#F97360]/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#087F8C]/15 via-orange-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start space-y-6 sm:space-y-0 sm:space-x-8">
           {/* Avatar with Camera Trigger */}
           <div className="relative group shrink-0">
-            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 bg-gradient-to-tr from-emerald-600 via-teal-600 to-[#F97360] flex items-center justify-center text-white font-black text-4xl uppercase relative">
+            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden shadow-lg border-4 border-white dark:border-slate-800 bg-gradient-to-tr from-[#087F8C] via-[#0F9D9A] to-orange-500 flex items-center justify-center text-white font-black text-4xl uppercase relative">
               {avatarFullUrl ? (
                 <img
                   src={avatarFullUrl}
@@ -282,7 +282,7 @@ export const ProfilePage = () => {
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingPhoto}
               title="Upload profile photo"
-              className="absolute -bottom-2 -right-2 p-2.5 rounded-2xl bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white shadow-md transition-transform hover:scale-105 active:scale-95 flex items-center justify-center border-2 border-white dark:border-slate-800 cursor-pointer"
+              className="absolute -bottom-2 -right-2 p-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#EA580C] text-white shadow-md transition-transform hover:scale-105 active:scale-95 flex items-center justify-center border-2 border-white dark:border-slate-800 cursor-pointer"
             >
               <Camera className="w-4 h-4" />
             </button>
@@ -299,10 +299,10 @@ export const ProfilePage = () => {
           {/* User Details & Identity Badges */}
           <div className="flex-1 text-center sm:text-left space-y-3">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-              <h1 className="text-2xl sm:text-3xl font-black font-serif text-[#102A43] dark:text-white">
+              <h1 className="text-2xl sm:text-3xl font-black font-serif text-[#091B29] dark:text-white">
                 {name || user?.name || 'Voyara User'}
               </h1>
-              <span className="px-3 py-1 rounded-xl bg-[#F97360]/15 text-[#F97360] dark:text-orange-400 text-xs font-black uppercase tracking-wider">
+              <span className="px-3 py-1 rounded-xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] text-xs font-black uppercase tracking-wider border border-[#087F8C]/20">
                 {roleLabel || user?.role || 'Traveler'}
               </span>
               <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-500/20">
@@ -317,12 +317,12 @@ export const ProfilePage = () => {
 
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 pt-1 text-xs text-slate-500 dark:text-slate-400">
               <span className="inline-flex items-center space-x-1">
-                <Calendar className="w-3.5 h-3.5 text-emerald-500" />
+                <Calendar className="w-3.5 h-3.5 text-[#087F8C]" />
                 <span>Member since {formattedJoinDate}</span>
               </span>
               {location && (
                 <span className="inline-flex items-center space-x-1">
-                  <MapPin className="w-3.5 h-3.5 text-[#F97360]" />
+                  <MapPin className="w-3.5 h-3.5 text-orange-500" />
                   <span>{location}</span>
                 </span>
               )}
@@ -334,9 +334,9 @@ export const ProfilePage = () => {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingPhoto}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-800 dark:text-white transition-colors cursor-pointer"
+                className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-[#087F8C]/10 text-xs font-semibold text-[#091B29] dark:text-white hover:text-[#087F8C] transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-700"
               >
-                <Upload className="w-3.5 h-3.5 text-emerald-500" />
+                <Upload className="w-3.5 h-3.5 text-[#087F8C]" />
                 <span>Change Photo</span>
               </button>
 
@@ -374,11 +374,11 @@ export const ProfilePage = () => {
       {/* 2. Main Profile Edit Form */}
       <form onSubmit={handleSaveProfile} className="space-y-6">
         {/* Section A: Personal Information & Verified Credentials */}
-        <div className="bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold font-serif text-[#102A43] dark:text-white flex items-center space-x-2">
-                <User className="w-5 h-5 text-[#F97360]" />
+              <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white flex items-center space-x-2">
+                <User className="w-5 h-5 text-[#087F8C]" />
                 <span>Account Information</span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -402,7 +402,7 @@ export const ProfilePage = () => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your full name"
                   required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-[#F97360] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] transition-all"
                 />
               </div>
             </div>
@@ -467,7 +467,7 @@ export const ProfilePage = () => {
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="e.g. Kochi, Kerala, India"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] transition-all"
                 />
               </div>
             </div>
@@ -482,18 +482,18 @@ export const ProfilePage = () => {
                 onChange={(e) => setBio(e.target.value)}
                 rows={3}
                 placeholder="Share a short note about your travel style, favorite escapes, or hosting philosophy..."
-                className="w-full px-4 py-3 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500 transition-all resize-none"
+                className="w-full px-4 py-3 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] transition-all resize-none"
               />
             </div>
           </div>
         </div>
 
         {/* Section B: Preferences & Regional Settings */}
-        <div className="bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
-              <h2 className="text-base sm:text-lg font-bold font-serif text-[#102A43] dark:text-white flex items-center space-x-2">
-                <Globe className="w-5 h-5 text-[#F97360]" />
+              <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white flex items-center space-x-2">
+                <Globe className="w-5 h-5 text-orange-500" />
                 <span>Regional & Travel Preferences</span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -506,13 +506,13 @@ export const ProfilePage = () => {
             {/* Preferred Currency */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center space-x-1">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
+                <DollarSign className="w-3.5 h-3.5 text-[#087F8C]" />
                 <span>Display Currency</span>
               </label>
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500"
+                className="w-full px-4 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
               >
                 <option value="INR">INR (₹) - Indian Rupee</option>
                 <option value="USD">USD ($) - US Dollar</option>
@@ -525,13 +525,13 @@ export const ProfilePage = () => {
             {/* Preferred Language */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center space-x-1">
-                <Globe className="w-3.5 h-3.5 text-[#F97360]" />
+                <Globe className="w-3.5 h-3.5 text-orange-500" />
                 <span>Preferred Language</span>
               </label>
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-[#F97360]"
+                className="w-full px-4 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
               >
                 <option value="English">English</option>
                 <option value="Hindi">Hindi (हिंदी)</option>
@@ -545,7 +545,7 @@ export const ProfilePage = () => {
             {/* Travel Interests Tag Selection */}
             <div className="space-y-3 md:col-span-2 pt-2">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center space-x-1.5">
-                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <Sparkles className="w-4 h-4 text-[#087F8C]" />
                 <span>Favorite Stay Styles & Adventure Interests</span>
               </label>
               <div className="flex flex-wrap gap-2.5">
@@ -558,8 +558,8 @@ export const ProfilePage = () => {
                       onClick={() => toggleStyle(opt.id)}
                       className={`inline-flex items-center space-x-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-sm shadow-emerald-500/20 scale-[1.02]'
-                          : 'bg-[#FFF8F0]/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-emerald-500'
+                          ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-sm shadow-teal-500/20 scale-[1.02]'
+                          : 'bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-[#087F8C]'
                       }`}
                     >
                       <span>{opt.icon}</span>
@@ -577,7 +577,7 @@ export const ProfilePage = () => {
             <button
               type="submit"
               disabled={savingProfile}
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white text-xs font-bold rounded-2xl shadow-md shadow-[#F97360]/20 transition-all cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#EA580C] text-white text-xs font-bold rounded-2xl shadow-md shadow-orange-500/20 transition-all cursor-pointer disabled:opacity-50"
             >
               {savingProfile ? (
                 <>
@@ -596,11 +596,11 @@ export const ProfilePage = () => {
       </form>
 
       {/* 3. Security & Password Management */}
-      <div className="bg-white dark:bg-[#131D2E] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+      <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
-            <h2 className="text-base sm:text-lg font-bold font-serif text-[#102A43] dark:text-white flex items-center space-x-2">
-              <KeyRound className="w-5 h-5 text-emerald-500" />
+            <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white flex items-center space-x-2">
+              <KeyRound className="w-5 h-5 text-[#087F8C]" />
               <span>Password & Security</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -636,7 +636,7 @@ export const ProfilePage = () => {
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="Enter current password"
                 required
-                className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500"
+                className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
               />
               <button
                 type="button"
@@ -661,7 +661,7 @@ export const ProfilePage = () => {
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="At least 6 characters"
                   required
-                  className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                 />
                 <button
                   type="button"
@@ -685,7 +685,7 @@ export const ProfilePage = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
                   required
-                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                 />
               </div>
             </div>
@@ -695,7 +695,7 @@ export const ProfilePage = () => {
             <button
               type="submit"
               disabled={savingPassword}
-              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-[#e05e4b] hover:to-orange-600 text-white text-xs font-bold rounded-2xl shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#EA580C] text-white text-xs font-bold rounded-2xl shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
               {savingPassword ? (
                 <>
@@ -714,10 +714,10 @@ export const ProfilePage = () => {
       </div>
 
       {/* 4. VeriNova Verification & Trust Summary */}
-      <div className="bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-[#0F172A] border border-slate-800 text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-4">
+      <div className="bg-gradient-to-r from-[#091B29] via-[#0F273D] to-[#091B29] border border-teal-900/40 text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-400 border border-emerald-500/30">
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#087F8C]/20 text-xs font-bold text-[#27B7A8] border border-[#087F8C]/30">
               <ShieldCheck className="w-4 h-4" />
               <span>VeriNova Verified Member</span>
             </div>
@@ -729,7 +729,7 @@ export const ProfilePage = () => {
 
           <div className="shrink-0 p-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 text-center space-y-1">
             <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Trust Rating</p>
-            <p className="text-2xl font-black text-emerald-400">100%</p>
+            <p className="text-2xl font-black text-[#27B7A8]">100%</p>
             <p className="text-[10px] text-emerald-400 font-semibold">Active & Audited</p>
           </div>
         </div>

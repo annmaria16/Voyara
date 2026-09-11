@@ -30,6 +30,18 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: str = "no-reply@voyara.com"
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # OTP & SMS Provider Configuration ("development" or "2factor")
+    OTP_PROVIDER: str = "development"
+
+    # SMS Gateway Configuration (2Factor / Fast2SMS / Twilio / MSG91 / Textlocal)
+    TWOFACTOR_API_KEY: str = ""
+    FAST2SMS_API_KEY: str = ""
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_PHONE_NUMBER: str = ""
+    MSG91_AUTH_KEY: str = ""
+    TEXTLOCAL_API_KEY: str = ""
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

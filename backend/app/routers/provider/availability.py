@@ -21,8 +21,8 @@ def get_property_availability(
     provider: ProviderProfile = Depends(get_current_provider),
     db: Session = Depends(get_db)
 ):
-    """Get full availability calendar, closures, room blocks, and bookings for a property."""
-    return AvailabilityService.get_property_calendar(db, property_id)
+    """Get full availability calendar, closures, room blocks, and bookings for a property with provider ownership check."""
+    return AvailabilityService.get_property_calendar(db, property_id, provider_id=provider.id)
 
 @router.post("/properties/{property_id}/availability/close", response_model=PropertyClosureResponse)
 def close_property_dates(

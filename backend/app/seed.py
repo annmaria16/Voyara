@@ -27,10 +27,13 @@ def seed_database():
     admin = User(
         email="adminvoyara@gmail.com",
         name="Voyara Administrator",
-        phone="+91 9876543210",
+        phone="+919876543210",
         hashed_password=hash_password("admin123"),
         role=UserRole.ADMIN,
-        is_active=True
+        is_active=True,
+        account_status="ACTIVE",
+        phone_verified=True,
+        email_verified=True
     )
     db.add(admin)
 
@@ -38,10 +41,13 @@ def seed_database():
     provider1_user = User(
         email="kerala.stays@voyara.com",
         name="Rohan Nair",
-        phone="+91 9847012345",
+        phone="+919847012345",
         hashed_password=hash_password("provider123"),
         role=UserRole.PROVIDER,
-        is_active=True
+        is_active=True,
+        account_status="ACTIVE",
+        phone_verified=True,
+        email_verified=True
     )
     db.add(provider1_user)
     db.commit()
@@ -50,7 +56,7 @@ def seed_database():
         user_id=provider1_user.id,
         business_name="Highland Escapes & Resorts",
         description="Curators of authentic hill-station stays and mountain adventures across Kerala.",
-        contact_phone="+91 9847012345",
+        contact_phone="+919847012345",
         contact_email="kerala.stays@voyara.com",
         verification_status="VERIFIED"
     )
@@ -59,10 +65,13 @@ def seed_database():
     provider2_user = User(
         email="coastal.villas@voyara.com",
         name="Elena D'Souza",
-        phone="+91 9822054321",
+        phone="+919822054321",
         hashed_password=hash_password("provider123"),
         role=UserRole.PROVIDER,
-        is_active=True
+        is_active=True,
+        account_status="ACTIVE",
+        phone_verified=True,
+        email_verified=True
     )
     db.add(provider2_user)
     db.commit()
@@ -71,7 +80,7 @@ def seed_database():
         user_id=provider2_user.id,
         business_name="Sunset Coast Stays & Marine Adventures",
         description="Premium seaside villas, luxury beachfront glamping, and coastal water activities.",
-        contact_phone="+91 9822054321",
+        contact_phone="+919822054321",
         contact_email="coastal.villas@voyara.com",
         verification_status="VERIFIED"
     )
@@ -81,18 +90,24 @@ def seed_database():
     cust1 = User(
         email="john.traveler@example.com",
         name="John Doe",
-        phone="+91 9123456780",
+        phone="+919123456780",
         hashed_password=hash_password("customer123"),
         role=UserRole.CUSTOMER,
-        is_active=True
+        is_active=True,
+        account_status="ACTIVE",
+        phone_verified=True,
+        email_verified=True
     )
     cust2 = User(
         email="sarah.explorer@example.com",
         name="Sarah Jenkins",
-        phone="+91 9123456789",
+        phone="+919123456789",
         hashed_password=hash_password("customer123"),
         role=UserRole.CUSTOMER,
-        is_active=True
+        is_active=True,
+        account_status="ACTIVE",
+        phone_verified=True,
+        email_verified=True
     )
     db.add_all([cust1, cust2])
     db.commit()

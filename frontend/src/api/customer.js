@@ -46,8 +46,23 @@ export const customerApi = {
     return response.data;
   },
 
-  cancelBooking: async (bookingId) => {
-    const response = await api.post(`/customer/bookings/${bookingId}/cancel`);
+  getCancellationPreview: async (bookingId) => {
+    const response = await api.get(`/customer/bookings/${bookingId}/cancellation-preview`);
+    return response.data;
+  },
+
+  cancelBooking: async (bookingId, reasonData = {}) => {
+    const response = await api.post(`/customer/bookings/${bookingId}/cancel`, reasonData);
+    return response.data;
+  },
+
+  getBookingRefund: async (bookingId) => {
+    const response = await api.get(`/customer/bookings/${bookingId}/refund`);
+    return response.data;
+  },
+
+  getBookingReviewEligibility: async (bookingId) => {
+    const response = await api.get(`/customer/bookings/${bookingId}/review-eligibility`);
     return response.data;
   },
 

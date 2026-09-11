@@ -6,8 +6,31 @@ export const adminApi = {
     return response.data;
   },
 
-  getUsers: async (role) => {
-    const response = await api.get('/admin/users', { params: role ? { role } : {} });
+  getUsers: async (role, account_status) => {
+    const params = {};
+    if (role) params.role = role;
+    if (account_status) params.account_status = account_status;
+    const response = await api.get('/admin/users', { params });
+    return response.data;
+  },
+
+  getUserDetail: async (userId) => {
+    const response = await api.get(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  suspendUser: async (userId, data) => {
+    const response = await api.post(`/admin/users/${userId}/suspend`, data);
+    return response.data;
+  },
+
+  reactivateUser: async (userId) => {
+    const response = await api.post(`/admin/users/${userId}/reactivate`);
+    return response.data;
+  },
+
+  deactivateUser: async (userId, data = {}) => {
+    const response = await api.post(`/admin/users/${userId}/deactivate`, data);
     return response.data;
   },
 
@@ -38,12 +61,6 @@ export const adminApi = {
     return response.data;
   },
 
-  getOwnershipProofUrl: (propertyId) => {
-    const token = localStorage.getItem('voyara_token');
-    const query = token ? `?token=${encodeURIComponent(token)}` : '';
-    return `/api/admin/properties/${propertyId}/ownership-proof${query}`;
-  },
-
   togglePropertyStatus: async (propertyId) => {
     const response = await api.put(`/admin/properties/${propertyId}/toggle-status`);
     return response.data;
@@ -61,6 +78,11 @@ export const adminApi = {
 
   getBookings: async () => {
     const response = await api.get('/admin/bookings');
+    return response.data;
+  },
+
+  getBookingRefund: async (bookingId) => {
+    const response = await api.get(`/admin/bookings/${bookingId}/refund`);
     return response.data;
   },
 

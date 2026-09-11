@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { providerApi } from '../../api/provider';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import {
@@ -18,19 +18,26 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
-  HelpCircle,
+  ShieldCheck,
+  ChevronRight,
+  ExternalLink,
+  Settings,
+  Image as ImageIcon,
+  BookOpen,
 } from 'lucide-react';
 
 export const ProviderProperties = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [manageMenuPropertyId, setManageMenuPropertyId] = useState(null);
+  const navigate = useNavigate();
 
   const fetchProperties = async () => {
     setLoading(true);
     try {
       const data = await providerApi.getProperties();
-      setProperties(data);
+      setProperties(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || 'Failed to load properties.');
     } finally {
@@ -52,185 +59,295 @@ export const ProviderProperties = () => {
     }
   };
 
-  const getVerificationBadge = (status) => {
+  const getVerificationBadge = (status, isActive) => {
+    if (status === 'VERIFIED' && isActive) {
+      return (
+        <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold bg-[#35A66F]/20 text-[#35A66F] dark:text-[#35A66F] border border-[#35A66F]/40 backdrop-blur-md shadow-xs">
+          <CheckCircle2 className="w-3.5 h-3.5 text-[#35A66F]" />
+          <span>🟢 Live</span>
+        </span>
+      );
+    }
     switch (status) {
       case 'VERIFIED':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-            <CheckCircle2 className="w-3 h-3" />
-            <span>Verified</span>
+          <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold bg-[#35A66F]/20 text-[#35A66F] border border-[#35A66F]/40 backdrop-blur-md">
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#35A66F]" />
+            <span>🟢 Verified</span>
           </span>
         );
       case 'NEEDS_REVIEW':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-            <AlertTriangle className="w-3 h-3" />
-            <span>Needs Review</span>
+          <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold bg-[#F6C945]/20 text-amber-700 dark:text-[#F6C945] border border-[#F6C945]/40 backdrop-blur-md">
+            <AlertTriangle className="w-3.5 h-3.5 text-[#F6C945]" />
+            <span>🟠 Needs Review</span>
           </span>
         );
       case 'REJECTED':
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
-            <XCircle className="w-3 h-3" />
-            <span>Rejected</span>
+          <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/40 backdrop-blur-md">
+            <XCircle className="w-3.5 h-3.5 text-rose-500" />
+            <span>🔴 Rejected</span>
           </span>
         );
       case 'PENDING_VERIFICATION':
       default:
         return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-500/30 animate-pulse">
-            <Clock className="w-3 h-3" />
-            <span>Pending Verification</span>
+          <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40 backdrop-blur-md">
+            <Clock className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+            <span>🟡 Under Review</span>
           </span>
         );
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <h2 className="text-2xl font-black font-serif text-slate-900 dark:text-white">My Properties</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Manage your accommodations and verification status</p>
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
+            <span>{properties.length} {properties.length === 1 ? 'Property' : 'Properties'}</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
+            My Properties
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 font-light">
+            Manage all your stays, rooms and availability.
+          </p>
         </div>
 
         <Link
           to="/provider/properties/new"
-          className="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+          className="inline-flex items-center space-x-2 px-6 py-3.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-orange-700 text-white text-xs font-bold rounded-2xl shadow-xl shadow-orange-500/25 hover:scale-[1.02] transition-all cursor-pointer shrink-0"
         >
           <PlusCircle className="w-4 h-4" />
-          <span>Add New Property</span>
+          <span>+ Add Property</span>
         </Link>
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-rose-700 dark:text-rose-300 text-sm flex items-center space-x-2">
-          <AlertCircle className="w-5 h-5 shrink-0" />
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {loading ? (
-        <div className="py-20 flex justify-center">
-          <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="py-24 flex justify-center">
+          <div className="w-8 h-8 border-3 border-[#087F8C] border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : properties.length === 0 ? (
-        <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-16 text-center border border-[#FDBA9A]/30 dark:border-slate-800 space-y-4">
-          <Home className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">No properties registered yet</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-            Add your first hotel, homestay, resort, camp, cottage, or villa to start accepting bookings.
-          </p>
+        <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-16 text-center border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-sm">
+          <div className="w-16 h-16 rounded-3xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] mx-auto flex items-center justify-center">
+            <Home className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white">
+              No properties registered yet
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto font-light leading-relaxed">
+              Add your first homestay, heritage villa, mountain cottage, or boutique resort to Voyara's verified travel network.
+            </p>
+          </div>
           <Link
             to="/provider/properties/new"
-            className="inline-block px-5 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 text-white font-bold rounded-xl text-xs"
+            className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] text-white font-bold rounded-2xl text-xs shadow-md hover:scale-[1.02] transition-all cursor-pointer"
           >
-            Create Property
+            <PlusCircle className="w-4 h-4" />
+            <span>+ Add Property</span>
           </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {properties.map((p) => {
-            const img = p.images?.[0]?.image_url || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80';
+            const hasImage = p.images && p.images.length > 0 && p.images[0]?.image_url;
+            const img = hasImage ? p.images[0].image_url : null;
             const status = p.verification_status || 'PENDING_VERIFICATION';
+            const roomTypesCount = p.room_types_count !== undefined ? p.room_types_count : (p.room_count || 0);
+            const totalUnitsCount = p.total_units !== undefined ? p.total_units : (p.room_count || 0);
 
             return (
               <div
                 key={p.id}
-                className="bg-white dark:bg-[#131D2E] rounded-3xl overflow-hidden border border-[#FDBA9A]/30 dark:border-slate-800 shadow-xs hover:shadow-lg transition-all flex flex-col justify-between"
+                className="group bg-white dark:bg-[#0F273D] rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800/80 shadow-sm hover:shadow-2xl hover:border-[#087F8C]/40 transition-all flex flex-col justify-between hover:-translate-y-1 relative"
               >
                 <div>
-                  <div className="relative aspect-16/10 bg-slate-100 dark:bg-slate-800">
-                    <img
-                      src={resolveImageUrl(img)}
-                      alt={p.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80';
-                      }}
-                    />
-                    <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-900/90 text-white backdrop-blur-xs">
-                      {p.property_type}
-                    </span>
-                    <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
-                      {getVerificationBadge(status)}
+                  {/* Property Image / Fallback Container */}
+                  <div className="relative aspect-16/10 bg-slate-100 dark:bg-slate-900 overflow-hidden">
+                    {hasImage ? (
+                      <img
+                        src={resolveImageUrl(img)}
+                        alt={p.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-800/80 p-4 text-center">
+                        <ImageIcon className="w-8 h-8 mb-2 opacity-50 text-[#087F8C]" />
+                        <span className="text-xs font-semibold">No property photos available</span>
+                      </div>
+                    )}
+
+                    <div className="absolute top-3.5 left-3.5">
+                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#091B29]/80 text-white backdrop-blur-md shadow-xs">
+                        {p.property_type || 'Stay'}
+                      </span>
+                    </div>
+
+                    <div className="absolute top-3.5 right-3.5 flex flex-col items-end gap-1.5">
+                      {getVerificationBadge(status, p.is_active)}
+                      {p.trust_score !== undefined && p.trust_score > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-black uppercase tracking-wider bg-[#091B29]/85 text-[#27B7A8] border border-teal-500/30 backdrop-blur-md">
+                          Trust: {p.trust_score}/100
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <div className="p-5 space-y-3">
+                  {/* Portfolio Details */}
+                  <div className="p-6 space-y-4">
                     <div>
-                      <h3 className="text-base font-bold font-serif text-slate-900 dark:text-white line-clamp-1">{p.name}</h3>
-                      <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-1 space-x-1">
-                        <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                        <span>{p.city}, {p.state}</span>
+                      <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white line-clamp-1 group-hover:text-[#087F8C] transition-colors">
+                        {p.name}
+                      </h3>
+                      <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-1 space-x-1.5 font-light">
+                        <MapPin className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                        <span className="truncate">{p.city || 'Kerala'}, {p.state || 'India'}</span>
                       </div>
                     </div>
 
                     {/* Admin Review Note / Reason if rejected or needs review */}
                     {p.verification_reason && (status === 'NEEDS_REVIEW' || status === 'REJECTED') && (
-                      <div className={`p-3 rounded-xl border text-[11px] space-y-1 ${
+                      <div className={`p-3.5 rounded-2xl border text-xs space-y-1 ${
                         status === 'REJECTED'
                           ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-200'
                           : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-200'
                       }`}>
-                        <div className="font-bold flex items-center space-x-1">
+                        <div className="font-bold flex items-center space-x-1.5">
                           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                          <span>Admin Feedback / Review Note:</span>
+                          <span>Review Feedback:</span>
                         </div>
-                        <p className="font-normal italic leading-relaxed">
+                        <p className="font-normal italic leading-relaxed text-[11px]">
                           "{p.verification_reason}"
                         </p>
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                      <div className="p-2 bg-[#FFF8F0] dark:bg-slate-900/60 rounded-xl text-center border border-slate-100 dark:border-slate-800">
-                        <span className="text-slate-400 block text-[10px]">Room Units</span>
-                        <strong className="text-slate-900 dark:text-white">{p.room_count || 0}</strong>
+                    {/* Room Types & Units Summary */}
+                    <div className="p-3 bg-[#FFFDF7] dark:bg-slate-900/70 rounded-2xl border border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-2">
+                        <Layers className="w-4 h-4 text-[#087F8C] dark:text-[#27B7A8]" />
+                        <span className="font-bold text-[#091B29] dark:text-white">
+                          {roomTypesCount} Room {roomTypesCount === 1 ? 'Type' : 'Types'} • {totalUnitsCount} {totalUnitsCount === 1 ? 'Unit' : 'Units'}
+                        </span>
                       </div>
-                      <div className="p-2 bg-[#FFF8F0] dark:bg-slate-900/60 rounded-xl text-center border border-slate-100 dark:border-slate-800">
-                        <span className="text-slate-400 block text-[10px]">Experiences</span>
-                        <strong className="text-slate-900 dark:text-white">{p.experience_count || 0}</strong>
-                      </div>
+                      {p.min_price ? (
+                        <span className="text-[11px] font-semibold text-orange-600 dark:text-orange-400">
+                          From ₹{Number(p.min_price).toLocaleString('en-IN')}/night
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="p-4 bg-[#FFF8F0]/50 dark:bg-slate-900/70 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                  <div className="flex items-center space-x-3">
-                    {status === 'VERIFIED' ? (
+                {/* Portfolio Action Bar: [View Property], [Manage] hub, Edit, Delete */}
+                <div className="p-4 bg-slate-50/80 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2">
+                    {status === 'VERIFIED' && p.is_active ? (
                       <Link
                         to={`/properties/${p.id}`}
                         target="_blank"
-                        className="font-bold text-orange-600 dark:text-orange-400 hover:underline flex items-center space-x-1"
+                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 text-xs font-bold transition-all"
+                        title="Open Traveler Discovery View"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>Customer View</span>
+                        <span>View Property</span>
                       </Link>
                     ) : (
-                      <span className="text-[11px] text-slate-400 italic">
-                        Private until verified
+                      <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium italic px-2 py-1">
+                        {status === 'REJECTED' ? 'Submission Rejected' : 'Under Review'}
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center space-x-1.5">
+                    {/* Manage Dropdown Trigger */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setManageMenuPropertyId(manageMenuPropertyId === p.id ? null : p.id)}
+                        className="inline-flex items-center space-x-1 px-3 py-1.5 bg-[#087F8C] hover:bg-[#0F9D9A] text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                        title="Manage Property Details, Rooms, Availability & Bookings"
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                        <span>Manage</span>
+                      </button>
+
+                      {/* Manage Dropdown Menu */}
+                      {manageMenuPropertyId === p.id && (
+                        <div className="absolute bottom-full right-0 mb-2 w-52 bg-white dark:bg-[#0F273D] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 py-2 z-50 animate-in fade-in zoom-in-95">
+                          <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Manage {p.name}
+                          </div>
+                          <Link
+                            to={`/provider/properties/${p.id}/edit`}
+                            className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={() => setManageMenuPropertyId(null)}
+                          >
+                            <Edit className="w-3.5 h-3.5 text-[#087F8C]" />
+                            <span>Property Details & Photos</span>
+                          </Link>
+                          <Link
+                            to="/provider/rooms"
+                            className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={() => setManageMenuPropertyId(null)}
+                          >
+                            <Layers className="w-3.5 h-3.5 text-[#087F8C]" />
+                            <span>Rooms & Unit Matrix</span>
+                          </Link>
+                          <Link
+                            to="/provider/availability"
+                            className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={() => setManageMenuPropertyId(null)}
+                          >
+                            <Calendar className="w-3.5 h-3.5 text-[#087F8C]" />
+                            <span>Availability Calendar</span>
+                          </Link>
+                          <Link
+                            to="/provider/experiences"
+                            className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={() => setManageMenuPropertyId(null)}
+                          >
+                            <Flame className="w-3.5 h-3.5 text-[#F97316]" />
+                            <span>Experiences</span>
+                          </Link>
+                          <Link
+                            to="/provider/bookings"
+                            className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={() => setManageMenuPropertyId(null)}
+                          >
+                            <BookOpen className="w-3.5 h-3.5 text-[#35A66F]" />
+                            <span>Guest Bookings</span>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+
                     <Link
                       to={`/provider/properties/${p.id}/edit`}
-                      className="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-lg font-bold text-xs transition-colors"
-                      title="Edit Property & Room Details"
+                      className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-[#087F8C] dark:hover:text-[#27B7A8] rounded-xl font-bold text-xs transition-colors"
+                      title="Edit Property"
                     >
                       <Edit className="w-3.5 h-3.5" />
-                      <span>Edit</span>
                     </Link>
 
                     <button
                       onClick={() => handleDelete(p.id, p.name)}
-                      className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                      className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
                       title="Delete Property"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -242,4 +359,6 @@ export const ProviderProperties = () => {
     </div>
   );
 };
+
+export default ProviderProperties;
 

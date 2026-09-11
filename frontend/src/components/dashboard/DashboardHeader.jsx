@@ -96,17 +96,17 @@ export const DashboardHeader = ({
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-[#FFF8F0]/95 dark:bg-[#090F1D]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-8 py-3.5 select-none transition-colors duration-200">
+    <header className="sticky top-0 z-20 bg-[#FFFDF7]/95 dark:bg-[#091B29]/95 backdrop-blur-md border-b border-[#E0ECEF] dark:border-white/10 px-4 sm:px-8 py-3.5 select-none transition-colors duration-200">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Left: Mobile menu toggle & Page Title */}
         <div className="flex items-center space-x-3">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-[#F97360] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-[#087F8C] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <h2 className="text-sm sm:text-base font-black font-serif tracking-wider text-[#102A43] dark:text-white uppercase">
+          <h2 className="text-sm sm:text-base font-black font-serif tracking-wider text-[#17324D] dark:text-white uppercase">
             {title}
           </h2>
         </div>
@@ -123,7 +123,7 @@ export const DashboardHeader = ({
                 onChange={(e) => handleQueryChange(e.target.value)}
                 onFocus={() => searchQuery.trim() && setShowLiveDropdown(true)}
                 placeholder={placeholder}
-                className="w-full pl-8 pr-7 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-[#F97360] dark:focus:border-emerald-400 rounded-xl text-xs text-[#102A43] dark:text-white placeholder-slate-400 focus:outline-hidden transition-all shadow-2xs"
+                className="w-full pl-8 pr-7 py-1.5 bg-white dark:bg-[#0F273D] border border-[#E0ECEF] dark:border-white/10 focus:border-[#087F8C] dark:focus:border-[#27B7A8] rounded-xl text-xs text-[#17324D] dark:text-white placeholder-slate-400 focus:outline-hidden transition-all shadow-2xs"
               />
               {searchQuery && (
                 <button
@@ -142,10 +142,10 @@ export const DashboardHeader = ({
 
             {/* Live Real-Time Search Results Dropdown */}
             {showLiveDropdown && searchQuery.trim() && (
-              <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-[#131D2E] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-2 z-50 text-xs space-y-1 max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-2 z-50 text-xs space-y-1 max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
                 <div className="px-2 py-1 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-bold text-slate-400">
                   <span>Live Stays & Destinations</span>
-                  {isSearching && <span className="text-emerald-500 font-semibold animate-pulse">Searching...</span>}
+                  {isSearching && <span className="text-[#35A66F] font-semibold animate-pulse">Searching...</span>}
                 </div>
 
                 {liveResults.length === 0 && !isSearching ? (
@@ -170,15 +170,15 @@ export const DashboardHeader = ({
                             className="w-10 h-10 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                           />
                           <div className="min-w-0 flex-1">
-                            <p className="font-bold text-slate-900 dark:text-white truncate group-hover:text-[#F97360] transition-colors">
+                            <p className="font-bold text-slate-900 dark:text-white truncate group-hover:text-[#087F8C] transition-colors">
                               {stay.name}
                             </p>
                             <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                              {stay.city || 'Munnar'}, {stay.state || 'Kerala'} • <span className="font-bold text-amber-500">★ {stay.rating || '4.8'}</span>
+                              {stay.city || 'Munnar'}, {stay.state || 'Kerala'} • <span className="font-bold text-[#F6C945]">★ {stay.rating || '4.8'}</span>
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="font-black text-xs text-[#F97360] font-serif">₹{price.toLocaleString('en-IN')}</span>
+                            <span className="font-black text-xs text-[#F97316] font-serif">₹{price.toLocaleString('en-IN')}</span>
                           </div>
                         </div>
                       );
@@ -187,7 +187,7 @@ export const DashboardHeader = ({
                     <button
                       type="button"
                       onClick={handleSearch}
-                      className="w-full text-center py-2 mt-1 rounded-xl bg-[#FFF8F0] dark:bg-slate-800 text-[#F97360] dark:text-orange-400 font-bold text-[11px] hover:bg-[#F97360] hover:text-white dark:hover:bg-[#F97360] dark:hover:text-white transition-all cursor-pointer"
+                      className="w-full text-center py-2 mt-1 rounded-xl bg-[#DDF3E7] dark:bg-slate-800 text-[#087F8C] dark:text-[#27B7A8] font-bold text-[11px] hover:bg-[#087F8C] hover:text-white dark:hover:bg-[#087F8C] dark:hover:text-white transition-all cursor-pointer"
                     >
                       View all results for "{searchQuery}" →
                     </button>
@@ -197,16 +197,16 @@ export const DashboardHeader = ({
             )}
           </div>
 
-          {/* Theme Switcher Toggle (1-click toggle / 2-way switcher) */}
+          {/* Theme Switcher Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-[#F97360] hover:bg-white dark:hover:bg-slate-800 transition-colors border border-slate-200/80 dark:border-slate-800 cursor-pointer shadow-2xs"
+            className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-[#087F8C] hover:bg-white dark:hover:bg-slate-800 transition-colors border border-slate-200/80 dark:border-slate-800 cursor-pointer shadow-2xs"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {theme === 'dark' ? (
-              <Moon className="w-4 h-4 text-emerald-400" />
+              <Moon className="w-4 h-4 text-[#27B7A8]" />
             ) : (
-              <Sun className="w-4 h-4 text-amber-500" />
+              <Sun className="w-4 h-4 text-[#F6C945]" />
             )}
           </button>
 
@@ -223,22 +223,22 @@ export const DashboardHeader = ({
                 <img
                   src={user.avatar_url.startsWith('http') ? user.avatar_url : `http://localhost:8000${user.avatar_url}`}
                   alt={user?.name || 'User'}
-                  className="w-8 h-8 rounded-xl object-cover shadow-xs border border-emerald-500/40 shrink-0"
+                  className="w-8 h-8 rounded-xl object-cover shadow-xs border border-[#35A66F]/40 shrink-0"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#F97360] to-emerald-500 flex items-center justify-center text-white font-bold text-xs uppercase shadow-xs shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#087F8C] to-[#35A66F] flex items-center justify-center text-white font-bold text-xs uppercase shadow-xs shrink-0">
                   {user?.name?.charAt(0) || 'U'}
                 </div>
               )}
-              <span className="hidden sm:inline text-xs font-bold text-[#102A43] dark:text-white max-w-[100px] truncate">
+              <span className="hidden sm:inline text-xs font-bold text-[#17324D] dark:text-white max-w-[100px] truncate">
                 {user?.name?.split(' ')[0] || 'User'}
               </span>
             </button>
 
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#131D2E] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-2 z-50 text-xs space-y-1">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-2 z-50 text-xs space-y-1">
                 <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700/60">
-                  <p className="font-bold text-[#102A43] dark:text-white truncate">{user?.name}</p>
+                  <p className="font-bold text-[#17324D] dark:text-white truncate">{user?.name}</p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
                 </div>
                 <Link
@@ -250,9 +250,9 @@ export const DashboardHeader = ({
                       : '/customer/profile'
                   }
                   onClick={() => setShowProfileMenu(false)}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:text-[#F97360] dark:hover:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:text-[#087F8C] dark:hover:text-[#27B7A8] hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
-                  <User className="w-3.5 h-3.5 text-emerald-500" />
+                  <User className="w-3.5 h-3.5 text-[#35A66F]" />
                   <span>Profile Overview</span>
                 </Link>
                 <button
@@ -270,3 +270,4 @@ export const DashboardHeader = ({
     </header>
   );
 };
+

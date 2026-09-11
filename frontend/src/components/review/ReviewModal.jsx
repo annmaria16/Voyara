@@ -156,7 +156,7 @@ export const ReviewModal = ({ booking, isOpen, onClose, onSuccess }) => {
 
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Staff & Hospitality ({staff}/5)
+                  Staff & Stay Partner Greeting ({staff}/5)
                 </label>
                 <input
                   type="range"
@@ -209,7 +209,7 @@ export const ReviewModal = ({ booking, isOpen, onClose, onSuccess }) => {
                 rows={4}
                 required
                 maxLength={2000}
-                placeholder="Share your stay experience, what you loved most, room comfort, host hospitality, or tips for fellow travellers..."
+                placeholder="Share your stay experience, what you loved most, room comfort, host care, or tips for fellow travellers..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
@@ -228,7 +228,7 @@ export const ReviewModal = ({ booking, isOpen, onClose, onSuccess }) => {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] text-white font-bold rounded-xl text-xs shadow-md shadow-orange-500/20 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-1.5"
               >
                 {loading ? (
                   <>

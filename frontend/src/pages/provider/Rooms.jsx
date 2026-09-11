@@ -15,8 +15,10 @@ import {
   Check,
   Bed,
   X,
-  Loader2,
-  Sparkles
+  Sparkles,
+  BedDouble,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react';
 
 const ROOM_TYPES = [
@@ -77,7 +79,7 @@ export const ProviderRooms = () => {
     setLoading(true);
     try {
       const data = await providerApi.getProperties();
-      setProperties(data);
+      setProperties(Array.isArray(data) ? data : []);
       if (data.length > 0) {
         setSelectedPropertyId(data[0].id);
         fetchRooms(data[0].id);
@@ -92,7 +94,7 @@ export const ProviderRooms = () => {
   const fetchRooms = async (propId) => {
     try {
       const roomData = await providerApi.getPropertyRooms(propId);
-      setRooms(roomData);
+      setRooms(Array.isArray(roomData) ? roomData : []);
     } catch (err) {
       console.error('Error fetching rooms:', err);
     }
@@ -233,19 +235,26 @@ export const ProviderRooms = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <h2 className="text-2xl font-black font-serif text-slate-900 dark:text-white">Rooms & Units</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Configure bookable inventory, guest capacity, amenities, photos, and base nightly rates
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
+            <span>Property Inventory Matrix</span>
+          </div>
+          <h1 className="text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
+            Room Inventory & Units
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 font-light">
+            Manage unit availability, guest capacity, amenities, and nightly rates per category.
           </p>
         </div>
 
         {properties.length > 0 && (
           <button
             onClick={openAddModal}
-            className="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+            className="inline-flex items-center space-x-2 px-6 py-3.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-orange-700 text-white text-xs font-bold rounded-2xl shadow-xl shadow-orange-500/25 hover:scale-[1.02] transition-all cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Add Room Unit</span>
@@ -254,52 +263,72 @@ export const ProviderRooms = () => {
       </div>
 
       {properties.length === 0 && !loading ? (
-        <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-12 text-center border border-slate-200/80 dark:border-slate-800 space-y-3">
-          <Home className="w-12 h-12 text-slate-400 mx-auto" />
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">No properties registered</h3>
-          <p className="text-xs text-slate-500">You must register a property before you can add room units.</p>
+        <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-16 text-center border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-sm">
+          <div className="w-16 h-16 rounded-3xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] mx-auto flex items-center justify-center">
+            <Home className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white">No properties registered yet</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto font-light">You must register a property before you can configure room inventory.</p>
+          </div>
         </div>
       ) : (
         <div className="space-y-6">
           {/* Property Selector Bar */}
-          <div className="flex items-center space-x-3 overflow-x-auto pb-1">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">
-              Select Sanctuary:
+          <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-3 shadow-xs flex items-center space-x-3 overflow-x-auto">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 whitespace-nowrap pl-2">
+              Property:
             </span>
-            {properties.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => handlePropertyChange(p.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap border ${
-                  selectedPropertyId === p.id
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white border-emerald-600 shadow-xs'
-                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500'
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
+            <div className="flex items-center space-x-2">
+              {properties.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handlePropertyChange(p.id)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    selectedPropertyId === p.id
+                      ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-md shadow-teal-700/20 font-serif'
+                      : 'bg-[#FFFDF7] dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-800'
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Rooms Grid */}
           {rooms.length === 0 ? (
-            <div className="bg-white dark:bg-[#131D2E] rounded-3xl p-12 text-center border border-slate-200/80 dark:border-slate-800 space-y-3">
-              <Bed className="w-12 h-12 text-slate-400 mx-auto" />
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">No room units for this property</h3>
-              <p className="text-xs text-slate-500">Click "Add Room Unit" to configure your first room type.</p>
+            <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-16 text-center border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-sm">
+              <div className="w-14 h-14 rounded-3xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] mx-auto flex items-center justify-center">
+                <Bed className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-serif font-bold text-[#091B29] dark:text-white">No room units for this property</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto font-light">Click "Add Room Unit" to configure inventory, capacity, and nightly rates.</p>
+              </div>
+              <button
+                onClick={openAddModal}
+                className="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-[#EA580C] text-white text-xs font-bold rounded-xl shadow-md hover:scale-[1.02] transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add First Room Unit</span>
+              </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {rooms.map((r) => {
                 const img = r.images?.[0]?.image_url || (typeof r.images?.[0] === 'string' ? r.images[0] : null);
+                const totalUnits = r.quantity || 1;
+                const isFullyBooked = !r.is_active || totalUnits === 0;
+
                 return (
                   <div
                     key={r.id}
-                    className="bg-white dark:bg-[#131D2E] rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow group"
+                    className="group bg-white dark:bg-[#0F273D] rounded-3xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-2xl hover:border-[#087F8C]/40 transition-all hover:-translate-y-1"
                   >
                     <div>
                       {/* Photo Thumbnail */}
-                      <div className="aspect-16/10 bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
+                      <div className="aspect-16/10 bg-slate-100 dark:bg-slate-900 relative overflow-hidden">
                         {img ? (
                           <img
                             src={resolveImageUrl(img)}
@@ -316,84 +345,102 @@ export const ProviderRooms = () => {
                           </div>
                         )}
 
-                        <div className="absolute top-3 left-3 px-2.5 py-1 bg-slate-900/80 backdrop-blur-md rounded-lg text-white font-bold text-[10px] uppercase">
+                        <div className="absolute top-3.5 left-3.5 px-3 py-1 bg-[#091B29]/85 backdrop-blur-md rounded-lg text-white font-bold text-[10px] uppercase tracking-wider">
                           {r.room_type}
                         </div>
 
-                        <div className="absolute top-3 right-3 flex items-center space-x-1">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              r.is_active
-                                ? 'bg-emerald-500/90 text-white'
-                                : 'bg-rose-500/90 text-white'
-                            }`}
-                          >
-                            {r.is_active ? 'Active' : 'Paused'}
-                          </span>
+                        <div className="absolute top-3.5 right-3.5">
+                          {isFullyBooked ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white shadow-xs">
+                              FULLY BOOKED
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#35A66F] text-white shadow-xs">
+                              AVAILABLE
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       {/* Content */}
-                      <div className="p-5 space-y-3">
-                        <div className="flex items-start justify-between">
-                          <h3 className="text-base font-bold font-serif text-slate-900 dark:text-white leading-tight">
+                      <div className="p-6 space-y-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-lg font-serif font-bold text-[#091B29] dark:text-white leading-snug group-hover:text-[#087F8C] transition-colors">
                             {r.name}
                           </h3>
                           <div className="text-right shrink-0">
-                            <span className="text-base font-bold text-[#F97360] font-serif block">
+                            <span className="text-lg font-serif font-black text-orange-600 dark:text-orange-400 block">
                               ₹{r.base_price?.toLocaleString('en-IN')}
                             </span>
                             <span className="text-[10px] text-slate-400">/ night</span>
                           </div>
                         </div>
 
-                        <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-2">
+                        <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-2 leading-relaxed font-light">
                           {r.description}
                         </p>
 
-                        <div className="flex items-center space-x-3 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
-                          <span className="flex items-center space-x-1">
-                            <Users className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Max {r.capacity} Guests</span>
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center space-x-1">
-                            <Layers className="w-3.5 h-3.5 text-orange-500" />
-                            <span>{r.quantity} Available Unit(s)</span>
-                          </span>
+                        {/* Visual Inventory Dots Matrix */}
+                        <div className="p-3 bg-[#FFFDF7] dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-slate-800 space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-500 dark:text-slate-400 font-medium">Inventory Units:</span>
+                            <span className="font-bold text-[#091B29] dark:text-white">
+                              {totalUnits} {totalUnits === 1 ? 'Unit' : 'Units'} ({r.capacity} Guests / Unit)
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-1.5 pt-1">
+                            {Array.from({ length: Math.min(10, totalUnits) }).map((_, idx) => (
+                              <div
+                                key={idx}
+                                className={`h-2 flex-1 rounded-full ${
+                                  r.is_active ? 'bg-[#35A66F]' : 'bg-rose-400'
+                                }`}
+                                title={`Unit #${idx + 1}`}
+                              />
+                            ))}
+                          </div>
                         </div>
 
-                        {/* Amenities */}
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {r.amenities?.map((a, i) => (
-                            <span
-                              key={i}
-                              className="text-[10px] bg-[#FFF8F0] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md font-semibold"
-                            >
-                              {a.amenity_name || a}
-                            </span>
-                          ))}
-                        </div>
+                        {/* Amenities Tags */}
+                        {r.amenities && r.amenities.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {r.amenities.slice(0, 4).map((am, i) => (
+                              <span
+                                key={i}
+                                className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-slate-600 dark:text-slate-300"
+                              >
+                                {am.amenity_name || am}
+                              </span>
+                            ))}
+                            {r.amenities.length > 4 && (
+                              <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500">
+                                +{r.amenities.length - 4} more
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Footer Actions */}
-                    <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400">
-                        {r.images?.length || 0} photo(s)
-                      </span>
+                    {/* Actions */}
+                    <div className="p-4 bg-slate-50/80 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
+                        <Users className="w-3.5 h-3.5 text-orange-500" />
+                        <span>Up to {r.capacity} guests</span>
+                      </div>
 
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1">
                         <button
                           onClick={() => openEditModal(r)}
-                          className="p-1.5 text-slate-600 hover:text-orange-500 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-[#087F8C] hover:bg-[#087F8C]/10 rounded-xl transition-colors cursor-pointer"
                           title="Edit Room"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteRoom(r.id, r.name)}
-                          className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
                           title="Delete Room"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -408,42 +455,45 @@ export const ProviderRooms = () => {
         </div>
       )}
 
-      {/* Add / Edit Room Modal */}
+      {/* Modal for Add / Edit Room */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-[#131D2E] border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl p-6 sm:p-8 space-y-6 shadow-2xl max-h-[92vh] overflow-y-auto my-auto custom-scrollbar">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center space-x-2">
-                <Bed className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-base font-bold font-serif text-slate-900 dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white">
                   {editingRoomId ? 'Edit Room Unit' : 'Add New Room Unit'}
                 </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Configure room category, pricing, available unit quantity, and guest capacity.
+                </p>
               </div>
               <button
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg"
+                className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {error && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center space-x-1.5">
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleModalSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Room Type *
+                    Room Category *
                   </label>
                   <select
                     value={roomType}
                     onChange={(e) => setRoomType(e.target.value)}
-                    className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden"
+                    className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                   >
                     {ROOM_TYPES.map((t) => (
                       <option key={t} value={t}>
@@ -463,7 +513,7 @@ export const ProviderRooms = () => {
                     placeholder="e.g. Deluxe Mountain View Suite"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden"
+                    className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                   />
                 </div>
               </div>
@@ -478,7 +528,7 @@ export const ProviderRooms = () => {
                   placeholder="Describe room layout, bed size, view, and features..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                 />
               </div>
 
@@ -519,7 +569,7 @@ export const ProviderRooms = () => {
 
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center space-x-1">
-                    <IndianRupee className="w-3.5 h-3.5 text-emerald-600" />
+                    <IndianRupee className="w-3.5 h-3.5 text-orange-600" />
                     <span>Price per Night (₹) *</span>
                   </label>
                   <input
@@ -530,7 +580,7 @@ export const ProviderRooms = () => {
                     placeholder="e.g. 3500"
                     value={basePrice}
                     onChange={(e) => setBasePrice(e.target.value)}
-                    className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-hidden"
+                    className="w-full p-3 bg-[#FFFDF7] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                   />
                 </div>
               </div>
@@ -541,7 +591,7 @@ export const ProviderRooms = () => {
                   <label className="block font-bold text-slate-700 dark:text-slate-300">
                     Room Amenities & Features
                   </label>
-                  <span className="text-[10px] text-emerald-600 font-bold">
+                  <span className="text-[10px] text-[#087F8C] dark:text-[#27B7A8] font-bold">
                     {amenities.length} selected
                   </span>
                 </div>
@@ -552,7 +602,7 @@ export const ProviderRooms = () => {
                     {amenities.map((am) => (
                       <span
                         key={am}
-                        className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold shadow-2xs"
+                        className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-[#087F8C] text-white text-xs font-bold shadow-xs"
                       >
                         <span>{am}</span>
                         <button
@@ -572,7 +622,7 @@ export const ProviderRooms = () => {
                 <div className="flex items-center space-x-2 max-w-sm">
                   <input
                     type="text"
-                    placeholder="Add custom room feature (e.g. Jacuzzi, River View)"
+                    placeholder="Add custom feature (e.g. Jacuzzi, River View)"
                     value={customAmenity}
                     onChange={(e) => setCustomAmenity(e.target.value)}
                     onKeyDown={(e) => {
@@ -581,21 +631,21 @@ export const ProviderRooms = () => {
                         handleAddCustomAmenity();
                       }
                     }}
-                    className="flex-1 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-emerald-500"
+                    className="flex-1 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
                   />
                   <button
                     type="button"
                     onClick={handleAddCustomAmenity}
-                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                    className="px-4 py-2.5 bg-[#087F8C] hover:bg-[#0F9D9A] text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
                   >
                     + Add
                   </button>
                 </div>
 
                 {/* Presets */}
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Suggested Features (Click to add/remove):
+                    Suggested Features (Click to toggle):
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {DEFAULT_AMENITIES.map((am) => {
@@ -607,17 +657,17 @@ export const ProviderRooms = () => {
                           key={am}
                           type="button"
                           onClick={() => handleAmenityToggle(am)}
-                          className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center space-x-1 ${
+                          className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
                             checked
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs font-bold'
-                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:text-emerald-600'
+                              ? 'bg-[#087F8C] text-white border-[#087F8C] shadow-xs font-bold'
+                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-[#087F8C] hover:text-[#087F8C]'
                           }`}
                         >
                           <span>{am}</span>
                           {checked ? (
-                            <Check className="w-3 h-3 text-white ml-0.5" />
+                            <Check className="w-3.5 h-3.5 text-white" />
                           ) : (
-                            <Plus className="w-3 h-3 text-slate-400 ml-0.5" />
+                            <Plus className="w-3.5 h-3.5 text-slate-400" />
                           )}
                         </button>
                       );
@@ -644,28 +694,28 @@ export const ProviderRooms = () => {
                   id="room_active"
                   checked={isActive}
                   onChange={(e) => setIsActive(e.target.checked)}
-                  className="rounded text-orange-600 focus:ring-orange-500"
+                  className="rounded text-[#087F8C] focus:ring-[#087F8C]"
                 />
                 <label
                   htmlFor="room_active"
                   className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
                 >
-                  Room Unit Active & Available for Customer Booking
+                  Room Unit Active & Available for Traveler Booking
                 </label>
               </div>
 
-              <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer text-xs"
+                  className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={modalLoading}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-[#F97360] to-orange-500 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-xl cursor-pointer disabled:opacity-50 text-xs shadow-md"
+                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-2xl cursor-pointer disabled:opacity-50 text-xs shadow-md"
                 >
                   {modalLoading ? 'Saving...' : editingRoomId ? 'Update Room Unit' : 'Create Room Unit'}
                 </button>

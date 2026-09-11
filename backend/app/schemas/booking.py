@@ -44,6 +44,41 @@ class BookingCreate(BaseModel):
     experience_date: Optional[date] = None
     customer_notes: Optional[str] = None
 
+class RefundResponse(BaseModel):
+    id: int
+    booking_id: int
+    refund_reference: str
+    refund_amount: float
+    refund_percentage: float
+    cancellation_fee: float = 0.0
+    refund_status: str
+    refund_reason: Optional[str] = None
+    requested_at: datetime
+    processed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class CancellationPreviewResponse(BaseModel):
+    booking_id: int
+    booking_number: str
+    property_id: int
+    property_name: str
+    check_in: date
+    check_in_time: str = "14:00"
+    booking_amount: float
+    free_cancellation_deadline: str
+    is_free_cancellation: bool
+    refund_percentage: float
+    refund_amount: float
+    cancellation_fee: float
+    policy_description: str
+    can_cancel: bool = True
+    reason: Optional[str] = None
+
+class CancellationRequest(BaseModel):
+    reason: Optional[str] = "Customer requested cancellation"
+
 class BookingResponse(BaseModel):
     id: int
     booking_number: str
@@ -58,13 +93,30 @@ class BookingResponse(BaseModel):
     total_amount: float
     status: BookingStatus
     customer_notes: Optional[str] = None
+    guest_information_message_snapshot: Optional[str] = None
+    guest_information_message: Optional[str] = None
+    cancellation_policy_snapshot: Optional[str] = None
+    refund_percentage_snapshot: Optional[float] = None
+    cancelled_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
+    checked_in_at: Optional[datetime] = None
+    checked_out_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    checkin_reminder_sent: Optional[bool] = False
+    checkin_reminder: Optional[dict] = None
     created_at: datetime
     user: Optional[UserResponse] = None
     property: Optional[PropertyResponse] = None
     booking_rooms: List[BookingRoomItemResponse] = []
     booking_experiences: List[BookingExperienceItemResponse] = []
     verification_status: Optional[str] = None
+    verinova_verification_id: Optional[str] = None
+    verinova_score: Optional[int] = 100
+    verinova_status: Optional[str] = "VERIFIED"
+    verinova_verified_at: Optional[datetime] = None
     payment: Optional[PaymentResponse] = None
+    refund: Optional[RefundResponse] = None
 
     class Config:
         from_attributes = True
+

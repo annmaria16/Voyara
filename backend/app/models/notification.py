@@ -10,8 +10,9 @@ class Notification(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
-    type = Column(String(50), default="INFO", nullable=False)  # PROPERTY_SUBMITTED, PROPERTY_APPROVED, PROPERTY_REJECTED, PROPERTY_NEEDS_REVIEW
+    type = Column(String(50), default="INFO", nullable=False)  # PROPERTY_SUBMITTED, PROPERTY_APPROVED, PROPERTY_REJECTED, PROPERTY_NEEDS_REVIEW, BOOKING_CONFIRMED, HOST_MESSAGE, CHECKIN_REMINDER
     link = Column(String(255), nullable=True)
+    booking_id = Column(Integer, ForeignKey("bookings.id", ondelete="SET NULL"), nullable=True)
     is_read = Column(Boolean, default=False, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
