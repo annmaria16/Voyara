@@ -13,6 +13,8 @@ from app.models.verinova_models import VeriNovaPropertyAssessment, VeriNovaAudit
 from app.schemas.auth import MessageResponse
 from app.schemas.property import PropertyVerificationAction, PropertyVerificationResponse
 from app.services.verinova.property_trust_service import PropertyTrustService
+from app.services.ai.stayguide_service import StayGuideService
+
 from app.services.notifications.notification_service import NotificationService
 
 router = APIRouter()
@@ -142,6 +144,8 @@ def get_admin_property_detail(
         "created_at": p.created_at,
         "images": [{"id": img.id, "image_url": img.image_url, "caption": img.caption, "is_primary": img.is_primary} for img in p.images],
         "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities],
+        "home_rules": StayGuideService.serialize_property_rules(p.home_rules) if getattr(p, 'home_rules', None) else None,
+        "rule_consistency_warnings": StayGuideService.validate_rules_consistency(p),
         "rooms": [
             {
                 "id": r.id,
@@ -155,11 +159,13 @@ def get_admin_property_detail(
                 "is_active": r.is_active,
                 "created_at": r.created_at,
                 "images": [{"id": img.id, "image_url": img.image_url, "is_primary": img.is_primary} for img in r.images],
-                "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in r.amenities]
+                "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in r.amenities],
+                "rules": StayGuideService.serialize_room_rules(r.rules, r) if getattr(r, 'rules', None) else None
             }
             for r in p.rooms
         ]
     }
+
 
 @router.post("/properties/{property_id}/verify", response_model=PropertyVerificationResponse)
 def verify_property_action(

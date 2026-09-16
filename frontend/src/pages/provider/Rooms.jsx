@@ -72,6 +72,34 @@ export const ProviderRooms = () => {
   const [amenities, setAmenities] = useState(['King Bed', 'Attached Bathroom', 'Free Wi-Fi']);
   const [customAmenity, setCustomAmenity] = useState('');
   const [images, setImages] = useState([]);
+  const [roomRules, setRoomRules] = useState({
+    max_adults: 2,
+    max_children: 1,
+    additional_children_allowed: 0,
+    max_child_age: '',
+    free_additional_children: 0,
+    child_charge_enabled: false,
+    child_charge_amount: 0,
+    child_charge_unit: 'Per night',
+    existing_bed_allowed: 'Yes',
+    existing_bed_explanation: '',
+    extra_bed_available: 'No',
+    maximum_extra_beds: 1,
+    extra_bed_price: 0,
+    extra_bed_charge_unit: 'Per night',
+    cot_available: 'No',
+    cot_quantity: 1,
+    cot_price: 0,
+    cot_charge_unit: 'Free',
+    children_allowed: true,
+    min_child_age: 0,
+    cot_allowed: false,
+    cot_count: 1,
+    extra_bed_allowed: false,
+    extra_bed_max: 1,
+    child_price: 0,
+    room_rules: '',
+  });
   const [modalLoading, setModalLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -120,6 +148,34 @@ export const ProviderRooms = () => {
     setIsActive(true);
     setImages([]);
     setAmenities(['King Bed', 'Attached Bathroom', 'Free Wi-Fi', 'Air Conditioning']);
+    setRoomRules({
+      max_adults: 2,
+      max_children: 1,
+      additional_children_allowed: 0,
+      max_child_age: '',
+      free_additional_children: 0,
+      child_charge_enabled: false,
+      child_charge_amount: 0,
+      child_charge_unit: 'Per night',
+      existing_bed_allowed: 'Yes',
+      existing_bed_explanation: '',
+      extra_bed_available: 'No',
+      maximum_extra_beds: 1,
+      extra_bed_price: 0,
+      extra_bed_charge_unit: 'Per night',
+      cot_available: 'No',
+      cot_quantity: 1,
+      cot_price: 0,
+      cot_charge_unit: 'Free',
+      children_allowed: true,
+      min_child_age: 0,
+      cot_allowed: false,
+      cot_count: 1,
+      extra_bed_allowed: false,
+      extra_bed_max: 1,
+      child_price: 0,
+      room_rules: '',
+    });
     setError('');
     setModalOpen(true);
   };
@@ -135,6 +191,35 @@ export const ProviderRooms = () => {
     setIsActive(room.is_active !== undefined ? room.is_active : true);
     setImages(room.images?.map((img) => (typeof img === 'string' ? img : img.image_url)).filter(Boolean) || []);
     setAmenities(room.amenities?.map((a) => a.amenity_name || a) || ['King Bed', 'Attached Bathroom']);
+    const r = room.rules || {};
+    setRoomRules({
+      max_adults: r.max_adults ?? room.capacity ?? 2,
+      max_children: r.max_children ?? room.capacity ?? 1,
+      additional_children_allowed: r.additional_children_allowed ?? 0,
+      max_child_age: r.max_child_age ?? '',
+      free_additional_children: r.free_additional_children ?? 0,
+      child_charge_enabled: !!r.child_charge_enabled,
+      child_charge_amount: r.child_charge_amount ?? 0,
+      child_charge_unit: r.child_charge_unit || 'Per night',
+      existing_bed_allowed: r.existing_bed_allowed || 'Yes',
+      existing_bed_explanation: r.existing_bed_explanation || '',
+      extra_bed_available: r.extra_bed_available || (r.extra_bed_allowed ? 'Yes' : 'No'),
+      maximum_extra_beds: r.maximum_extra_beds ?? r.extra_bed_max ?? 1,
+      extra_bed_price: r.extra_bed_price ?? 0,
+      extra_bed_charge_unit: r.extra_bed_charge_unit || 'Per night',
+      cot_available: r.cot_available || (r.cot_allowed ? 'Yes' : 'No'),
+      cot_quantity: r.cot_quantity ?? r.cot_count ?? 1,
+      cot_price: r.cot_price ?? 0,
+      cot_charge_unit: r.cot_charge_unit || 'Free',
+      children_allowed: r.children_allowed !== false,
+      min_child_age: r.min_child_age || 0,
+      cot_allowed: !!r.cot_allowed || r.cot_available === 'Yes',
+      cot_count: r.cot_quantity ?? r.cot_count ?? 1,
+      extra_bed_allowed: !!r.extra_bed_allowed || r.extra_bed_available === 'Yes',
+      extra_bed_max: r.maximum_extra_beds ?? r.extra_bed_max ?? 1,
+      child_price: r.child_price || 0,
+      room_rules: r.room_rules || '',
+    });
     setError('');
     setModalOpen(true);
   };
@@ -194,6 +279,25 @@ export const ProviderRooms = () => {
       return;
     }
 
+    const maxAdultsVal = parseInt(roomRules.max_adults, 10);
+    const maxChildrenVal = parseInt(roomRules.max_children, 10);
+    if (!isNaN(maxAdultsVal) && maxAdultsVal > cap) {
+      setError(`Max adults (${maxAdultsVal}) cannot exceed room capacity (${cap}).`);
+      return;
+    }
+    if (!isNaN(maxChildrenVal) && maxChildrenVal > cap) {
+      setError(`Max children (${maxChildrenVal}) cannot exceed room capacity (${cap}).`);
+      return;
+    }
+    if (parseInt(roomRules.free_additional_children, 10) > parseInt(roomRules.additional_children_allowed, 10)) {
+      setError('Free additional children cannot exceed the number of additional children allowed.');
+      return;
+    }
+    if (roomRules.min_child_age < 0 || roomRules.cot_price < 0 || roomRules.extra_bed_price < 0 || roomRules.child_charge_amount < 0) {
+      setError('Ages and prices must be non-negative values.');
+      return;
+    }
+
     setModalLoading(true);
 
     try {
@@ -207,6 +311,34 @@ export const ProviderRooms = () => {
         is_active: isActive,
         amenities,
         images: images.map((img) => (typeof img === 'string' ? img : (img.image_url || img.url))).filter(Boolean),
+        rules: {
+          max_adults: parseInt(roomRules.max_adults, 10) || cap,
+          max_children: parseInt(roomRules.max_children, 10) || cap,
+          additional_children_allowed: parseInt(roomRules.additional_children_allowed, 10) || 0,
+          max_child_age: roomRules.max_child_age !== '' && roomRules.max_child_age !== null && roomRules.max_child_age !== undefined ? parseInt(roomRules.max_child_age, 10) : undefined,
+          free_additional_children: parseInt(roomRules.free_additional_children, 10) || 0,
+          child_charge_enabled: !!roomRules.child_charge_enabled,
+          child_charge_amount: parseFloat(roomRules.child_charge_amount) || 0,
+          child_charge_unit: roomRules.child_charge_unit || 'Per night',
+          existing_bed_allowed: roomRules.existing_bed_allowed || 'Yes',
+          existing_bed_explanation: roomRules.existing_bed_explanation?.trim() || undefined,
+          extra_bed_available: roomRules.extra_bed_available || (roomRules.extra_bed_allowed ? 'Yes' : 'No'),
+          maximum_extra_beds: parseInt(roomRules.maximum_extra_beds, 10) || parseInt(roomRules.extra_bed_max, 10) || 0,
+          extra_bed_price: parseFloat(roomRules.extra_bed_price) || 0,
+          extra_bed_charge_unit: roomRules.extra_bed_charge_unit || 'Per night',
+          cot_available: roomRules.cot_available || (roomRules.cot_allowed ? 'Yes' : 'No'),
+          cot_quantity: parseInt(roomRules.cot_quantity, 10) || parseInt(roomRules.cot_count, 10) || 0,
+          cot_price: parseFloat(roomRules.cot_price) || 0,
+          cot_charge_unit: roomRules.cot_charge_unit || 'Free',
+          children_allowed: !!roomRules.children_allowed,
+          min_child_age: parseInt(roomRules.min_child_age, 10) || 0,
+          cot_allowed: !!roomRules.cot_allowed || roomRules.cot_available === 'Yes',
+          cot_count: parseInt(roomRules.cot_quantity, 10) || parseInt(roomRules.cot_count, 10) || 0,
+          extra_bed_allowed: !!roomRules.extra_bed_allowed || roomRules.extra_bed_available === 'Yes',
+          extra_bed_max: parseInt(roomRules.maximum_extra_beds, 10) || parseInt(roomRules.extra_bed_max, 10) || 0,
+          child_price: parseFloat(roomRules.child_price) || 0,
+          room_rules: roomRules.room_rules?.trim() || undefined,
+        },
       };
 
       if (editingRoomId) {
@@ -672,6 +804,362 @@ export const ProviderRooms = () => {
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Child Occupancy & Additional Child Policy */}
+              <div className="p-4 rounded-2xl bg-[#FFFDF7] dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8] flex items-center space-x-1.5">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Child Occupancy & Additional Child Policy</span>
+                  </h3>
+                  <span className="text-[10px] text-slate-400">Voyara StayGuide Grounded</span>
+                </div>
+
+                {/* Base Adult & Child Limits */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Max Standard Adults (Per Room)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={roomRules.max_adults}
+                      onChange={(e) => setRoomRules({ ...roomRules, max_adults: parseInt(e.target.value, 10) || 1 })}
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Max Standard Children (Per Room)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={roomRules.max_children}
+                      onChange={(e) => setRoomRules({ ...roomRules, max_children: parseInt(e.target.value, 10) || 0 })}
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                    />
+                  </div>
+                </div>
+
+                {/* 1. Additional Children Allowed & 2. Child Age Limit */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      1. Additional Children Allowed
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={roomRules.additional_children_allowed ?? 0}
+                      onChange={(e) => {
+                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                        setRoomRules({
+                          ...roomRules,
+                          additional_children_allowed: val,
+                          free_additional_children: Math.min(roomRules.free_additional_children || 0, val),
+                        });
+                      }}
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                    />
+                    <span className="text-[10px] text-slate-400">Permitted in addition to standard occupancy</span>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      2. Child Age Limit (Years)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="17"
+                      placeholder="e.g. 5 or 12"
+                      value={roomRules.max_child_age ?? ''}
+                      onChange={(e) => setRoomRules({ ...roomRules, max_child_age: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                    />
+                    <span className="text-[10px] text-slate-400">Maximum age for additional child</span>
+                  </div>
+                </div>
+
+                {/* 3. Free Additional Children & 4. Additional Child Charge */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      3. Free Additional Children
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={roomRules.additional_children_allowed || 0}
+                      value={roomRules.free_additional_children ?? 0}
+                      onChange={(e) => setRoomRules({ ...roomRules, free_additional_children: Math.min(roomRules.additional_children_allowed || 0, Math.max(0, parseInt(e.target.value, 10) || 0)) })}
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
+                    />
+                    <span className="text-[10px] text-slate-400">Stay free of charge (sharing bed)</span>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                      4. Additional Child Charge?
+                    </label>
+                    <div className="flex gap-2">
+                      {['No', 'Yes'].map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setRoomRules({ ...roomRules, child_charge_enabled: opt === 'Yes' })}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            (roomRules.child_charge_enabled ? 'Yes' : 'No') === opt
+                              ? 'bg-[#087F8C] text-white shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+
+                    {roomRules.child_charge_enabled && (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Amount (₹)</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={roomRules.child_charge_amount ?? 0}
+                            onChange={(e) => setRoomRules({ ...roomRules, child_charge_amount: Math.max(0, parseFloat(e.target.value) || 0) })}
+                            className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Unit</span>
+                          <select
+                            value={roomRules.child_charge_unit || 'Per night'}
+                            onChange={(e) => setRoomRules({ ...roomRules, child_charge_unit: e.target.value })}
+                            className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
+                          >
+                            <option value="Per night">Per night</option>
+                            <option value="Per stay">Per stay</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 5. Existing Bed Policy */}
+                <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                    5. Are children allowed to share existing beds?
+                  </label>
+                  <div className="flex gap-2">
+                    {['Yes', 'No'].map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setRoomRules({ ...roomRules, existing_bed_allowed: opt })}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          (roomRules.existing_bed_allowed || 'Yes') === opt
+                            ? 'bg-[#087F8C] text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Optional details (e.g., sharing king bed with parents)"
+                    value={roomRules.existing_bed_explanation || ''}
+                    onChange={(e) => setRoomRules({ ...roomRules, existing_bed_explanation: e.target.value })}
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
+                  />
+                </div>
+
+                {/* 6. Extra Bed & 7. Baby Cot */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                  {/* Extra Bed */}
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                      6. Extra Bed Available?
+                    </label>
+                    <div className="flex gap-2">
+                      {['No', 'Yes'].map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setRoomRules({
+                            ...roomRules,
+                            extra_bed_available: opt,
+                            extra_bed_allowed: opt === 'Yes',
+                          })}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            (roomRules.extra_bed_available || (roomRules.extra_bed_allowed ? 'Yes' : 'No')) === opt
+                              ? 'bg-[#F97316] text-white shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(roomRules.extra_bed_available === 'Yes' || roomRules.extra_bed_allowed) && (
+                      <div className="grid grid-cols-3 gap-2 pt-1">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Max Beds</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="5"
+                            value={roomRules.maximum_extra_beds ?? roomRules.extra_bed_max ?? 1}
+                            onChange={(e) => {
+                              const v = Math.max(1, parseInt(e.target.value, 10) || 1);
+                              setRoomRules({ ...roomRules, maximum_extra_beds: v, extra_bed_max: v });
+                            }}
+                            className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Price (₹)</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={roomRules.extra_bed_price ?? 0}
+                            onChange={(e) => setRoomRules({ ...roomRules, extra_bed_price: Math.max(0, parseFloat(e.target.value) || 0) })}
+                            className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Unit</span>
+                          <select
+                            value={roomRules.extra_bed_charge_unit || 'Per night'}
+                            onChange={(e) => setRoomRules({ ...roomRules, extra_bed_charge_unit: e.target.value })}
+                            className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
+                          >
+                            <option value="Per night">Per night</option>
+                            <option value="Per stay">Per stay</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Baby Cot */}
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                      7. Baby Cot Available?
+                    </label>
+                    <div className="flex gap-2">
+                      {['No', 'Yes'].map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setRoomRules({
+                            ...roomRules,
+                            cot_available: opt,
+                            cot_allowed: opt === 'Yes',
+                          })}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            (roomRules.cot_available || (roomRules.cot_allowed ? 'Yes' : 'No')) === opt
+                              ? 'bg-[#087F8C] text-white shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(roomRules.cot_available === 'Yes' || roomRules.cot_allowed) && (
+                      <div className="grid grid-cols-3 gap-2 pt-1">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Max Cots</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="5"
+                            value={roomRules.cot_quantity ?? roomRules.cot_count ?? 1}
+                            onChange={(e) => {
+                              const v = Math.max(1, parseInt(e.target.value, 10) || 1);
+                              setRoomRules({ ...roomRules, cot_quantity: v, cot_count: v });
+                            }}
+                            className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Price (₹)</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={roomRules.cot_price ?? 0}
+                            onChange={(e) => setRoomRules({ ...roomRules, cot_price: Math.max(0, parseFloat(e.target.value) || 0) })}
+                            className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">Unit</span>
+                          <select
+                            value={roomRules.cot_charge_unit || 'Free'}
+                            onChange={(e) => setRoomRules({ ...roomRules, cot_charge_unit: e.target.value })}
+                            className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold"
+                          >
+                            <option value="Free">Free</option>
+                            <option value="Per night">Per night</option>
+                            <option value="Per stay">Per stay</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 text-xs">
+                    Custom Room Rule / Occupancy Note
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Balcony safety latch required for toddlers under 5."
+                    value={roomRules.room_rules}
+                    onChange={(e) => setRoomRules({ ...roomRules, room_rules: e.target.value })}
+                    className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs"
+                  />
+                </div>
+
+                {/* Live Room Policy Preview */}
+                <div className="p-3.5 rounded-xl bg-teal-50/70 dark:bg-slate-800/80 border border-teal-200/80 dark:border-slate-700 space-y-1.5">
+                  <div className="flex items-center space-x-1.5 text-[#087F8C] dark:text-[#27B7A8] font-bold text-[11px]">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Live Room Policy Preview for Travelers</span>
+                  </div>
+                  <div className="text-[11px] text-slate-700 dark:text-slate-300 space-y-1">
+                    <p>• <strong>Maximum occupancy:</strong> {capacity || 2} guests (Max {roomRules.max_adults || capacity || 2} adults, Max {roomRules.max_children ?? 0} standard children).</p>
+                    <p>• <strong>Additional children:</strong> {roomRules.additional_children_allowed > 0 ? `Up to ${roomRules.additional_children_allowed} additional child(ren) allowed` : 'No additional children beyond standard occupancy'}{roomRules.max_child_age !== '' && roomRules.max_child_age !== null && roomRules.max_child_age !== undefined ? ` (Up to ${roomRules.max_child_age} yrs)` : ''}.</p>
+                    <p>• <strong>Child pricing:</strong> {roomRules.free_additional_children > 0 ? `${roomRules.free_additional_children} child stays free. ` : ''}{roomRules.child_charge_enabled && roomRules.child_charge_amount > 0 ? `Extra child charge: ₹${roomRules.child_charge_amount} ${roomRules.child_charge_unit?.toLowerCase() || 'per night'}` : 'No additional child fee'}.</p>
+                    <p>• <strong>Existing bed sharing:</strong> {roomRules.existing_bed_allowed === 'Yes' ? 'Allowed' : 'Not permitted'}{roomRules.existing_bed_explanation ? ` (${roomRules.existing_bed_explanation})` : ''}.</p>
+                    {(roomRules.extra_bed_available === 'Yes' || roomRules.extra_bed_allowed) && (
+                      <p>• <strong>Extra bed:</strong> Available ({roomRules.maximum_extra_beds || roomRules.extra_bed_max || 1} max, {roomRules.extra_bed_price > 0 ? `₹${roomRules.extra_bed_price} ${roomRules.extra_bed_charge_unit?.toLowerCase() || 'per night'}` : 'Complimentary'}).</p>
+                    )}
+                    {(roomRules.cot_available === 'Yes' || roomRules.cot_allowed) && (
+                      <p>• <strong>Baby cot:</strong> Available ({roomRules.cot_quantity || roomRules.cot_count || 1} available, {roomRules.cot_charge_unit === 'Free' || roomRules.cot_price === 0 ? 'Complimentary' : `₹${roomRules.cot_price} ${roomRules.cot_charge_unit?.toLowerCase() || 'per night'}`}).</p>
+                    )}
+                    {roomRules.room_rules && (
+                      <p>• <strong>Note:</strong> {roomRules.room_rules}</p>
+                    )}
                   </div>
                 </div>
               </div>

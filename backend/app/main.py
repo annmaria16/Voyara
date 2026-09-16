@@ -18,9 +18,33 @@ def ensure_db_schema():
     try:
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE properties ADD COLUMN IF NOT EXISTS guest_information_message TEXT;"))
+            conn.execute(text("ALTER TABLE properties ADD COLUMN IF NOT EXISTS cancellation_refund_percentage INTEGER DEFAULT 50;"))
             conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_information_message_snapshot TEXT;"))
             conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_reminder_sent BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS booking_id INTEGER;"))
+
+            # Financial snapshot and settlement status columns for Bookings
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS original_total_amount FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS commission_percentage_snapshot FLOAT DEFAULT 10.0;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS cancellation_refund_percentage_snapshot FLOAT DEFAULT 50.0;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_amount FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS retained_amount FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS commission_amount FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS provider_settlement_amount FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS commission_status VARCHAR(50) DEFAULT 'NOT_FINALIZED';"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50) DEFAULT 'NOT_APPLICABLE';"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payout_status VARCHAR(50) DEFAULT 'NOT_READY';"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS cancellation_processed_at TIMESTAMP NULL;"))
+
+            # Backfill original_total_amount for existing bookings if 0
+            conn.execute(text("UPDATE bookings SET original_total_amount = total_amount WHERE original_total_amount = 0.0 AND total_amount > 0;"))
+            conn.execute(text("UPDATE bookings SET commission_percentage_snapshot = 10.0 WHERE commission_percentage_snapshot IS NULL OR commission_percentage_snapshot = 0.0;"))
+            conn.execute(text("UPDATE bookings SET cancellation_refund_percentage_snapshot = 50.0 WHERE cancellation_refund_percentage_snapshot IS NULL;"))
+
+            # Financial columns for Refunds
+            conn.execute(text("ALTER TABLE refunds ADD COLUMN IF NOT EXISTS retained_amount FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE refunds ADD COLUMN IF NOT EXISTS commission_amount FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE refunds ADD COLUMN IF NOT EXISTS provider_settlement_amount FLOAT DEFAULT 0.0;"))
 
             # User verification and account safety columns
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status VARCHAR(50) DEFAULT 'ACTIVE' NOT NULL;"))
@@ -40,7 +64,36 @@ def ensure_db_schema():
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMP NULL;"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS deactivated_by INTEGER NULL;"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS deactivation_reason VARCHAR(1000) NULL;"))
-            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 1 NOT NULL;"))
+            # Child Occupancy & Additional Child Policy columns for property_rules
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS additional_children_allowed INTEGER DEFAULT 0 NOT NULL;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS max_child_age INTEGER NULL;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS free_additional_children INTEGER DEFAULT 0 NOT NULL;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS child_charge_enabled BOOLEAN DEFAULT FALSE NOT NULL;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS child_charge_amount FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS child_charge_unit VARCHAR(50) DEFAULT 'Per night';"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS existing_bed_allowed VARCHAR(20) DEFAULT 'Yes' NOT NULL;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS existing_bed_explanation TEXT NULL;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS extra_bed_available VARCHAR(20) DEFAULT 'No' NOT NULL;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS extra_bed_charge_unit VARCHAR(50) DEFAULT 'Per night';"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS cot_available VARCHAR(20) DEFAULT 'No' NOT NULL;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS cot_price FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE property_rules ADD COLUMN IF NOT EXISTS cot_charge_unit VARCHAR(50) DEFAULT 'Free';"))
+
+            # Child Occupancy & Additional Child Policy columns for room_rules
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS additional_children_allowed INTEGER DEFAULT 0 NOT NULL;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS max_child_age INTEGER NULL;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS free_additional_children INTEGER DEFAULT 0 NOT NULL;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS child_charge_enabled BOOLEAN DEFAULT FALSE NOT NULL;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS child_charge_amount FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS child_charge_unit VARCHAR(50) DEFAULT 'Per night';"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS existing_bed_allowed VARCHAR(20) DEFAULT 'Yes' NOT NULL;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS existing_bed_explanation TEXT NULL;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS extra_bed_available VARCHAR(20) DEFAULT 'No' NOT NULL;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS extra_bed_charge_unit VARCHAR(50) DEFAULT 'Per night';"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS cot_available VARCHAR(20) DEFAULT 'No' NOT NULL;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS cot_price FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS cot_charge_unit VARCHAR(50) DEFAULT 'Free';"))
+
             conn.commit()
     except Exception as e:
         print("Schema verification warning:", e)
@@ -90,6 +143,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["*"],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

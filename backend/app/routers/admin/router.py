@@ -36,12 +36,26 @@ def get_admin_dashboard(
     total_rooms = db.query(Room).count()
     total_experiences = db.query(Experience).count()
     
-    # Bookings & Revenue
+    # Bookings & Revenue Analysis
     all_bookings = db.query(Booking).order_by(Booking.created_at.desc()).all()
     total_bookings = len(all_bookings)
-    confirmed_bookings = sum(1 for b in all_bookings if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED])
-    total_revenue = sum(b.total_amount for b in all_bookings if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED])
+    confirmed_bookings = sum(1 for b in all_bookings if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.PENDING])
+    checked_in_bookings = sum(1 for b in all_bookings if b.status == BookingStatus.CHECKED_IN)
+    completed_bookings = sum(1 for b in all_bookings if b.status == BookingStatus.COMPLETED)
+    cancelled_bookings = sum(1 for b in all_bookings if b.status == BookingStatus.CANCELLED)
+
+    total_gross_volume = sum((b.original_total_amount or b.total_amount) for b in all_bookings if b.status != BookingStatus.FAILED)
     
+    # Financial metrics from PostgreSQL
+    finalized_commission = sum(b.commission_amount for b in all_bookings if b.commission_status == "FINALIZED")
+    pending_commission = sum(
+        round((b.original_total_amount or b.total_amount) * 0.10, 2)
+        for b in all_bookings
+        if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.PENDING] and b.commission_status != "FINALIZED"
+    )
+    total_refunds_amount = sum(b.refund_amount for b in all_bookings if b.status == BookingStatus.CANCELLED)
+    total_provider_settlements = sum(b.provider_settlement_amount for b in all_bookings if b.payout_status == "READY" or b.commission_status == "FINALIZED")
+
     # Verification stats
     verified_bookings = db.query(VerificationResult).filter(VerificationResult.status == VerificationStatus.VERIFIED).count()
     needs_review_bookings = db.query(VerificationResult).filter(VerificationResult.status == VerificationStatus.NEEDS_REVIEW).count()
@@ -83,8 +97,8 @@ def get_admin_dashboard(
     for b in reversed(all_bookings[:30]):
         date_str = b.created_at.strftime('%d %b') if b.created_at else "Today"
         daily_booking_counts[date_str] += 1
-        if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED]:
-            daily_revenue_totals[date_str] += b.total_amount
+        if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.CHECKED_IN, BookingStatus.COMPLETED]:
+            daily_revenue_totals[date_str] += (b.original_total_amount or b.total_amount)
 
     bookings_chart = [
         {"label": k, "value": v}
@@ -101,7 +115,7 @@ def get_admin_dashboard(
     ]
     if not revenue_chart:
         revenue_chart = [
-            {"label": "Live System", "value": round(total_revenue, 2)}
+            {"label": "Live System", "value": round(total_gross_volume, 2)}
         ]
 
     return {
@@ -119,10 +133,17 @@ def get_admin_dashboard(
             "total_experiences": total_experiences,
             "total_bookings": total_bookings,
             "confirmed_bookings": confirmed_bookings,
+            "checked_in_bookings": checked_in_bookings,
+            "completed_bookings": completed_bookings,
+            "cancelled_bookings": cancelled_bookings,
             "verified_bookings": verified_bookings,
             "needs_review_bookings": needs_review_bookings,
             "failed_verifications": failed_verifications,
-            "total_revenue": round(total_revenue, 2),
+            "total_revenue": round(total_gross_volume, 2),
+            "finalized_commission": round(finalized_commission, 2),
+            "pending_commission": round(pending_commission, 2),
+            "total_refunds_amount": round(total_refunds_amount, 2),
+            "total_provider_settlements": round(total_provider_settlements, 2),
             "verification_rate": round((verified_bookings / total_bookings * 100), 1) if total_bookings > 0 else 100.0
         },
         "top_locations": top_locations,

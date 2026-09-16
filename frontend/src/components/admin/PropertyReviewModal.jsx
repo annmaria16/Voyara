@@ -244,7 +244,7 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                         </span>
                       </div>
                       <p className="text-xs text-slate-300 mt-1 max-w-lg leading-relaxed">
-                        {assessment?.summary || 'Explainable consistency evaluated across 9 independent deterministic signals from PostgreSQL.'}
+                        {assessment?.summary || 'Explainable consistency evaluated across 9 independent deterministic verification signals.'}
                       </p>
                       
                       {assessment?.property_fingerprint && (
@@ -506,31 +506,99 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
 
                 {property.rooms && property.rooms.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {property.rooms.map((r) => (
-                      <div key={r.id} className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <strong className="text-slate-900 dark:text-white text-xs">{r.name}</strong>
-                          <span className="font-mono font-black text-orange-500">₹{r.base_price}/night</span>
+                    {property.rooms.map((r) => {
+                      const rr = r.rules || {};
+                      return (
+                        <div key={r.id} className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <strong className="text-slate-900 dark:text-white text-xs">{r.name}</strong>
+                            <span className="font-mono font-black text-orange-500">₹{r.base_price}/night</span>
+                          </div>
+                          <div className="flex items-center space-x-3 text-[11px] text-slate-500">
+                            <span className="flex items-center space-x-1">
+                              <Bed className="w-3.5 h-3.5" />
+                              <span>{r.room_type}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Layers className="w-3.5 h-3.5" />
+                              <span>{r.quantity} Unit(s)</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Users className="w-3.5 h-3.5" />
+                              <span>Max {r.capacity} Guests</span>
+                            </span>
+                          </div>
+
+                          {/* Room Rules Summary */}
+                          <div className="pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-500 flex flex-wrap gap-2">
+                            <span>Max Adults: <strong>{rr.max_adults ?? r.capacity}</strong></span>
+                            <span>•</span>
+                            <span>Max Children: <strong>{rr.children_allowed !== false ? (rr.max_children ?? r.capacity) : '0 (None)'}</strong></span>
+                            {rr.cot_allowed && <span>• 🛏 Cot OK</span>}
+                            {rr.extra_bed_allowed && <span>• 🛏 Extra Bed OK</span>}
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-3 text-[11px] text-slate-500">
-                          <span className="flex items-center space-x-1">
-                            <Bed className="w-3.5 h-3.5" />
-                            <span>{r.room_type}</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <Layers className="w-3.5 h-3.5" />
-                            <span>{r.quantity} Unit(s)</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <Users className="w-3.5 h-3.5" />
-                            <span>Max {r.capacity} Guests</span>
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-slate-400 italic">No room units registered yet.</p>
+                )}
+              </div>
+
+              {/* SECTION 4: PROPERTY HOME RULES & CONSISTENCY REVIEW */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <ShieldCheck className="w-4 h-4 text-[#087F8C] dark:text-[#27B7A8]" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#091B29] dark:text-white">
+                    Property Home Rules & Policy Consistency
+                  </h3>
+                </div>
+
+                {/* Consistency Warnings Callout */}
+                {property.rule_consistency_warnings && property.rule_consistency_warnings.length > 0 && (
+                  <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-1.5 text-xs text-amber-800 dark:text-amber-300">
+                    <div className="flex items-center space-x-1.5 font-bold">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Rule Consistency Warnings Detected ({property.rule_consistency_warnings.length})</span>
+                    </div>
+                    <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                      {property.rule_consistency_warnings.map((w, wIdx) => (
+                        <li key={wIdx}>{w}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {property.home_rules ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200/80 dark:border-slate-800">
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Children</span>
+                      <strong className="text-slate-800 dark:text-white">
+                        {property.home_rules.children_allowed ? 'Allowed' : 'Adults Only'}
+                      </strong>
+                    </div>
+                    <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200/80 dark:border-slate-800">
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Pets</span>
+                      <strong className="text-slate-800 dark:text-white">
+                        {property.home_rules.pets_allowed ? 'Allowed' : 'No Pets'}
+                      </strong>
+                    </div>
+                    <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200/80 dark:border-slate-800">
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Smoking</span>
+                      <strong className="text-slate-800 dark:text-white">
+                        {property.home_rules.smoking_allowed ? 'Designated Zones' : 'Non-Smoking'}
+                      </strong>
+                    </div>
+                    <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200/80 dark:border-slate-800">
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Parties</span>
+                      <strong className="text-slate-800 dark:text-white">
+                        {property.home_rules.parties_allowed ? 'Allowed' : 'No Parties'}
+                      </strong>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-slate-400 italic text-xs">No custom home rules configured for this property.</p>
                 )}
               </div>
 

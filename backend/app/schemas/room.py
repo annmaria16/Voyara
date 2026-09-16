@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from pydantic import BaseModel
+from app.schemas.stayguide import RoomRuleResponse, RoomRuleCreate
 
 class RoomImageSchema(BaseModel):
     id: Optional[int] = None
@@ -26,6 +27,7 @@ class RoomCreate(BaseModel):
     base_price: float
     amenities: List[str] = []
     images: List[str] = []
+    rules: Optional[RoomRuleCreate] = None
 
 class RoomUpdate(BaseModel):
     name: Optional[str] = None
@@ -37,6 +39,7 @@ class RoomUpdate(BaseModel):
     is_active: Optional[bool] = None
     amenities: Optional[List[str]] = None
     images: Optional[List[str]] = None
+    rules: Optional[RoomRuleCreate] = None
 
 class RoomResponse(BaseModel):
     id: int
@@ -51,6 +54,8 @@ class RoomResponse(BaseModel):
     created_at: datetime
     images: List[RoomImageSchema] = []
     amenities: List[RoomAmenitySchema] = []
+    rules: Optional[RoomRuleResponse] = None
 
     class Config:
         from_attributes = True
+

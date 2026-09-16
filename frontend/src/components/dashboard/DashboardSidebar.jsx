@@ -222,10 +222,12 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => {} }) =
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:block shrink-0 sticky top-0 h-screen z-30">
-        {sidebarContent}
-      </aside>
+      {/* Desktop Persistent Fixed Sidebar */}
+      <div className="hidden lg:block w-64 shrink-0">
+        <aside className="fixed top-0 left-0 w-64 h-screen z-30">
+          {sidebarContent}
+        </aside>
+      </div>
 
       {/* Mobile Drawer */}
       {isOpen && (

@@ -5,8 +5,10 @@ from app.database import get_db
 from app.auth.dependencies import get_current_provider
 from app.models.provider import ProviderProfile
 from app.schemas.room import RoomCreate, RoomUpdate, RoomResponse
+from app.schemas.stayguide import RoomRuleResponse, RoomRuleUpdate
 from app.schemas.auth import MessageResponse
 from app.services.rooms.room_service import RoomService
+from app.services.ai.stayguide_service import StayGuideService
 
 router = APIRouter()
 
@@ -56,3 +58,25 @@ def delete_room(
 ):
     """Delete a room unit."""
     return RoomService.delete_room(db, room_id, provider.id)
+
+@router.get("/rooms/{room_id}/rules", response_model=RoomRuleResponse)
+def get_room_rules(
+    room_id: int,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Get the configured occupancy rules for a specific room."""
+    RoomService.get_room_by_id(db, room_id, provider_id=provider.id)
+    return StayGuideService.get_or_create_room_rules(db, room_id)
+
+@router.put("/rooms/{room_id}/rules", response_model=RoomRuleResponse)
+def update_room_rules(
+    room_id: int,
+    data: RoomRuleUpdate,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Update occupancy rules for a specific room."""
+    RoomService.get_room_by_id(db, room_id, provider_id=provider.id)
+    return StayGuideService.update_room_rules(db, room_id, data)
+

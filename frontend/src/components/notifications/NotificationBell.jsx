@@ -93,7 +93,11 @@ export const NotificationBell = () => {
     }
     setIsOpen(false);
     if (notif.link) {
-      navigate(notif.link);
+      let targetLink = notif.link.trim();
+      if (targetLink === '/my-bookings' || targetLink === '/bookings') {
+        targetLink = '/customer/bookings';
+      }
+      navigate(targetLink);
     }
   };
 

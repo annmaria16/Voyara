@@ -42,8 +42,7 @@ export const AdminBookings = () => {
   const filteredBookings = bookings.filter((b) => {
     const matchesStatus =
       statusFilter === 'ALL' ||
-      (statusFilter === 'CONFIRMED' && b.status === 'CONFIRMED') ||
-      (statusFilter === 'CANCELLED' && b.status === 'CANCELLED');
+      b.status === statusFilter;
 
     const matchesSearch =
       !searchQuery.trim() ||
@@ -55,8 +54,18 @@ export const AdminBookings = () => {
   });
 
   const totalGross = bookings
-    .filter((b) => b.status !== 'CANCELLED')
-    .reduce((acc, curr) => acc + (curr.total_amount || 0), 0);
+    .reduce((acc, curr) => acc + (curr.original_total_amount || curr.total_amount || 0), 0);
+
+  const totalRefunded = bookings
+    .reduce((acc, curr) => acc + (curr.refund_amount || 0), 0);
+
+  const totalFinalizedCommission = bookings
+    .filter((b) => b.commission_status === 'FINALIZED')
+    .reduce((acc, curr) => acc + (curr.commission_amount || 0), 0);
+
+  const totalFinalizedSettlements = bookings
+    .filter((b) => b.commission_status === 'FINALIZED')
+    .reduce((acc, curr) => acc + (curr.provider_settlement_amount || 0), 0);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -65,27 +74,49 @@ export const AdminBookings = () => {
         <div>
           <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
-            <span>Platform Financial Ledger</span>
+            <span>Platform Financial Ledger & Reconciliation</span>
           </div>
           <h1 className="text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
             Bookings & Settlement Monitor
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            Real-time reservation ledger, VeriNova verification checkpoints, and Razorpay settlements.
+            Real-time reservation ledger, 10% platform commission accounting, Stay Partner 90% settlements, and VeriNova audit trail.
           </p>
         </div>
+      </div>
 
-        {/* Quick Gross Card */}
-        <div className="p-4 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm flex items-center space-x-4">
-          <div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Gross Verified Volume</span>
-            <span className="text-xl font-serif font-black text-orange-500">
-              ₹{totalGross.toLocaleString('en-IN')}
-            </span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center">
-            <CreditCard className="w-5 h-5" />
-          </div>
+      {/* 4 Platform Financial Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div data-testid="admin-gross-volume" className="p-5 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs space-y-1">
+          <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Gross Booking Volume</span>
+          <span className="text-xl font-serif font-black text-orange-500 block">
+            ₹{totalGross.toLocaleString('en-IN')}
+          </span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">Across {bookings.length} total reservations</span>
+        </div>
+
+        <div data-testid="admin-finalized-commission" className="p-5 bg-white dark:bg-[#0F273D] border border-emerald-500/30 dark:border-emerald-500/20 rounded-2xl shadow-xs space-y-1">
+          <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block tracking-wider">Voyara Commission (10%)</span>
+          <span className="text-xl font-serif font-black text-emerald-600 dark:text-emerald-400 block">
+            ₹{totalFinalizedCommission.toLocaleString('en-IN')}
+          </span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">Finalized upon check-in & cancellation</span>
+        </div>
+
+        <div data-testid="admin-finalized-settlements" className="p-5 bg-white dark:bg-[#0F273D] border border-[#087F8C]/30 dark:border-[#087F8C]/20 rounded-2xl shadow-xs space-y-1">
+          <span className="text-[10px] uppercase font-bold text-[#087F8C] dark:text-[#27B7A8] block tracking-wider">Partner Settlements (90%)</span>
+          <span className="text-xl font-serif font-black text-[#087F8C] dark:text-[#27B7A8] block">
+            ₹{totalFinalizedSettlements.toLocaleString('en-IN')}
+          </span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">Finalized for stay partners</span>
+        </div>
+
+        <div data-testid="admin-refunded-volume" className="p-5 bg-white dark:bg-[#0F273D] border border-rose-500/30 dark:border-rose-500/20 rounded-2xl shadow-xs space-y-1">
+          <span className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400 block tracking-wider">Customer Refunds</span>
+          <span className="text-xl font-serif font-black text-rose-600 dark:text-rose-400 block">
+            ₹{totalRefunded.toLocaleString('en-IN')}
+          </span>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">Returned to guest source accounts</span>
         </div>
       </div>
 
@@ -99,7 +130,7 @@ export const AdminBookings = () => {
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-2 overflow-x-auto pb-1 custom-scrollbar">
-          {['ALL', 'CONFIRMED', 'CANCELLED'].map((s) => (
+          {['ALL', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED'].map((s) => (
             <button
               key={s}
               type="button"
@@ -110,7 +141,7 @@ export const AdminBookings = () => {
                   : 'bg-white dark:bg-[#0F273D] text-slate-700 dark:text-slate-300 hover:bg-[#FFFDF7] dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
               }`}
             >
-              {s === 'ALL' ? 'All Bookings' : s} ({bookings.filter((b) => s === 'ALL' || b.status === s).length})
+              {s === 'ALL' ? 'All Bookings' : s.replace(/_/g, ' ')} ({bookings.filter((b) => s === 'ALL' || b.status === s).length})
             </button>
           ))}
         </div>
@@ -144,72 +175,114 @@ export const AdminBookings = () => {
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                   <th className="pb-3">Reference</th>
-                  <th className="pb-3">Customer</th>
-                  <th className="pb-3">Property & Room</th>
-                  <th className="pb-3">Stay Dates</th>
-                  <th className="pb-3">Total Amount</th>
-                  <th className="pb-3">Payment</th>
-                  <th className="pb-3">VeriNova Audit</th>
-                  <th className="pb-3 text-right">Tax Invoice</th>
+                  <th className="pb-3">Customer & Stay</th>
+                  <th className="pb-3">Dates</th>
+                  <th className="pb-3">Gross Total</th>
+                  <th className="pb-3">Refund / Retained</th>
+                  <th className="pb-3">Voyara Fee (10%)</th>
+                  <th className="pb-3">Partner Share (90%)</th>
+                  <th className="pb-3">Status</th>
+                  <th className="pb-3">VeriNova</th>
+                  <th className="pb-3 text-right">Receipt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="py-4 font-mono font-bold text-[#091B29] dark:text-white">
-                      {b.booking_number || `VOY-${b.id}`}
-                    </td>
-                    <td className="py-4">
-                      <strong className="text-[#091B29] dark:text-white block">{b.user?.name || 'Customer'}</strong>
-                      <span className="text-slate-400 dark:text-slate-500 text-[11px]">{b.user?.email}</span>
-                    </td>
-                    <td className="py-4">
-                      <strong className="text-[#091B29] dark:text-white block">{b.property?.name}</strong>
-                      <span className="text-slate-500 dark:text-slate-400 text-[11px]">
-                        {b.booking_rooms?.[0]?.room_name || 'Sanctuary Suite'}
-                      </span>
-                    </td>
-                    <td className="py-4 text-slate-600 dark:text-slate-300">
-                      <div>{b.check_in} ➔ {b.check_out}</div>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">{b.total_nights || 1} Night(s)</span>
-                    </td>
-                    <td className="py-4 font-serif font-black text-orange-500 text-sm">
-                      ₹{b.total_amount?.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4">
-                      <div className="space-y-1">
+                {filteredBookings.map((b) => {
+                  const origAmount = b.original_total_amount || b.total_amount || 0;
+                  const isCancelled = b.status === 'CANCELLED';
+                  const isCheckedIn = b.status === 'CHECKED_IN';
+                  const isCompleted = b.status === 'COMPLETED';
+                  const isFinalized = b.commission_status === 'FINALIZED';
+
+                  return (
+                    <tr key={b.id} data-testid={`admin-booking-row-${b.id}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="py-4 font-mono font-bold text-[#087F8C] dark:text-[#27B7A8]">
+                        {b.booking_number || `VOY-${b.id}`}
+                      </td>
+                      <td className="py-4">
+                        <strong className="text-[#091B29] dark:text-white block">{b.user?.name || 'Customer'}</strong>
+                        <span className="text-slate-500 dark:text-slate-400 text-[11px] block">{b.property?.name}</span>
+                        <span className="text-slate-400 dark:text-slate-500 text-[10px] block">{b.user?.email}</span>
+                      </td>
+                      <td className="py-4 text-slate-600 dark:text-slate-300">
+                        <div>{b.check_in} ➔ {b.check_out}</div>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">{b.total_nights || 1} Night(s)</span>
+                      </td>
+                      <td className="py-4 font-serif font-black text-orange-500 text-sm">
+                        ₹{origAmount.toLocaleString('en-IN')}
+                      </td>
+                      <td className="py-4">
+                        {isCancelled ? (
+                          <div className="space-y-0.5 text-[11px]">
+                            <div className="text-rose-600 dark:text-rose-400 font-semibold">
+                              Refund: ₹{(b.refund_amount || 0).toLocaleString('en-IN')}
+                            </div>
+                            <div className="text-slate-600 dark:text-slate-300">
+                              Retained: ₹{(b.retained_amount || 0).toLocaleString('en-IN')}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">₹0 refunded</span>
+                        )}
+                      </td>
+                      <td className="py-4">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-slate-900 dark:text-white block">
+                            ₹{(b.commission_amount || (isFinalized ? 0 : Math.round(origAmount * 0.10))).toLocaleString('en-IN')}
+                          </span>
+                          <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+                            isFinalized
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                          }`}>
+                            {b.commission_status || 'NOT_FINALIZED'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 block">
+                            ₹{(b.provider_settlement_amount || (isFinalized ? 0 : Math.round(origAmount * 0.90))).toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-[9px] text-slate-400 block font-mono">
+                            {b.payout_status || 'PENDING_CHECKIN'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          b.status === 'CANCELLED'
+                          isCancelled
                             ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
+                            : isCheckedIn
+                            ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30'
+                            : isCompleted
+                            ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
                             : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
                         }`}>
-                          {b.status}
+                          {b.status === 'CHECKED_IN' ? 'CHECKED IN' : b.status}
                         </span>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-mono">
-                          Razorpay
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <VerificationBadge
-                        status={b.status === 'CANCELLED' ? 'NEEDS_REVIEW' : 'VERIFIED'}
-                        size="sm"
-                        onClick={() => setSelectedBookingId(b.id)}
-                        showDetailsHint={true}
-                      />
-                    </td>
-                    <td className="py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setInvoiceBooking(b)}
-                        className="px-3.5 py-1.5 bg-[#FFFDF7] dark:bg-slate-800 hover:bg-[#087F8C]/10 dark:hover:bg-slate-700 text-[#087F8C] dark:text-[#27B7A8] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all inline-flex items-center space-x-1 cursor-pointer"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Receipt</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-4">
+                        <VerificationBadge
+                          status={isCancelled ? 'NEEDS_REVIEW' : 'VERIFIED'}
+                          size="sm"
+                          onClick={() => setSelectedBookingId(b.id)}
+                          showDetailsHint={true}
+                        />
+                      </td>
+                      <td className="py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setInvoiceBooking(b)}
+                          className="px-3 py-1.5 bg-[#FFFDF7] dark:bg-slate-800 hover:bg-[#087F8C]/10 dark:hover:bg-slate-700 text-[#087F8C] dark:text-[#27B7A8] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all inline-flex items-center space-x-1 cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Receipt</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

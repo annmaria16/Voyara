@@ -23,8 +23,12 @@ export const ExperienceCard = ({ experience }) => {
 
   return (
     <div className="group bg-white dark:bg-[#0F273D] rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-[#087F8C]/10 transition-all duration-300 flex flex-col hover:-translate-y-1.5">
-      {/* Image Container */}
-      <div className="relative aspect-16/10 overflow-hidden bg-slate-100 dark:bg-slate-800">
+      {/* Image Container - Clickable Link to Stay Details */}
+      <Link
+        to={`/properties/${experience.property_id}`}
+        className="block relative aspect-16/10 overflow-hidden bg-slate-100 dark:bg-slate-800 cursor-pointer"
+        title={`Review details for ${experience.property_name || experience.title}`}
+      >
         <img
           src={img}
           alt={experience.title}
@@ -49,14 +53,16 @@ export const ExperienceCard = ({ experience }) => {
             <span>{experience.duration}</span>
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Content Details */}
       <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
         <div>
-          <h4 className="text-base font-bold font-serif text-slate-900 dark:text-white group-hover:text-[#087F8C] dark:group-hover:text-[#27B7A8] transition-colors line-clamp-1">
-            {experience.title}
-          </h4>
+          <Link to={`/properties/${experience.property_id}`} className="block">
+            <h4 className="text-base font-bold font-serif text-slate-900 dark:text-white group-hover:text-[#087F8C] dark:group-hover:text-[#27B7A8] transition-colors line-clamp-1">
+              {experience.title}
+            </h4>
+          </Link>
           <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 line-clamp-2 leading-relaxed font-light">
             {experience.description}
           </p>

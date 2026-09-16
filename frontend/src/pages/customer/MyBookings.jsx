@@ -156,7 +156,9 @@ export const MyBookings = () => {
             const isCancelled = b.status === 'CANCELLED';
             const isCheckedIn = b.status === 'CHECKED_IN';
             const isCompleted = b.status === 'COMPLETED';
-            const canCancel = ['CONFIRMED', 'VERIFIED', 'PENDING'].includes(b.status);
+            const isConfirmed = ['CONFIRMED', 'VERIFIED', 'PENDING'].includes(b.status);
+            const canCancel = isConfirmed && b.is_cancellable !== false;
+            const isDeadlinePassed = isConfirmed && b.is_cancellable === false;
             const roomName = b.booking_rooms?.[0]?.room_name || 'Room Stay';
             const expTitle = b.booking_experiences?.[0]?.experience_title;
 
@@ -174,6 +176,7 @@ export const MyBookings = () => {
             return (
               <div
                 key={b.id}
+                data-testid={`booking-card-${b.id}`}
                 className="card-voyara rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-sm hover:shadow-md transition-shadow space-y-6 bg-white dark:bg-[#0F273D]"
               >
                 {/* Header */}
@@ -216,6 +219,7 @@ export const MyBookings = () => {
 
                     <button
                       type="button"
+                      data-testid={`invoice-btn-${b.id}`}
                       onClick={() => setInvoiceBooking(b)}
                       className="px-3 py-1 bg-[#FFFDF7] dark:bg-[#091B29] hover:bg-orange-50 dark:hover:bg-slate-800 text-[#F97316] border border-orange-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
                     >
@@ -225,6 +229,7 @@ export const MyBookings = () => {
 
                     {/* Status Badge */}
                     <span
+                      data-testid={`booking-status-${b.id}`}
                       className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
                         isCancelled
                           ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
@@ -294,18 +299,25 @@ export const MyBookings = () => {
                         Total Amount Paid
                       </span>
                       <strong className="text-[#F97316] text-lg font-serif block font-bold">
-                        ₹{b.total_amount?.toLocaleString('en-IN')}
+                        ₹{(b.original_total_amount || b.total_amount)?.toLocaleString('en-IN')}
                       </strong>
                     </div>
 
                     {canCancel && (
                       <button
                         type="button"
+                        data-testid={`cancel-booking-btn-${b.id}`}
                         onClick={() => setCancellationBooking(b)}
                         className="text-[11px] font-bold text-rose-500 hover:text-rose-600 underline text-left cursor-pointer mt-1"
                       >
                         Cancel Reservation
                       </button>
+                    )}
+
+                    {isDeadlinePassed && (
+                      <span data-testid={`cancel-disabled-badge-${b.id}`} className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mt-1 block">
+                        Cancellation deadline has passed.
+                      </span>
                     )}
 
                     {isCheckedIn && (
@@ -319,41 +331,41 @@ export const MyBookings = () => {
 
                 {/* Cancelled Refund Card */}
                 {isCancelled && (
-                  <div className="p-5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 space-y-3">
+                  <div data-testid={`refund-card-${b.id}`} className="p-5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 space-y-3">
                     <div className="flex items-center justify-between border-b border-rose-200/60 dark:border-rose-900/40 pb-2">
                       <div className="flex items-center space-x-2 text-rose-700 dark:text-rose-400 font-bold text-xs">
                         <Receipt className="w-4 h-4" />
-                        <span>VeriNova Processed Refund Breakdown</span>
+                        <span>VeriNova Processed Refund Breakdown (Internal Settlement)</span>
                       </div>
-                      {b.refund?.refund_reference && (
+                      {(b.refund?.refund_reference || b.verinova_verification_id) && (
                         <span className="font-mono text-xs font-bold text-rose-700 dark:text-rose-300">
-                          {b.refund.refund_reference}
+                          {b.refund?.refund_reference || b.verinova_verification_id}
                         </span>
                       )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                       <div>
-                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Refund Amount</span>
-                        <strong className="text-base font-serif font-bold text-emerald-600 dark:text-emerald-400">
-                          ₹{(b.refund?.refund_amount ?? b.total_amount)?.toLocaleString('en-IN')}
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Estimated Refund</span>
+                        <strong data-testid={`refund-amount-${b.id}`} className="text-base font-serif font-bold text-emerald-600 dark:text-emerald-400">
+                          ₹{(b.refund?.refund_amount ?? b.refund_amount ?? b.total_amount)?.toLocaleString('en-IN')}
                         </strong>
                         <span className="text-[10px] text-slate-500 block">
-                          ({b.refund?.refund_percentage ?? 100}% rate applied)
+                          ({b.refund?.refund_percentage ?? b.refund_percentage_snapshot ?? 100}% rate applied)
                         </span>
                       </div>
 
                       <div>
-                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Cancellation Fee</span>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Retained Amount</span>
                         <span className="text-slate-700 dark:text-slate-300 font-semibold">
-                          ₹{(b.refund?.cancellation_fee ?? 0)?.toLocaleString('en-IN')}
+                          ₹{(b.refund?.retained_amount ?? b.retained_amount ?? b.refund?.cancellation_fee ?? 0)?.toLocaleString('en-IN')}
                         </span>
                       </div>
 
                       <div>
-                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Cancellation Reason</span>
-                        <span className="text-slate-700 dark:text-slate-300 italic">
-                          {b.cancellation_reason || 'Traveler cancellation'}
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Cancellation Status</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                          Demo Refund Processed
                         </span>
                       </div>
                     </div>
@@ -397,6 +409,34 @@ export const MyBookings = () => {
                     </p>
                   )}
                 </div>
+
+                {/* Agreed Home Rules Snapshot */}
+                {b.rule_snapshot && (
+                  <div className="p-4 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-100 dark:border-teal-900/40 space-y-2 text-xs">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                      <span className="font-bold text-[#17324D] dark:text-white flex items-center space-x-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#35A66F]" />
+                        <span>Agreed Home Rules Snapshot</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">Immutable</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-[#607080] dark:text-slate-300 pt-1">
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Children</span>
+                        <span>{b.rule_snapshot.children_allowed !== false ? 'Children Welcome' : 'Adults Only'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Pets</span>
+                        <span>{b.rule_snapshot.pets_allowed ? 'Pets Allowed' : 'No Pets'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Smoking / Parties</span>
+                        <span>{b.rule_snapshot.smoking_allowed ? 'Smoking Permitted' : 'Non-Smoking'} • {b.rule_snapshot.parties_allowed ? 'Events OK' : 'No Parties'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Digital Travel Itinerary Timeline */}
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800">

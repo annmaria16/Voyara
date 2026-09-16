@@ -3,8 +3,8 @@ from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
-from app.models.property import Property, PropertyImage, PropertyAmenity, PropertyType
-from app.models.room import Room, RoomImage, RoomAmenity
+from app.models.property import Property, PropertyImage, PropertyAmenity, PropertyType, PropertyRule
+from app.models.room import Room, RoomImage, RoomAmenity, RoomRule
 from app.models.experience import Experience
 from app.models.availability import PropertyAvailability, RoomAvailability
 from app.models.provider import ProviderProfile
@@ -15,7 +15,9 @@ from app.services.verinova.property_trust_service import PropertyTrustService
 from app.services.verinova.fingerprint_service import FingerprintService
 from app.services.verinova.duplicate_detection_service import DuplicateDetectionService
 from app.services.notifications.notification_service import NotificationService
+from app.services.ai.stayguide_service import StayGuideService
 import difflib
+
 
 
 # Common travel destination, property type, and amenity typos/synonyms
@@ -311,6 +313,13 @@ class PropertyService:
                         is_primary=(i == 0)
                     ))
 
+        # Add property home rules if provided or instantiate defaults
+        if data.home_rules:
+            rules_dict = data.home_rules.model_dump()
+            db.add(PropertyRule(property_id=prop.id, **rules_dict))
+        else:
+            StayGuideService.get_or_create_property_rules(db, prop.id)
+
         # Add rooms if provided during property creation
         if data.rooms:
             for room_data in data.rooms:
@@ -327,6 +336,12 @@ class PropertyService:
                 db.add(room)
                 db.flush()
 
+                if room_data.rules:
+                    r_rules_dict = room_data.rules.model_dump()
+                    db.add(RoomRule(room_id=room.id, **r_rules_dict))
+                else:
+                    StayGuideService.get_or_create_room_rules(db, room.id)
+
                 if room_data.amenities:
                     for am in room_data.amenities:
                         if am.strip():
@@ -340,6 +355,29 @@ class PropertyService:
                                 image_url=r_img.strip(),
                                 is_primary=(idx == 0)
                             ))
+
+
+        # Add experiences if provided during property creation
+        if data.experiences:
+            for exp_data in data.experiences:
+                exp = Experience(
+                    property_id=prop.id,
+                    title=exp_data.title.strip(),
+                    experience_type=exp_data.experience_type.strip(),
+                    description=exp_data.description.strip(),
+                    price=exp_data.price,
+                    pricing_model=exp_data.pricing_model,
+                    capacity=exp_data.capacity,
+                    duration=exp_data.duration,
+                    schedule_type=exp_data.schedule_type or "recurring",
+                    event_date=exp_data.event_date,
+                    start_time=exp_data.start_time or "09:00",
+                    end_time=exp_data.end_time or "12:00",
+                    image_url=exp_data.image_url,
+                    is_active=True
+                )
+                db.add(exp)
+
         db.commit()
         db.refresh(prop)
 
@@ -418,9 +456,19 @@ class PropertyService:
         
         amenities = update_dict.pop("amenities", None)
         images = update_dict.pop("images", None)
+        home_rules_data = update_dict.pop("home_rules", None)
 
         for key, val in update_dict.items():
             setattr(prop, key, val)
+
+        if home_rules_data is not None:
+            hr = prop.home_rules
+            if not hr:
+                hr = PropertyRule(property_id=prop.id)
+                db.add(hr)
+            hr_dict = home_rules_data if isinstance(home_rules_data, dict) else (home_rules_data.model_dump(exclude_unset=True) if hasattr(home_rules_data, 'model_dump') else {})
+            for hk, hv in hr_dict.items():
+                setattr(hr, hk, hv)
 
         if amenities is not None:
             db.query(PropertyAmenity).filter(PropertyAmenity.property_id == prop.id).delete()
@@ -438,6 +486,7 @@ class PropertyService:
         if is_already_verified:
             prop.verification_status = "VERIFIED"
             prop.is_active = True
+
 
         db.commit()
         db.refresh(prop)
@@ -684,10 +733,12 @@ class PropertyService:
                 "is_active": r.is_active,
                 "created_at": r.created_at,
                 "images": [{"id": img.id, "image_url": img.image_url, "is_primary": img.is_primary} for img in r.images],
-                "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in r.amenities]
+                "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in r.amenities],
+                "rules": StayGuideService.serialize_room_rules(r.rules, r) if r.rules else None
             }
             for r in rooms
         ]
+        data["home_rules"] = StayGuideService.serialize_property_rules(prop.home_rules) if prop.home_rules else None
 
         # Add active experiences
         experiences = db.query(Experience).filter(Experience.property_id == prop.id, Experience.is_active == True).all()
@@ -752,7 +803,8 @@ class PropertyService:
             "room_count": room_count,
             "experience_count": experience_count,
             "images": [{"id": img.id, "image_url": img.image_url, "caption": img.caption, "is_primary": img.is_primary} for img in p.images],
-            "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities]
+            "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities],
+            "home_rules": StayGuideService.serialize_property_rules(p.home_rules) if getattr(p, 'home_rules', None) else None
         }
 
     @staticmethod
@@ -800,6 +852,7 @@ class PropertyService:
             "experience_count": experience_count,
             "images": [{"id": img.id, "image_url": img.image_url, "caption": img.caption, "is_primary": img.is_primary} for img in p.images],
             "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities],
+            "home_rules": StayGuideService.serialize_property_rules(p.home_rules) if getattr(p, 'home_rules', None) else None,
             "rooms": [
                 {
                     "id": r.id,
@@ -813,9 +866,11 @@ class PropertyService:
                     "is_active": r.is_active,
                     "created_at": r.created_at,
                     "images": [{"id": img.id, "image_url": img.image_url, "is_primary": img.is_primary} for img in r.images],
-                    "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in r.amenities]
+                    "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in r.amenities],
+                    "rules": StayGuideService.serialize_room_rules(r.rules, r) if getattr(r, 'rules', None) else None
                 }
                 for r in p.rooms
             ]
         }
+
 

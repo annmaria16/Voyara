@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { providerApi } from '../../api/provider';
+import { voyaraAiApi } from '../../api/stayguide';
 import { MultiImageUploadPicker } from '../../components/common/MultiImageUploadPicker';
 import { GoogleMapLocationPicker } from '../../components/common/GoogleMapLocationPicker';
 import { NumberStepperInput } from '../../components/common/NumberStepperInput';
+import { PropertyHomeRulesForm, DEFAULT_HOME_RULES } from '../../components/property/PropertyHomeRulesForm';
 import {
   Home,
   MapPin,
@@ -28,6 +30,7 @@ import {
   X,
   AlertTriangle,
   Lock,
+  Flame,
 } from 'lucide-react';
 
 const ROOM_TYPE_OPTIONS = [
@@ -41,6 +44,17 @@ const ROOM_TYPE_OPTIONS = [
   'Studio Apartment',
   'Treehouse Suite',
   'Dormitory Bed',
+];
+
+const EXPERIENCE_TYPE_OPTIONS = [
+  'Campfire',
+  'Guided Trek',
+  'Sightseeing',
+  'Local Food Experience',
+  'Outdoor Activity',
+  'Cultural Experience',
+  'Adventure',
+  'Event',
 ];
 
 const AVAILABLE_ROOM_AMENITIES = [
@@ -98,9 +112,9 @@ export const EditProperty = () => {
   const [state, setState] = useState('');
   const [country, setCountry] = useState('India');
   const [locationDetails, setLocationDetails] = useState('');
-  const [latitude, setLatitude] = useState(10.0889);
-  const [longitude, setLongitude] = useState(77.0595);
-  const [verificationStatus, setVerificationStatus] = useState('VERIFIED');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [verificationStatus, setVerificationStatus] = useState('');
   const [verificationReason, setVerificationReason] = useState('');
 
   // 2. Contact & Timings
@@ -109,11 +123,7 @@ export const EditProperty = () => {
   const [checkInTime, setCheckInTime] = useState('14:00');
   const [checkOutTime, setCheckOutTime] = useState('11:00');
   const [guestInformationMessage, setGuestInformationMessage] = useState('');
-  const [guestMessageSaving, setGuestMessageSaving] = useState(false);
-  const [guestMessageSuccess, setGuestMessageSuccess] = useState('');
   const [cancellationRefundPercentage, setCancellationRefundPercentage] = useState(50);
-  const [cancellationPolicySaving, setCancellationPolicySaving] = useState(false);
-  const [cancellationPolicySuccess, setCancellationPolicySuccess] = useState('');
 
   // 3. Amenities & Photos
   const [amenities, setAmenities] = useState([]);
@@ -135,6 +145,9 @@ export const EditProperty = () => {
   const [rooms, setRooms] = useState([]);
   const [customRoomAmenities, setCustomRoomAmenities] = useState({});
 
+  // 6. Property Home Rules State
+  const [homeRules, setHomeRules] = useState(DEFAULT_HOME_RULES);
+
   // Touched state
   const [touched, setTouched] = useState({});
 
@@ -143,40 +156,6 @@ export const EditProperty = () => {
 
   const handleBlur = (field) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
-  };
-
-  // Dedicated save handler for Guest Information & Safety Message
-  const handleSaveGuestInformation = async () => {
-    if (guestInformationMessage.length > 5000) {
-      alert('Guest information message must not exceed 5000 characters.');
-      return;
-    }
-    setGuestMessageSaving(true);
-    setGuestMessageSuccess('');
-    try {
-      await providerApi.updateGuestInformation(id, guestInformationMessage);
-      setGuestMessageSuccess('Guest Information & Safety Message saved successfully in PostgreSQL!');
-      setTimeout(() => setGuestMessageSuccess(''), 4000);
-    } catch (err) {
-      alert(err.message || 'Failed to save guest information message.');
-    } finally {
-      setGuestMessageSaving(false);
-    }
-  };
-
-  // Dedicated save handler for Cancellation Policy
-  const handleSaveCancellationPolicy = async () => {
-    setCancellationPolicySaving(true);
-    setCancellationPolicySuccess('');
-    try {
-      await providerApi.updateCancellationPolicy(id, Number(cancellationRefundPercentage));
-      setCancellationPolicySuccess('Cancellation policy updated successfully in PostgreSQL!');
-      setTimeout(() => setCancellationPolicySuccess(''), 4000);
-    } catch (err) {
-      alert(err.response?.data?.detail || err.message || 'Failed to update cancellation policy.');
-    } finally {
-      setCancellationPolicySaving(false);
-    }
   };
 
   // Fetch initial property details
@@ -194,9 +173,8 @@ export const EditProperty = () => {
           setCity(prop.city || '');
           setState(prop.state || '');
           setCountry(prop.country || 'India');
-          setLocationDetails(prop.location_details || '');
-          setLatitude(prop.latitude || 10.0889);
-          setLongitude(prop.longitude || 77.0595);
+          setLatitude(prop.latitude !== undefined && prop.latitude !== null ? prop.latitude : null);
+          setLongitude(prop.longitude !== undefined && prop.longitude !== null ? prop.longitude : null);
           setContactPhone(prop.contact_phone || '');
           setContactEmail(prop.contact_email || '');
           setCheckInTime(prop.check_in_time || '14:00');
@@ -239,6 +217,19 @@ export const EditProperty = () => {
             is_active: r.is_active !== undefined ? r.is_active : true,
           }));
           setRooms(roomList);
+
+          // Fetch experiences attached to this stay
+          fetchStayExperiences();
+
+          // Fetch Property Home Rules
+          try {
+            const rulesData = await voyaraAiApi.getPropertyRules(id);
+            if (rulesData) {
+              setHomeRules(rulesData);
+            }
+          } catch (rErr) {
+            console.warn('Could not fetch property home rules:', rErr);
+          }
         }
       } catch (err) {
         setError(err.response?.data?.detail || err.message || 'Failed to load property details.');
@@ -251,6 +242,112 @@ export const EditProperty = () => {
       fetchPropertyData();
     }
   }, [id]);
+
+  // Experiences State & Operations
+  const [experiences, setExperiences] = useState([]);
+  const [expModalOpen, setExpModalOpen] = useState(false);
+  const [editingExpId, setEditingExpId] = useState(null);
+  const [expTitle, setExpTitle] = useState('');
+  const [expType, setExpType] = useState('Guided Trek');
+  const [expDesc, setExpDesc] = useState('');
+  const [expPrice, setExpPrice] = useState('');
+  const [expPricingModel, setExpPricingModel] = useState('per_person');
+  const [expCapacity, setExpCapacity] = useState('15');
+  const [expDuration, setExpDuration] = useState('3 Hours');
+  const [expImageUrl, setExpImageUrl] = useState('');
+  const [expIsActive, setExpIsActive] = useState(true);
+  const [expSaving, setExpSaving] = useState(false);
+  const [expSuccess, setExpSuccess] = useState('');
+  const [expError, setExpError] = useState('');
+
+  const fetchStayExperiences = async () => {
+    try {
+      const expList = await providerApi.getExperiences(id);
+      setExperiences(Array.isArray(expList) ? expList : []);
+    } catch (e) {
+      console.warn('Error fetching stay experiences:', e);
+    }
+  };
+
+  const handleOpenCreateExpModal = () => {
+    setEditingExpId(null);
+    setExpTitle('');
+    setExpType('Guided Trek');
+    setExpDesc('');
+    setExpPrice('');
+    setExpPricingModel('per_person');
+    setExpCapacity('15');
+    setExpDuration('3 Hours');
+    setExpImageUrl('https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1000&q=80');
+    setExpIsActive(true);
+    setExpError('');
+    setExpModalOpen(true);
+  };
+
+  const handleOpenEditExpModal = (exp) => {
+    setEditingExpId(exp.id);
+    setExpTitle(exp.title || '');
+    setExpType(exp.experience_type || 'Guided Trek');
+    setExpDesc(exp.description || '');
+    setExpPrice(exp.price !== undefined && exp.price !== null ? String(exp.price) : '');
+    setExpPricingModel(exp.pricing_model || 'per_person');
+    setExpCapacity(exp.capacity !== undefined && exp.capacity !== null ? String(exp.capacity) : '15');
+    setExpDuration(exp.duration || '3 Hours');
+    setExpImageUrl(exp.image_url || 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1000&q=80');
+    setExpIsActive(exp.is_active !== undefined ? exp.is_active : true);
+    setExpError('');
+    setExpModalOpen(true);
+  };
+
+  const handleSaveExpModal = async (e) => {
+    e.preventDefault();
+    setExpSaving(true);
+    setExpError('');
+    try {
+      const payload = {
+        title: expTitle.trim(),
+        experience_type: expType,
+        description: expDesc.trim(),
+        price: parseFloat(expPrice),
+        pricing_model: expPricingModel,
+        capacity: parseInt(expCapacity, 10),
+        duration: expDuration.trim(),
+        image_url: expImageUrl,
+        is_active: expIsActive,
+      };
+
+      if (editingExpId) {
+        await providerApi.updateExperience(editingExpId, payload);
+        setExpSuccess(`Experience '${expTitle}' updated successfully!`);
+      } else {
+        await providerApi.createExperience(id, {
+          ...payload,
+          schedule_type: 'recurring',
+        });
+        setExpSuccess(`Experience '${expTitle}' created successfully!`);
+      }
+
+      setExpModalOpen(false);
+      fetchStayExperiences();
+      setTimeout(() => setExpSuccess(''), 4000);
+    } catch (err) {
+      setExpError(err.response?.data?.detail || err.message || 'Failed to save experience.');
+    } finally {
+      setExpSaving(false);
+    }
+  };
+
+  const handleDeleteExp = async (expId, titleStr) => {
+    if (!window.confirm(`Are you sure you want to delete experience '${titleStr}'?`)) return;
+    try {
+      await providerApi.deleteExperience(expId);
+      setExpSuccess(`Experience '${titleStr}' deleted.`);
+      fetchStayExperiences();
+      setTimeout(() => setExpSuccess(''), 3000);
+    } catch (err) {
+      alert(err.response?.data?.detail || err.message || 'Failed to delete experience.');
+    }
+  };
 
   // --- Amenities Handlers ---
   const handleTogglePropAmenity = (amenityName) => {
@@ -617,6 +714,14 @@ export const EditProperty = () => {
       errs.contactEmail = 'Please enter a valid email address.';
     }
 
+    if (guestInformationMessage && guestInformationMessage.length > 5000) {
+      errs.guestInformationMessage = 'Guest information message must not exceed 5000 characters.';
+    }
+
+    if (![0, 25, 50, 75, 100].includes(Number(cancellationRefundPercentage))) {
+      errs.cancellationRefundPercentage = 'Please select a valid cancellation refund percentage (0%, 25%, 50%, 75%, or 100%).';
+    }
+
     if (images.length === 0) {
       errs.images = 'At least one property photo is required.';
     }
@@ -648,7 +753,7 @@ export const EditProperty = () => {
     }
 
     return errs;
-  }, [name, description, address, city, state, contactPhone, contactEmail, images, rooms]);
+  }, [name, description, address, city, state, contactPhone, contactEmail, guestInformationMessage, cancellationRefundPercentage, images, rooms]);
 
   const isFormValid = Object.keys(errors).length === 0;
 
@@ -719,7 +824,14 @@ export const EditProperty = () => {
         }
       }
 
-      setSuccessMessage('Property & room details have been saved successfully and updated live.');
+      // 3. Update Property Home Rules
+      try {
+        await voyaraAiApi.updatePropertyRules(id, homeRules);
+      } catch (rErr) {
+        console.warn('Could not save property home rules:', rErr);
+      }
+
+      setSuccessMessage('All property details, guest message, room inventory, and policies have been saved successfully.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
       setTimeout(() => {
@@ -934,7 +1046,7 @@ export const EditProperty = () => {
                     maxLength={6}
                     disabled={isLocationLocked}
                     readOnly={isLocationLocked}
-                    placeholder="e.g. 685612"
+                    placeholder="Enter Indian pincode"
                     value={pincode}
                     onChange={(e) => !isLocationLocked && handlePincodeChange(e.target.value)}
                     className={`w-full p-2.5 rounded-xl font-mono font-bold ${
@@ -1196,33 +1308,9 @@ export const EditProperty = () => {
                 placeholder={"Welcome to our property!\n\nPlease follow these safety and property guidelines:\n• Carry a valid ID during check-in.\n• Check-in time is 2:00 PM.\n• Check-out time is 11:00 AM.\n• Please keep valuables safely with you.\n• Smoking is not allowed inside rooms.\n• Please maintain quiet hours after 10:00 PM.\n• Contact the property reception if you need assistance.\n\nProperty contact:\n+91 XXXXX XXXXX\n\nWe look forward to welcoming you."}
                 className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs sm:text-sm font-medium text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 leading-relaxed custom-scrollbar shadow-xs"
               />
-              <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 pt-1">
                 <span>Automatically sent to travelers when their booking is confirmed and visible on their Booking Details.</span>
-                <button
-                  type="button"
-                  onClick={handleSaveGuestInformation}
-                  disabled={guestMessageSaving}
-                  className="px-4 py-2 bg-gradient-to-r from-[#087F8C] to-[#17324D] hover:from-[#066570] hover:to-[#0F273D] text-white rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5 shrink-0 shadow-xs"
-                >
-                  {guestMessageSaving ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Save Guest Message</span>
-                    </>
-                  )}
-                </button>
               </div>
-              {guestMessageSuccess && (
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center space-x-2 mt-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>{guestMessageSuccess}</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1244,19 +1332,22 @@ export const EditProperty = () => {
             </div>
 
             <div className="space-y-3">
-              <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 space-y-1">
-                <strong className="text-slate-900 dark:text-white block font-sans">Voyara Guarantee Standard:</strong>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  All guests enjoy <strong>100% full refund</strong> if they cancel up to 2 full days before check-in time. If cancelled within 2 days of arrival, your chosen policy below applies:
-                </p>
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                <strong className="text-[#091B29] dark:text-white block font-semibold">Voyara Cancellation Standards:</strong>
+                <ul className="list-disc list-inside text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5">
+                  <li><strong>Free Cancellation:</strong> Guests receive 100% full refund if cancelled $\ge$ 2 days before check-in date.</li>
+                  <li><strong>Final 2 Days:</strong> Guest receives your selected refund % below until <strong>06:00:00 AM IST</strong> on the check-in date.</li>
+                  <li><strong>Retained Split:</strong> Any retained amount is split as <strong>90% Stay Partner payout</strong> and <strong>10% Voyara platform fee</strong>.</li>
+                  <li><strong>Check-In Day Cutoff:</strong> At or after 06:00 AM IST on check-in day, cancellation is closed with 0% refund.</li>
+                </ul>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
                 {[
-                  { pct: 0, label: '0% Refund', sub: 'Strict (No refund)' },
-                  { pct: 25, label: '25% Refund', sub: 'Stay Partner retains 75%' },
+                  { pct: 0, label: '0% Refund', sub: 'Strict (Partner retains 100%)' },
+                  { pct: 25, label: '25% Refund', sub: 'Moderate (Partner retains 75%)' },
                   { pct: 50, label: '50% Refund', sub: 'Standard (Recommended)' },
-                  { pct: 75, label: '75% Refund', sub: 'Stay Partner retains 25%' },
+                  { pct: 75, label: '75% Refund', sub: 'Flexible (Partner retains 25%)' },
                   { pct: 100, label: '100% Refund', sub: 'Flexible (Full refund)' },
                 ].map((opt) => {
                   const selected = cancellationRefundPercentage === opt.pct;
@@ -1280,34 +1371,9 @@ export const EditProperty = () => {
                 })}
               </div>
 
-              <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-2">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 pt-2">
                 <span>Current policy: <strong>{cancellationRefundPercentage}% refund</strong> for cancellations under 2 days before check-in.</span>
-                <button
-                  type="button"
-                  onClick={handleSaveCancellationPolicy}
-                  disabled={cancellationPolicySaving}
-                  className="px-4 py-2 bg-gradient-to-r from-[#087F8C] to-[#17324D] hover:from-[#066570] hover:to-[#0F273D] text-white rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5 shrink-0 shadow-xs"
-                >
-                  {cancellationPolicySaving ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Saving Policy...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Save Cancellation Policy</span>
-                    </>
-                  )}
-                </button>
               </div>
-
-              {cancellationPolicySuccess && (
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center space-x-2 mt-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>{cancellationPolicySuccess}</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1682,7 +1748,131 @@ export const EditProperty = () => {
             </div>
           </div>
 
-          {/* 7. Voyara Trust & Platform Verification Notice */}
+          {/* SECTION 7: EXPERIENCES & ACTIVITIES AT THIS STAY */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+              <div className="flex items-center space-x-2">
+                <Flame className="w-4 h-4 text-orange-500" />
+                <h2 className="text-base font-bold text-[#091B29] dark:text-white">
+                  Experiences & Activities at this Stay
+                </h2>
+              </div>
+              <span className="text-xs font-bold text-orange-700 dark:text-orange-300 bg-orange-500/15 px-2.5 py-0.5 rounded-full">
+                {experiences.length} Experience(s)
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 -mt-3">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-light">
+                Manage multiple guided treks, campfires, workshops, and outdoor activities attached to this stay.
+              </p>
+              <button
+                type="button"
+                onClick={handleOpenCreateExpModal}
+                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer shrink-0 self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Add Experience</span>
+              </button>
+            </div>
+
+            {expSuccess && (
+              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 rounded-2xl text-emerald-800 dark:text-emerald-200 text-xs flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span className="font-semibold">{expSuccess}</span>
+              </div>
+            )}
+
+            {experiences.length === 0 ? (
+              <div className="p-8 rounded-3xl bg-[#FFF8F0]/40 dark:bg-slate-900/40 border border-orange-200/60 dark:border-slate-800 text-center space-y-2">
+                <Flame className="w-8 h-8 text-orange-400 mx-auto" />
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  No experiences attached yet
+                </h4>
+                <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                  Offer plantation walks, campfires, or river rafting to enhance guest bookings.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleOpenCreateExpModal}
+                  className="inline-flex items-center space-x-1 px-4 py-2 bg-orange-500 text-white font-bold rounded-xl text-xs shadow-xs hover:bg-orange-600 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add First Experience</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {experiences.map((exp) => (
+                  <div
+                    key={exp.id}
+                    className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="relative aspect-16/9 bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <img
+                          src={exp.image_url || 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=800&q=80'}
+                          alt={exp.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute top-2.5 left-2.5 flex items-center space-x-1.5">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#091B29]/85 text-white backdrop-blur-xs">
+                            {exp.experience_type}
+                          </span>
+                          {exp.is_active === false && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-4 space-y-2">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                            {exp.title}
+                          </h4>
+                          <span className="text-xs font-bold text-orange-600 dark:text-orange-400 shrink-0">
+                            ₹{exp.price?.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
+                          {exp.description}
+                        </p>
+                        <div className="text-[10px] text-slate-400 flex items-center space-x-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                          <span>Max {exp.capacity} Guests</span>
+                          <span>•</span>
+                          <span>{exp.duration}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-50/80 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end space-x-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditExpModal(exp)}
+                        className="inline-flex items-center space-x-1 px-2.5 py-1 bg-[#087F8C]/10 hover:bg-[#087F8C]/20 text-[#087F8C] dark:text-[#27B7A8] font-bold rounded-lg transition-colors cursor-pointer text-xs"
+                        title="Edit Experience"
+                      >
+                        <Edit className="w-3 h-3" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExp(exp.id, exp.title)}
+                        className="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                        title="Delete Experience"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 8. Voyara Trust & Platform Verification Notice */}
           <div className="p-6 rounded-3xl bg-gradient-to-r from-[#087F8C]/10 via-[#0F273D]/5 to-[#087F8C]/10 border border-[#087F8C]/30 text-xs space-y-3">
             <div className="flex items-center space-x-2.5 text-[#087F8C] dark:text-[#27B7A8]">
               <ShieldCheck className="w-5 h-5 shrink-0" />
@@ -1693,6 +1883,10 @@ export const EditProperty = () => {
             </p>
           </div>
 
+          {/* Property Home Rules & Guest Policies */}
+          <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+            <PropertyHomeRulesForm rules={homeRules} onChange={setHomeRules} />
+          </div>
 
           {/* Save CTA */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
@@ -1704,18 +1898,193 @@ export const EditProperty = () => {
               {saveLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Saving Property & Room Updates...</span>
+                  <span>Saving Changes...</span>
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  <span>Save All Property & Room Updates</span>
+                  <span>Save Changes</span>
                 </>
               )}
             </button>
           </div>
         </form>
       </div>
+
+      {/* Embedded Experience Modal */}
+      {expModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-5 shadow-2xl border border-slate-200 dark:border-slate-800 custom-scrollbar">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+                  <Flame className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-serif font-bold text-[#091B29] dark:text-white">
+                    {editingExpId ? 'Edit Experience Details' : 'Add Experience to Stay'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Attach adventure, cultural, or culinary activity</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExpModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {expError && (
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{expError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveExpModal} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Experience Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Starlit Campfire & Acoustic Night"
+                  value={expTitle}
+                  onChange={(e) => setExpTitle(e.target.value)}
+                  className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Type *</label>
+                  <select
+                    value={expType}
+                    onChange={(e) => setExpType(e.target.value)}
+                    className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden cursor-pointer"
+                  >
+                    {EXPERIENCE_TYPE_OPTIONS.map((t) => (
+                      <option key={t} value={t} className="dark:bg-slate-900 text-slate-900 dark:text-white">
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Pricing Model</label>
+                  <select
+                    value={expPricingModel}
+                    onChange={(e) => setExpPricingModel(e.target.value)}
+                    className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="per_person" className="dark:bg-slate-900 text-slate-900 dark:text-white">
+                      Per Person
+                    </option>
+                    <option value="fixed" className="dark:bg-slate-900 text-slate-900 dark:text-white">
+                      Fixed Price
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Price (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="50"
+                    placeholder="1200"
+                    value={expPrice}
+                    onChange={(e) => setExpPrice(e.target.value)}
+                    className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Capacity *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={expCapacity}
+                    onChange={(e) => setExpCapacity(e.target.value)}
+                    className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Duration</label>
+                  <input
+                    type="text"
+                    required
+                    value={expDuration}
+                    onChange={(e) => setExpDuration(e.target.value)}
+                    className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Description</label>
+                <textarea
+                  rows={2}
+                  required
+                  placeholder="Describe the activity itinerary, equipment provided, departure point..."
+                  value={expDesc}
+                  onChange={(e) => setExpDesc(e.target.value)}
+                  className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
+                />
+              </div>
+
+              <ImageUploadPicker
+                label="Experience Photo Upload"
+                hint="Upload experience image directly to local storage"
+                value={expImageUrl}
+                onChange={(url) => setExpImageUrl(url)}
+              />
+
+              {editingExpId && (
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                  <div>
+                    <label className="font-bold text-slate-800 dark:text-slate-200 text-xs">Active Status</label>
+                    <p className="text-[10px] text-slate-500">Allow travelers to discover and book this experience</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={expIsActive}
+                      onChange={(e) => setExpIsActive(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+              )}
+
+              <div className="flex gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setExpModalOpen(false)}
+                  className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={expSaving}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] text-white font-bold rounded-xl cursor-pointer disabled:opacity-50 shadow-md shadow-orange-500/20 transition-all text-xs"
+                >
+                  {expSaving ? 'Saving...' : editingExpId ? 'Save Changes' : 'Add Experience'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

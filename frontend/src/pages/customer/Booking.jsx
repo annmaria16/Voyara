@@ -4,6 +4,7 @@ import { customerApi } from '../../api/customer';
 import { useAuth } from '../../context/AuthContext';
 import { loadRazorpayScript } from '../../utils/razorpay';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
+import { VoyaraAIChat } from '../../components/ai/VoyaraAIChat';
 import {
   ShieldCheck,
   Calendar,
@@ -28,6 +29,7 @@ export const BookingPage = () => {
   const bookingState = location.state;
 
   const [customerNotes, setCustomerNotes] = useState('');
+  const [rulesAccepted, setRulesAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [error, setError] = useState('');
@@ -58,6 +60,14 @@ export const BookingPage = () => {
     check_out,
     nights,
     guests,
+    adults = 2,
+    children = 0,
+    child_ages = [],
+    cot_count = 0,
+    extra_bed_count = 0,
+    cots_subtotal = 0,
+    extra_beds_subtotal = 0,
+    children_subtotal = 0,
     room_subtotal,
     experience_id,
     experience_title,
@@ -66,12 +76,20 @@ export const BookingPage = () => {
     experience_participants,
     experience_subtotal,
     total_amount,
+    property_rules,
+    room_rules,
   } = bookingState;
 
   const handleRazorpayPayment = async (e) => {
     e.preventDefault();
     setError('');
     setPaymentWarning('');
+
+    if (!rulesAccepted) {
+      setError('You must review and agree to the Property Home Rules & Occupancy Policies before proceeding to payment.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -88,7 +106,13 @@ export const BookingPage = () => {
         check_in,
         check_out,
         total_guests: guests,
-        room_quantity: room_quantity,
+        adults,
+        children,
+        child_ages,
+        cot_count,
+        extra_bed_count,
+        room_quantity,
+        rules_accepted: true,
         experience_id: experience_id || undefined,
         experience_participants: experience_participants || undefined,
         customer_notes: customerNotes.trim() || undefined,
@@ -197,6 +221,9 @@ export const BookingPage = () => {
     }
   };
 
+  const pRules = property_rules || {};
+  const rRules = room_rules || {};
+
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* Back button */}
@@ -257,7 +284,7 @@ export const BookingPage = () => {
       )}
 
       <form onSubmit={handleRazorpayPayment} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Guest info & Notes */}
+        {/* Left Column: Guest info, Notes, Rules Summary & Agreement */}
         <div className="lg:col-span-7 space-y-6">
           {/* Guest Identity Card */}
           <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-sm space-y-4">
@@ -281,6 +308,73 @@ export const BookingPage = () => {
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Contact Email</span>
                 <strong className="text-[#17324D] dark:text-white text-sm block">{user?.email}</strong>
               </div>
+            </div>
+          </div>
+
+          {/* Applicable Home Rules & Occupancy Summary */}
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h2 className="text-base sm:text-lg font-bold font-serif text-[#17324D] dark:text-white flex items-center space-x-2">
+                <ShieldCheck className="w-5 h-5 text-[#087F8C]" />
+                <span>Applicable Property & Room Rules</span>
+              </h2>
+              <span className="text-[10px] font-bold uppercase text-[#087F8C] dark:text-[#27B7A8] bg-[#087F8C]/10 px-2.5 py-0.5 rounded-full">
+                Review Required
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-100 dark:border-teal-900/40">
+                <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">👶 Children Policy</span>
+                <p className="text-[#607080] dark:text-slate-400 text-[11px]">
+                  {pRules.children_allowed !== false
+                    ? `Children welcome${pRules.min_child_age > 0 ? ` (Min age: ${pRules.min_child_age} yrs)` : ''}.`
+                    : 'Adults only sanctuary.'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-100 dark:border-teal-900/40">
+                <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">🐾 Pet Policy</span>
+                <p className="text-[#607080] dark:text-slate-400 text-[11px]">
+                  {pRules.pets_allowed ? `Pets allowed (${pRules.pet_types_allowed || 'Dogs & cats'}).` : 'No pets permitted.'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-100 dark:border-teal-900/40">
+                <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">🚭 Smoking & Parties</span>
+                <p className="text-[#607080] dark:text-slate-400 text-[11px]">
+                  {pRules.smoking_allowed ? 'Smoking in designated zones.' : '100% Non-smoking.'} •{' '}
+                  {pRules.parties_allowed ? 'Events allowed.' : 'No parties.'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-100 dark:border-teal-900/40">
+                <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">🕒 Check-in / Quiet Hours</span>
+                <p className="text-[#607080] dark:text-slate-400 text-[11px]">
+                  Check-in: {pRules.check_in_time_start || '14:00'} - {pRules.check_in_time_end || '22:00'} • Quiet: {pRules.quiet_hours_start || '22:00'} - {pRules.quiet_hours_end || '07:00'}
+                </p>
+              </div>
+            </div>
+
+            {/* Mandatory Rules Acceptance Checkbox */}
+            <div className="pt-2">
+              <label className="flex items-start space-x-3 p-4 bg-[#FFF8F0] dark:bg-slate-900/80 rounded-2xl border-2 border-orange-200 dark:border-slate-700 cursor-pointer hover:border-[#F97316] transition-colors">
+                <input
+                  type="checkbox"
+                  data-testid="rules-acceptance-checkbox"
+                  checked={rulesAccepted}
+                  onChange={(e) => setRulesAccepted(e.target.checked)}
+                  className="w-5 h-5 rounded-md text-[#F97316] focus:ring-[#F97316] border-slate-300 dark:border-slate-600 shrink-0 mt-0.5 cursor-pointer"
+                />
+                <div className="text-xs">
+                  <span className="font-bold text-slate-900 dark:text-white block">
+                    I have read, understood, and agree to the Property Home Rules & Occupancy Policies
+                  </span>
+                  <p className="text-[11px] text-[#607080] dark:text-slate-400 mt-0.5">
+                    I acknowledge child age limits, pet rules, quiet hours, and mandatory government ID verification upon arrival.
+                  </p>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -335,10 +429,12 @@ export const BookingPage = () => {
                 <span className="text-[10px] font-bold uppercase text-[#087F8C] dark:text-[#27B7A8]">{property_type}</span>
                 <h4 className="text-sm font-bold text-[#17324D] dark:text-white">{property_name}</h4>
                 <p className="text-[#607080] dark:text-slate-400">{property_city} • {room_name}</p>
-                <div className="flex items-center space-x-3 pt-1 text-[11px] font-semibold text-[#607080] dark:text-slate-300">
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-[#607080] dark:text-slate-300">
                   <span>🏢 {room_quantity} {room_quantity === 1 ? 'Room' : 'Rooms'}</span>
                   <span>•</span>
-                  <span>👥 {guests} {guests === 1 ? 'Guest' : 'Guests'}</span>
+                  <span>👥 {adults} Adult(s){children > 0 ? `, ${children} Child(ren)` : ''}</span>
+                  {cot_count > 0 && <span>• 🛏 {cot_count} Cot(s)</span>}
+                  {extra_bed_count > 0 && <span>• 🛏 {extra_bed_count} Extra Bed(s)</span>}
                 </div>
               </div>
 
@@ -369,6 +465,27 @@ export const BookingPage = () => {
                 <span className="font-bold text-[#17324D] dark:text-white">₹{room_subtotal.toLocaleString('en-IN')}</span>
               </div>
 
+              {cots_subtotal > 0 && (
+                <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
+                  <span>Baby Cot ({cot_count} unit × {nights}n)</span>
+                  <span className="font-bold">₹{cots_subtotal.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+
+              {extra_beds_subtotal > 0 && (
+                <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
+                  <span>Extra Bed ({extra_bed_count} unit × {nights}n)</span>
+                  <span className="font-bold">₹{extra_beds_subtotal.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+
+              {children_subtotal > 0 && (
+                <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
+                  <span>Child supplement ({children} child × {nights}n)</span>
+                  <span className="font-bold">₹{children_subtotal.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+
               {experience_title && (
                 <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
                   <span>Experience Add-on</span>
@@ -388,7 +505,7 @@ export const BookingPage = () => {
             {/* Payment Button */}
             <button
               type="submit"
-              disabled={loading || verifyingPayment}
+              disabled={loading || verifyingPayment || !rulesAccepted}
               className="w-full py-4 bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white font-bold rounded-2xl shadow-lg shadow-[#F97316]/25 hover:shadow-xl transition-all flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:opacity-50"
             >
               {loading || verifyingPayment ? (
@@ -413,6 +530,22 @@ export const BookingPage = () => {
           </div>
         </div>
       </form>
+
+      {/* Voyara AI Floating Assistant */}
+      <VoyaraAIChat
+        propertyId={property_id}
+        propertyName={property_name}
+        selectedRoomId={room_id}
+        selectedRoomName={room_name}
+        checkIn={check_in}
+        checkOut={check_out}
+        requestedRooms={room_quantity}
+        adults={adults}
+        childrenCount={children}
+        childAges={child_ages}
+        cotRequested={cot_count > 0}
+        extraBedRequested={extra_bed_count > 0}
+      />
     </div>
   );
 };

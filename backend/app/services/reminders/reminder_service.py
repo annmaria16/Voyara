@@ -62,7 +62,7 @@ class ReminderService:
                         title=notification_title,
                         message=notification_body,
                         type="CHECKIN_REMINDER",
-                        link="/my-bookings",
+                        link="/customer/bookings",
                         booking_id=booking.id,
                         is_read=False
                     )

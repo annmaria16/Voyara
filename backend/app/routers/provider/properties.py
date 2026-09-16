@@ -16,9 +16,12 @@ from app.schemas.property import (
     CancellationPolicyResponse,
 )
 from app.schemas.auth import MessageResponse
+from app.schemas.stayguide import PropertyRuleResponse, PropertyRuleUpdate
 from app.services.properties.property_service import PropertyService
+from app.services.ai.stayguide_service import StayGuideService
 
 router = APIRouter()
+
 
 @router.get("/pincode/{pincode}")
 async def lookup_pincode(pincode: str):
@@ -196,5 +199,27 @@ def update_property_cancellation_policy(
         "policy_description": desc,
         "message": "Cancellation policy updated successfully."
     }
+
+@router.get("/properties/{property_id}/rules", response_model=PropertyRuleResponse)
+def get_property_rules(
+    property_id: int,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Get the configured Home Rules for a specific property."""
+    PropertyService.get_property_by_id(db, property_id, provider_id=provider.id)
+    return StayGuideService.get_or_create_property_rules(db, property_id)
+
+@router.put("/properties/{property_id}/rules", response_model=PropertyRuleResponse)
+def update_property_rules(
+    property_id: int,
+    data: PropertyRuleUpdate,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Update Home Rules for a specific property."""
+    PropertyService.get_property_by_id(db, property_id, provider_id=provider.id)
+    return StayGuideService.update_property_rules(db, property_id, data)
+
 
 

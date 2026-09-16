@@ -25,7 +25,7 @@ def get_provider_dashboard(
     provider: ProviderProfile = Depends(get_current_provider),
     db: Session = Depends(get_db)
 ):
-    """Get live provider analytics and overview."""
+    """Get live provider analytics and financial overview calculated from PostgreSQL."""
     properties = db.query(Property).filter(Property.provider_id == provider.id).all()
     property_ids = [p.id for p in properties]
 
@@ -37,8 +37,31 @@ def get_provider_dashboard(
     # Bookings
     bookings = db.query(Booking).filter(Booking.property_id.in_(property_ids)).order_by(Booking.created_at.desc()).all() if property_ids else []
     total_bookings = len(bookings)
-    confirmed_bookings = sum(1 for b in bookings if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED])
-    total_revenue = sum(b.total_amount for b in bookings if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED])
+    upcoming_bookings = sum(1 for b in bookings if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.PENDING])
+    checked_in_bookings = sum(1 for b in bookings if b.status == BookingStatus.CHECKED_IN)
+    completed_bookings = sum(1 for b in bookings if b.status == BookingStatus.COMPLETED)
+    cancelled_bookings = sum(1 for b in bookings if b.status == BookingStatus.CANCELLED)
+
+    total_gross_volume = sum(b.original_total_amount or b.total_amount for b in bookings if b.status != BookingStatus.FAILED)
+
+    # Finalized earnings = sum of provider_settlement_amount on finalized stays / cancellations
+    finalized_earnings = sum(
+        b.provider_settlement_amount for b in bookings 
+        if b.commission_status == "FINALIZED"
+    )
+
+    # Finalized commission = sum of Voyara commission on finalized stays / cancellations
+    finalized_commission = sum(
+        b.commission_amount for b in bookings
+        if b.commission_status == "FINALIZED"
+    )
+
+    # Pending settlements = potential provider earnings from confirmed bookings awaiting check-in (90% of total)
+    pending_settlements = sum(
+        round((b.original_total_amount or b.total_amount) * 0.90, 2)
+        for b in bookings
+        if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.PENDING] and b.commission_status != "FINALIZED"
+    )
 
     return {
         "provider": {
@@ -54,8 +77,15 @@ def get_provider_dashboard(
             "total_rooms": total_rooms,
             "total_experiences": total_experiences,
             "total_bookings": total_bookings,
-            "confirmed_bookings": confirmed_bookings,
-            "total_revenue": round(total_revenue, 2)
+            "confirmed_bookings": upcoming_bookings,
+            "upcoming_bookings": upcoming_bookings,
+            "checked_in_bookings": checked_in_bookings,
+            "completed_bookings": completed_bookings,
+            "cancelled_bookings": cancelled_bookings,
+            "total_revenue": round(total_gross_volume, 2),
+            "finalized_earnings": round(finalized_earnings, 2),
+            "pending_settlements": round(pending_settlements, 2),
+            "finalized_commission": round(finalized_commission, 2)
         },
         "recent_bookings": [
             {
@@ -66,11 +96,17 @@ def get_provider_dashboard(
                 "room_name": b.booking_rooms[0].room_name if b.booking_rooms else "Stay",
                 "check_in": b.check_in,
                 "check_out": b.check_out,
-                "total_amount": b.total_amount,
+                "total_amount": b.original_total_amount or b.total_amount,
+                "refund_amount": b.refund_amount,
+                "retained_amount": b.retained_amount,
+                "commission_amount": b.commission_amount,
+                "provider_settlement_amount": b.provider_settlement_amount,
+                "commission_status": b.commission_status,
+                "payout_status": b.payout_status,
                 "status": b.status.value,
                 "created_at": b.created_at
             }
-            for b in bookings[:5]
+            for b in bookings[:8]
         ]
     }
 

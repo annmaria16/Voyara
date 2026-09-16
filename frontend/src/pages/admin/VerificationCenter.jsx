@@ -343,7 +343,7 @@ export const VerificationCenter = () => {
                   </strong>
                 </div>
                 <p className="leading-relaxed text-[11px]">
-                  Executes 27 database integrity verifications: PostgreSQL row-level locks (<code>with_for_update</code>) preventing double-booking race conditions, stay window date logical validation, stay+experience schedule synchronization, authoritative backend rate recalculation, and unique <code>VN-TX-XXXXXXXX</code> verification tokens.
+                  Executes 27 database integrity verifications: real-time row-level locks preventing double-booking race conditions, stay window date logical validation, stay+experience schedule synchronization, authoritative backend rate recalculation, and unique <code>VN-TX-XXXXXXXX</code> verification tokens.
                 </p>
                 <div className="text-[10px] text-slate-500 font-mono">
                   • Row-Level Concurrency Protection • Real-Time Re-Verification

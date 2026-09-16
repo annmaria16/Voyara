@@ -2,17 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { providerApi } from '../../api/provider';
-import { StatusBadge } from '../../components/dashboard/StatusBadge';
 import { CalendarWidget } from '../../components/dashboard/CalendarWidget';
 import {
   BookOpen,
   DollarSign,
-  Home,
   PlusCircle,
   ArrowRight,
-  ChevronRight,
-  MapPin,
-  Layers,
   Sparkles,
   Calendar,
   ShieldCheck,
@@ -20,13 +15,7 @@ import {
   Mail,
   MessageSquare,
   TrendingUp,
-  Users,
-  Compass,
-  BedDouble,
   Clock,
-  Star,
-  Award,
-  Zap,
 } from 'lucide-react';
 
 export const ProviderDashboard = () => {
@@ -63,7 +52,6 @@ export const ProviderDashboard = () => {
   const totalBookingsCount = stats.total_bookings ?? 0;
   const confirmedBookingsCount = stats.confirmed_bookings ?? 0;
   const totalRevenueAmount = stats.total_revenue ?? 0;
-  const totalRoomsCount = stats.total_rooms ?? 0;
 
   // Primary / Featured Property Image
   const featuredProperty = properties[0];
@@ -148,83 +136,111 @@ export const ProviderDashboard = () => {
         </div>
       </div>
 
-      {/* 2. Four Operational Metric Pedestals */}
+      {/* 2. Operational & Financial Metric Pedestals (4 Blocks) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Revenue */}
-        <div className="p-6 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
+        {/* Finalized Earnings */}
+        <div data-testid="provider-finalized-earnings" className="p-6 bg-white dark:bg-[#0F273D] border border-emerald-500/30 dark:border-emerald-500/20 rounded-3xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Finalized Partner Earnings
+            </span>
+            <p className="text-2xl sm:text-3xl font-serif font-black text-emerald-600 dark:text-emerald-400">
+              ₹{(stats.finalized_earnings || 0).toLocaleString('en-IN')}
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              Checked-in & reconciled stays (90%)
+            </p>
+          </div>
+          <div className="w-13 h-13 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-xs">
+            <DollarSign className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Pending Settlements */}
+        <div data-testid="provider-pending-settlements" className="p-6 bg-white dark:bg-[#0F273D] border border-amber-500/30 dark:border-amber-500/20 rounded-3xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+              Pending Settlements
+            </span>
+            <p className="text-2xl sm:text-3xl font-serif font-black text-amber-600 dark:text-amber-400">
+              ₹{(stats.pending_settlements || 0).toLocaleString('en-IN')}
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              Awaiting guest arrival & check-in
+            </p>
+          </div>
+          <div className="w-13 h-13 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
+            <Clock className="w-6 h-6" />
+          </div>
+        </div>
+
+        {/* Gross Booking Volume */}
+        <div data-testid="provider-gross-volume" className="p-6 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Gross Partner Revenue
+              Gross Platform Volume
             </span>
             <p className="text-2xl sm:text-3xl font-serif font-black text-orange-600 dark:text-orange-400">
               ₹{totalRevenueAmount.toLocaleString('en-IN')}
             </p>
             <p className="text-[11px] text-[#087F8C] dark:text-[#27B7A8] font-medium">
-              Verified payouts ledger
+              Voyara share (10%): ₹{(stats.finalized_commission || 0).toLocaleString('en-IN')}
             </p>
           </div>
           <div className="w-13 h-13 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 shadow-xs">
-            <DollarSign className="w-6 h-6" />
+            <TrendingUp className="w-6 h-6" />
           </div>
         </div>
 
-        {/* Active Properties */}
-        <div className="p-6 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
+        {/* Reservations Summary */}
+        <div data-testid="provider-reservations-summary" className="p-6 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Active Properties
+              Reservations
             </span>
             <p className="text-2xl sm:text-3xl font-serif font-black text-[#091B29] dark:text-white">
-              {String(totalPropsCount).padStart(2, '0')} <span className="text-xs font-sans font-normal text-slate-500">Stays</span>
+              {String(totalBookingsCount).padStart(2, '0')} <span className="text-xs font-sans font-normal text-slate-500">Total</span>
             </p>
-            <p className="text-[11px] text-[#087F8C] dark:text-[#27B7A8] font-medium">
-              {stats.active_properties ?? totalPropsCount} published in discovery
+            <p className="text-[11px] text-[#35A66F] font-medium">
+              ✓ {confirmedBookingsCount} Upcoming • {stats.checked_in_bookings || 0} In-House
             </p>
           </div>
           <div className="w-13 h-13 rounded-2xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] flex items-center justify-center shrink-0 shadow-xs">
-            <Home className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Total Bookings */}
-        <div className="p-6 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Total Reservations
-            </span>
-            <p className="text-2xl sm:text-3xl font-serif font-black text-[#091B29] dark:text-white">
-              {String(totalBookingsCount).padStart(2, '0')} <span className="text-xs font-sans font-normal text-slate-500">Guests</span>
-            </p>
-            <p className="text-[11px] text-[#35A66F] font-medium">
-              ✓ {confirmedBookingsCount} Confirmed
-            </p>
-          </div>
-          <div className="w-13 h-13 rounded-2xl bg-emerald-500/10 text-[#35A66F] flex items-center justify-center shrink-0 shadow-xs">
             <BookOpen className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Host Satisfaction */}
-        <div className="p-6 bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Stay Partner Trust Score
-            </span>
-            <p className="text-2xl sm:text-3xl font-serif font-black text-[#091B29] dark:text-white flex items-center space-x-1">
-              <span>4.98</span>
-              <Star className="w-5 h-5 text-[#F6C945] fill-current" />
-            </p>
-            <p className="text-[11px] text-orange-600 dark:text-orange-400 font-medium">
-              VeriNova Verified Partner
-            </p>
-          </div>
-          <div className="w-13 h-13 rounded-2xl bg-[#F6C945]/15 text-[#D97706] dark:text-[#F6C945] flex items-center justify-center shrink-0 shadow-xs">
-            <Award className="w-6 h-6" />
           </div>
         </div>
       </div>
 
-      {/* YOUR VOYARA TRUST SECTION */}
+      {/* 3. Property Availability Calendar & Blackouts (Directly Under 4 Blocks) */}
+      <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 shadow-sm rounded-3xl p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-100 dark:border-slate-800 gap-3">
+          <div>
+            <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
+              <Calendar className="w-5 h-5 text-[#087F8C]" />
+              <span>Property Calendar & Blackouts</span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-light">
+              Live room availability, occupied nights, and blackout schedule across your stays
+            </p>
+          </div>
+          <Link
+            to="/provider/availability"
+            className="text-xs font-bold text-[#087F8C] hover:text-orange-500 inline-flex items-center space-x-1.5 transition-colors"
+          >
+            <span>Manage Calendar & Blackouts</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <CalendarWidget
+          bookedDates={bookedDays}
+          blockedDates={[]}
+          initialMonth={currentMonthName}
+          initialYear={currentYearNum}
+        />
+      </div>
+
+      {/* 4. YOUR VOYARA TRUST SECTION */}
       <div className="bg-gradient-to-r from-[#091B29] via-[#0F273D] to-[#091B29] border border-teal-900/40 rounded-3xl p-6 sm:p-8 text-white shadow-xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-teal-900/50 pb-5">
           <div className="flex items-center space-x-3.5">
@@ -324,214 +340,6 @@ export const ProviderDashboard = () => {
         <p className="text-[11px] text-slate-400 leading-relaxed font-light border-t border-white/5 pt-3">
           * Voyara evaluates stay partner and property trust using multiple platform signals (phone verification, email verification, authentic photos, pricing consistency, accurate location, and complete profile). It does not legally certify property ownership.
         </p>
-      </div>
-
-      {/* 3. My Properties Portfolio (Left) + Upcoming Arrivals (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left: My Properties Portfolio Grid (Col 7) */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-serif font-bold text-[#091B29] dark:text-white">
-                My Properties Portfolio
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Accommodations and retreats published on Voyara
-              </p>
-            </div>
-            <Link
-              to="/provider/properties"
-              className="text-xs font-bold text-[#087F8C] hover:text-orange-500 flex items-center space-x-1 transition-colors"
-            >
-              <span>View All ({properties.length})</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="p-14 bg-white dark:bg-[#0F273D] rounded-3xl border border-slate-200/80 dark:border-slate-800 flex justify-center shadow-sm">
-              <div className="w-8 h-8 border-3 border-[#087F8C] border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : properties.length === 0 ? (
-            <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-sm">
-              <div className="w-16 h-16 rounded-3xl bg-[#087F8C]/10 text-[#087F8C] mx-auto flex items-center justify-center">
-                <Home className="w-8 h-8" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white">
-                  Your first property listing starts here
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto font-light leading-relaxed">
-                  List your homestay, villa, or boutique resort to begin receiving verified bookings from mindful travelers.
-                </p>
-              </div>
-              <Link
-                to="/provider/properties/new"
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] text-white text-xs font-bold rounded-2xl shadow-lg shadow-orange-500/20 hover:scale-[1.02] transition-all cursor-pointer"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>List Property Now</span>
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {properties.slice(0, 4).map((prop) => {
-                const img =
-                  prop.images?.[0]?.image_url ||
-                  prop.image_url ||
-                  'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80';
-
-                return (
-                  <Link
-                    key={prop.id}
-                    to={`/provider/properties`}
-                    className="group bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:border-[#087F8C]/40 transition-all flex flex-col hover:-translate-y-1"
-                  >
-                    <div className="aspect-16/10 relative overflow-hidden bg-slate-100 dark:bg-slate-900">
-                      <img
-                        src={img}
-                        alt={prop.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute top-3.5 right-3.5">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                          prop.verification_status === 'VERIFIED'
-                            ? 'bg-[#35A66F] text-white shadow-xs'
-                            : prop.verification_status === 'REJECTED'
-                            ? 'bg-rose-500 text-white shadow-xs'
-                            : 'bg-[#F6C945] text-slate-900 shadow-xs'
-                        }`}>
-                          {prop.verification_status || 'PENDING'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-                      <div>
-                        <h4 className="text-base font-serif font-bold text-[#091B29] dark:text-white truncate group-hover:text-[#087F8C] transition-colors">
-                          {prop.name}
-                        </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center space-x-1.5 mt-1 font-light">
-                          <MapPin className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                          <span>{prop.city || 'Munnar'}, {prop.state || 'Kerala'}</span>
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-100 dark:border-slate-800">
-                        <span className="text-slate-600 dark:text-slate-300 font-medium text-[11px]">
-                          {prop.rooms?.length || 0} Room Types
-                        </span>
-                        <span className="font-serif font-bold text-[#087F8C] dark:text-[#27B7A8] text-xs">
-                          {prop.property_type || 'Homestay'}
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Right: Arrivals & Guest Board (Col 5) */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-serif font-bold text-[#091B29] dark:text-white">
-                Upcoming Arrivals
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Confirmed guest reservations
-              </p>
-            </div>
-            <Link
-              to="/provider/bookings"
-              className="text-xs font-bold text-[#087F8C] hover:text-orange-500 flex items-center space-x-1 transition-colors"
-            >
-              <span>Arrivals Board</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-3.5">
-            {loading ? (
-              <div className="p-8 flex justify-center">
-                <div className="w-6 h-6 border-2 border-[#087F8C] border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            ) : recentBookings.length === 0 ? (
-              <div className="p-8 text-center space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 text-orange-500 mx-auto flex items-center justify-center">
-                  <Clock className="w-7 h-7" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-serif font-bold text-[#091B29] dark:text-white">No pending arrivals</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-light">
-                    Live guest bookings and check-in schedules will appear here in real time.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              recentBookings.slice(0, 5).map((b) => (
-                <div
-                  key={b.id}
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-[#FFFDF7] dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500/30 transition-all"
-                >
-                  <div className="flex items-center space-x-3.5 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-500 to-[#EA580C] text-white font-serif font-bold text-sm flex items-center justify-center shrink-0 shadow-xs">
-                      {b.customer_name?.charAt(0) || 'G'}
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-bold text-[#091B29] dark:text-white truncate">
-                        {b.customer_name || 'Guest'}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-light">
-                        {b.check_in} ➔ {b.check_out}
-                      </p>
-                      <p className="text-[10px] text-[#087F8C] dark:text-[#27B7A8] truncate font-medium">
-                        {b.room_name || 'Sanctuary Suite'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-right space-y-1 shrink-0">
-                    <span className="font-serif font-bold text-xs text-orange-600 dark:text-orange-400 block">
-                      ₹{b.total_amount?.toLocaleString('en-IN')}
-                    </span>
-                    <StatusBadge status={b.status} size="sm" />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Property Availability Calendar */}
-      <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 shadow-sm rounded-3xl p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-100 dark:border-slate-800 gap-3">
-          <div>
-            <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white">
-              Property Calendar & Blackouts
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Live room availability, occupied nights, and blackout schedule
-            </p>
-          </div>
-          <Link
-            to="/provider/availability"
-            className="text-xs font-bold text-[#087F8C] hover:text-orange-500 inline-flex items-center space-x-1 transition-colors"
-          >
-            <span>Manage Calendar & Blackouts</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <CalendarWidget
-          bookedDates={bookedDays}
-          blockedDates={[]}
-          initialMonth={currentMonthName}
-          initialYear={currentYearNum}
-        />
       </div>
 
       {/* 5. Host Concierge / Support Callout */}

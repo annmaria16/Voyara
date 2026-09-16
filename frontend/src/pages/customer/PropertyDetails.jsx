@@ -3,6 +3,10 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { customerApi } from '../../api/customer';
 import { useAuth } from '../../context/AuthContext';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
+import { PropertyHomeRules } from '../../components/property/PropertyHomeRules';
+import { GuestSelector } from '../../components/booking/GuestSelector';
+import { VoyaraAIChat } from '../../components/ai/VoyaraAIChat';
+import { StayGuideChat } from '../../components/stayguide/StayGuideChat';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import {
   MapPin,
@@ -17,7 +21,11 @@ import {
   Sparkles,
   Bed,
   Check,
-  AlertCircle
+  AlertCircle,
+  Baby,
+  Dog,
+  Cigarette,
+  PartyPopper
 } from 'lucide-react';
 
 export const PropertyDetails = () => {
@@ -33,7 +41,11 @@ export const PropertyDetails = () => {
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
-  const [guests, setGuests] = useState('2');
+  const [adults, setAdults] = useState(2);
+  const [childrenCount, setChildrenCount] = useState(0);
+  const [childAges, setChildAges] = useState([]);
+  const [cotsCount, setCotsCount] = useState(0);
+  const [extraBedsCount, setExtraBedsCount] = useState(0);
   const [roomQuantity, setRoomQuantity] = useState(1);
   const [roomAvailability, setRoomAvailability] = useState(null);
   const [availLoading, setAvailLoading] = useState(false);
@@ -109,13 +121,16 @@ export const PropertyDetails = () => {
   const availableRoomsCount = roomAvailability ? roomAvailability.available_quantity : (selectedRoom?.quantity || 1);
   const isRoomSoldOut = roomAvailability ? !roomAvailability.is_available : false;
 
-  // Ensure selected guests count is strictly clamped within maxAllowedGuests (roomCapacity * roomQuantity)
+  const roomRules = selectedRoom?.rules || {};
+  const totalGuests = adults + childrenCount;
+
+  // Clamp adults if room quantity changes
   useEffect(() => {
-    const currentGuests = parseInt(guests, 10) || 1;
-    if (currentGuests > maxAllowedGuests) {
-      setGuests(String(Math.max(1, maxAllowedGuests)));
+    const maxAdults = (roomRules.max_adults ?? roomCapacity) * roomQuantity;
+    if (adults > maxAdults) {
+      setAdults(Math.max(1, maxAdults));
     }
-  }, [maxAllowedGuests, guests]);
+  }, [roomQuantity, roomRules.max_adults, roomCapacity, adults]);
 
   if (loading) {
     return (
@@ -149,13 +164,17 @@ export const PropertyDetails = () => {
   const roomUnitPrice = roomAvailability?.price_per_night || selectedRoom?.base_price || 0;
   const roomSubtotal = roomUnitPrice * nights * roomQuantity;
 
+  const cotsSubtotal = (roomRules.cot_price || 0) * cotsCount * nights;
+  const extraBedsSubtotal = (roomRules.extra_bed_price || 0) * extraBedsCount * nights;
+  const childrenSubtotal = (roomRules.child_price || 0) * childrenCount * nights;
+
   let expSubtotal = 0;
   if (selectedExp) {
     const pCount = parseInt(experienceParticipants, 10) || 1;
     expSubtotal = selectedExp.pricing_model === 'per_person' ? selectedExp.price * pCount : selectedExp.price;
   }
 
-  const grandTotal = roomSubtotal + expSubtotal;
+  const grandTotal = roomSubtotal + expSubtotal + cotsSubtotal + extraBedsSubtotal + childrenSubtotal;
 
   const handleCheckInChange = (newCheckIn) => {
     setCheckIn(newCheckIn);
@@ -191,9 +210,34 @@ export const PropertyDetails = () => {
       setError(`Only ${availableRoomsCount} room(s) are available for these dates.`);
       return;
     }
-    const guestNum = parseInt(guests, 10);
-    if (guestNum > maxAllowedGuests) {
-      setError(`This room accommodates a maximum of ${maxAllowedGuests} guests for ${roomQuantity} room(s).`);
+
+    // Strict Rule & Occupancy Validations
+    const isChildrenAllowed = roomRules.children_allowed !== false && property?.home_rules?.children_allowed !== false;
+    if (childrenCount > 0 && !isChildrenAllowed) {
+      setError('Children are not permitted for this room/property based on house rules.');
+      return;
+    }
+
+    const minAge = Math.max(roomRules.min_child_age || 0, property?.home_rules?.min_child_age || 0);
+    if (minAge > 0 && childAges.some((a) => a < minAge)) {
+      setError(`Children under ${minAge} years old cannot stay in this room based on house rules.`);
+      return;
+    }
+
+    const maxAdultsAllowed = (roomRules.max_adults ?? roomCapacity) * roomQuantity;
+    if (adults > maxAdultsAllowed) {
+      setError(`This room accommodates a maximum of ${maxAdultsAllowed} adults for ${roomQuantity} room(s).`);
+      return;
+    }
+
+    const maxChildrenAllowed = (roomRules.max_children ?? roomCapacity) * roomQuantity;
+    if (childrenCount > maxChildrenAllowed) {
+      setError(`This room accommodates a maximum of ${maxChildrenAllowed} children for ${roomQuantity} room(s).`);
+      return;
+    }
+
+    if (totalGuests > maxAllowedGuests) {
+      setError(`Total guests (${totalGuests}) exceed the maximum capacity of ${maxAllowedGuests} for ${roomQuantity} room(s).`);
       return;
     }
 
@@ -212,7 +256,15 @@ export const PropertyDetails = () => {
       check_in: checkIn,
       check_out: checkOut,
       nights,
-      guests: guestNum,
+      guests: totalGuests,
+      adults,
+      children: childrenCount,
+      child_ages: childAges,
+      cot_count: cotsCount,
+      extra_bed_count: extraBedsCount,
+      cots_subtotal: cotsSubtotal,
+      extra_beds_subtotal: extraBedsSubtotal,
+      children_subtotal: childrenSubtotal,
       room_subtotal: roomSubtotal,
       experience_id: selectedExperienceId,
       experience_title: selectedExp?.title,
@@ -221,6 +273,8 @@ export const PropertyDetails = () => {
       experience_participants: selectedExp ? parseInt(experienceParticipants, 10) : 0,
       experience_subtotal: expSubtotal,
       total_amount: grandTotal,
+      property_rules: property.home_rules,
+      room_rules: selectedRoom?.rules,
     };
 
     if (!isAuthenticated) {
@@ -344,12 +398,19 @@ export const PropertyDetails = () => {
             </div>
           </div>
 
+          {/* Property-Specific Home Rules */}
+          <PropertyHomeRules
+            rules={property.home_rules}
+            roomRules={selectedRoom?.rules}
+            propertyName={property.name}
+          />
+
           {/* Available Rooms Selection */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">Select Your Room Unit</h2>
-                <p className="text-xs text-[#607080] dark:text-slate-400">All room rates verified against PostgreSQL inventory</p>
+                <p className="text-xs text-[#607080] dark:text-slate-400">All room rates and availability verified in real time</p>
               </div>
               <span className="text-xs font-bold text-[#087F8C] dark:text-[#27B7A8] bg-[#087F8C]/10 px-3 py-1 rounded-full">
                 {property.rooms?.length || 0} Units Available
@@ -366,6 +427,7 @@ export const PropertyDetails = () => {
               ) : (
                 property.rooms.map((room) => {
                 const isSelected = selectedRoomId === room.id;
+                const rRules = room.rules || {};
                 return (
                   <div
                     key={room.id}
@@ -407,20 +469,26 @@ export const PropertyDetails = () => {
                         <p className="text-xs text-[#607080] dark:text-slate-300 mt-1 line-clamp-2">{room.description}</p>
 
                         <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-[#607080] dark:text-slate-400">
-                          <span className="flex items-center space-x-1">
+                          <span data-testid="room-capacity" className="flex items-center space-x-1">
                             <Users className="w-3.5 h-3.5 text-[#087F8C]" />
-                            <span>Max {room.capacity} Guests / Room</span>
+                            <span>Max {room.capacity} Guests (Max {rRules.max_adults ?? room.capacity} Adults)</span>
                           </span>
                           <span>•</span>
-                          <span>{room.quantity} units in stock</span>
-                          {isSelected && roomQuantity > 1 && (
+                          <span data-testid="children-policy">{rRules.children_allowed !== false ? `Max ${rRules.max_children ?? room.capacity} Children` : 'Adults Only'}</span>
+                          {rRules.cot_allowed && (
                             <>
                               <span>•</span>
-                              <span className="font-semibold text-[#087F8C] dark:text-[#27B7A8]">
-                                Max {room.capacity * roomQuantity} Guests across {roomQuantity} Rooms
-                              </span>
+                              <span data-testid="cot-policy" className="text-[#35A66F] font-semibold">Baby Cot Available</span>
                             </>
                           )}
+                          {rRules.extra_bed_allowed && (
+                            <>
+                              <span>•</span>
+                              <span data-testid="extra-bed-policy" className="text-[#087F8C] dark:text-[#27B7A8] font-semibold">Extra Bed Available</span>
+                            </>
+                          )}
+                          <span>•</span>
+                          <span>{room.quantity} units in stock</span>
                         </div>
                       </div>
 
@@ -653,7 +721,7 @@ export const PropertyDetails = () => {
 
             {/* Live Availability Status Banner */}
             {checkIn && checkOut && (
-              <div>
+              <div data-testid="room-unit-availability">
                 {availLoading ? (
                   <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl text-xs text-slate-500 flex items-center space-x-2">
                     <div className="w-3.5 h-3.5 border-2 border-[#087F8C] border-t-transparent rounded-full animate-spin" />
@@ -679,7 +747,7 @@ export const PropertyDetails = () => {
               </div>
             )}
 
-            {/* Date inputs */}
+            {/* Date inputs & Guest Selector */}
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -745,28 +813,22 @@ export const PropertyDetails = () => {
                 </div>
               </div>
 
-              {/* Dynamic Guest Count Selector */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#17324D] dark:text-slate-300">
-                    Guests Count
-                  </label>
-                  <span className="text-[11px] text-[#087F8C] dark:text-[#27B7A8] font-medium">
-                    Max {maxAllowedGuests} guests ({roomCapacity} guests/room × {roomQuantity} {roomQuantity === 1 ? 'room' : 'rooms'})
-                  </span>
-                </div>
-                <select
-                  value={guests}
-                  onChange={(e) => setGuests(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-[#17324D] dark:text-white focus:outline-hidden focus:border-[#087F8C] cursor-pointer"
-                >
-                  {Array.from({ length: maxAllowedGuests }, (_, i) => i + 1).map((num) => (
-                    <option key={num} value={num}>
-                      {num} {num === 1 ? 'Guest' : 'Guests'}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Guest & Child Occupancy Selector */}
+              <GuestSelector
+                adults={adults}
+                setAdults={setAdults}
+                childrenCount={childrenCount}
+                setChildrenCount={setChildrenCount}
+                childAges={childAges}
+                setChildAges={setChildAges}
+                cotsCount={cotsCount}
+                setCotsCount={setCotsCount}
+                extraBedsCount={extraBedsCount}
+                setExtraBedsCount={setExtraBedsCount}
+                roomQuantity={roomQuantity}
+                selectedRoom={selectedRoom}
+                propertyRules={property.home_rules}
+              />
 
               {selectedExp && (
                 <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
@@ -795,6 +857,27 @@ export const PropertyDetails = () => {
                   ₹{roomSubtotal.toLocaleString('en-IN')}
                 </span>
               </div>
+
+              {cotsSubtotal > 0 && (
+                <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
+                  <span>Baby Cot ({cotsCount} unit × {nights}n)</span>
+                  <span className="font-semibold">₹{cotsSubtotal.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+
+              {extraBedsSubtotal > 0 && (
+                <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
+                  <span>Extra Bed ({extraBedsCount} unit × {nights}n)</span>
+                  <span className="font-semibold">₹{extraBedsSubtotal.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+
+              {childrenSubtotal > 0 && (
+                <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
+                  <span>Child supplement ({childrenCount} child × {nights}n)</span>
+                  <span className="font-semibold">₹{childrenSubtotal.toLocaleString('en-IN')}</span>
+                </div>
+              )}
 
               {selectedExp && (
                 <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
@@ -858,6 +941,23 @@ export const PropertyDetails = () => {
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {/* Voyara AI Chatbot Floating Assistant */}
+      <VoyaraAIChat
+        propertyId={property?.id}
+        propertyName={property?.name}
+        propertyLoading={loading}
+        selectedRoomId={selectedRoomId}
+        selectedRoomName={selectedRoom?.name}
+        checkIn={checkIn}
+        checkOut={checkOut}
+        requestedRooms={roomQuantity}
+        adults={adults}
+        childrenCount={childrenCount}
+        childAges={childAges}
+        cotRequested={cotsCount > 0}
+        extraBedRequested={extraBedsCount > 0}
+      />
     </div>
   );
 };

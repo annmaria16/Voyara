@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, date
-from sqlalchemy import Column, Integer, String, Text, Float, Date, DateTime, ForeignKey, Enum, Boolean
+from sqlalchemy import Column, Integer, String, Text, Float, Date, DateTime, ForeignKey, Enum, Boolean, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from app.database import Base
@@ -29,6 +29,16 @@ class Booking(Base):
     room_total = Column(Float, default=0.0, nullable=False)
     experience_total = Column(Float, default=0.0, nullable=False)
     total_amount = Column(Float, default=0.0, nullable=False)
+    original_total_amount = Column(Float, default=0.0, nullable=False)
+    commission_percentage_snapshot = Column(Float, default=10.0, nullable=False)
+    cancellation_refund_percentage_snapshot = Column(Float, default=50.0, nullable=False)
+    refund_amount = Column(Float, default=0.0, nullable=False)
+    retained_amount = Column(Float, default=0.0, nullable=False)
+    commission_amount = Column(Float, default=0.0, nullable=False)
+    provider_settlement_amount = Column(Float, default=0.0, nullable=False)
+    commission_status = Column(String(50), default="NOT_FINALIZED", nullable=False)
+    refund_status = Column(String(50), default="NOT_APPLICABLE", nullable=False)
+    payout_status = Column(String(50), default="NOT_READY", nullable=False)
     status = Column(Enum(BookingStatus), default=BookingStatus.PENDING, nullable=False)
     customer_notes = Column(Text, nullable=True)
     guest_information_message_snapshot = Column(Text, nullable=True)
@@ -36,6 +46,7 @@ class Booking(Base):
     refund_percentage_snapshot = Column(Float, nullable=True)
     cancelled_at = Column(DateTime, nullable=True)
     cancellation_reason = Column(Text, nullable=True)
+    cancellation_processed_at = Column(DateTime, nullable=True)
     checked_in_at = Column(DateTime, nullable=True)
     checked_out_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -58,6 +69,7 @@ class Booking(Base):
     payment = relationship("Payment", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     refund = relationship("Refund", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     review = relationship("Review", back_populates="booking", uselist=False, cascade="all, delete-orphan")
+    rule_snapshot = relationship("BookingRuleSnapshot", back_populates="booking", uselist=False, cascade="all, delete-orphan")
 
     @hybrid_property
     def guest_information_message(self):
@@ -69,6 +81,26 @@ class Booking(Base):
             "scheduled": True,
             "sent": bool(self.checkin_reminder_sent)
         }
+
+    @hybrid_property
+    def adults(self):
+        return self.rule_snapshot.adults if self.rule_snapshot else 1
+
+    @hybrid_property
+    def children(self):
+        return self.rule_snapshot.children if self.rule_snapshot else 0
+
+    @hybrid_property
+    def child_ages(self):
+        return self.rule_snapshot.child_ages if self.rule_snapshot else []
+
+    @hybrid_property
+    def cot_count(self):
+        return self.rule_snapshot.cot_count if self.rule_snapshot else 0
+
+    @hybrid_property
+    def extra_bed_count(self):
+        return self.rule_snapshot.extra_bed_count if self.rule_snapshot else 0
 
 class BookingRoom(Base):
     __tablename__ = "booking_rooms"
@@ -101,3 +133,22 @@ class BookingExperience(Base):
 
     booking = relationship("Booking", back_populates="booking_experiences")
     experience = relationship("Experience", back_populates="booking_items")
+
+class BookingRuleSnapshot(Base):
+    __tablename__ = "booking_rule_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    booking_id = Column(Integer, ForeignKey("bookings.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+    property_rules_snapshot = Column(JSON, nullable=True)
+    room_rules_snapshot = Column(JSON, nullable=True)
+    adults = Column(Integer, default=1, nullable=False)
+    children = Column(Integer, default=0, nullable=False)
+    child_ages = Column(JSON, nullable=True)  # JSON list of ages, e.g. [5, 9]
+    cot_count = Column(Integer, default=0, nullable=False)
+    extra_bed_count = Column(Integer, default=0, nullable=False)
+    accepted_by_customer = Column(Boolean, default=True, nullable=False)
+    accepted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    booking = relationship("Booking", back_populates="rule_snapshot")
+

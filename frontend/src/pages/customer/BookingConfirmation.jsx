@@ -245,6 +245,55 @@ export const BookingConfirmation = () => {
           </div>
         </div>
 
+        {/* Home Rules Snapshot at Booking Time */}
+        {booking.rule_snapshot && (
+          <div className="p-5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-100 dark:border-teal-900/40 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+              <div className="flex items-center space-x-2 text-[#087F8C] dark:text-[#27B7A8]">
+                <ShieldCheck className="w-4 h-4 text-[#35A66F]" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#17324D] dark:text-white">
+                  Property Rules Snapshot (Agreed at Booking)
+                </h4>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
+                Locked & Immutable
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Children Policy</span>
+                <strong className="text-slate-800 dark:text-white">
+                  {booking.rule_snapshot.children_allowed !== false
+                    ? `Children Welcome${booking.rule_snapshot.min_child_age > 0 ? ` (Min ${booking.rule_snapshot.min_child_age} yrs)` : ''}`
+                    : 'Adults Only'}
+                </strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Pet Policy</span>
+                <strong className="text-slate-800 dark:text-white">
+                  {booking.rule_snapshot.pets_allowed
+                    ? `Allowed (${booking.rule_snapshot.pet_types_allowed || 'Pets ok'})`
+                    : 'No Pets Allowed'}
+                </strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Smoking & Parties</span>
+                <strong className="text-slate-800 dark:text-white">
+                  {booking.rule_snapshot.smoking_allowed ? 'Designated Zones' : 'Non-Smoking'} •{' '}
+                  {booking.rule_snapshot.parties_allowed ? 'Parties OK' : 'No Parties'}
+                </strong>
+              </div>
+            </div>
+
+            {booking.rule_snapshot.house_rules_description && (
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                "{booking.rule_snapshot.house_rules_description}"
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-3">
           <button

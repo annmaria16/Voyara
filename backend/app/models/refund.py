@@ -22,6 +22,9 @@ class Refund(Base):
     refund_amount = Column(Float, nullable=False)
     refund_percentage = Column(Float, nullable=False)
     cancellation_fee = Column(Float, default=0.0, nullable=False)
+    retained_amount = Column(Float, default=0.0, nullable=False)
+    commission_amount = Column(Float, default=0.0, nullable=False)
+    provider_settlement_amount = Column(Float, default=0.0, nullable=False)
     refund_status = Column(String(50), default="REFUNDED", nullable=False)
     refund_reason = Column(Text, nullable=True)
     

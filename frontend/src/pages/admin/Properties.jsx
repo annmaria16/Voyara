@@ -415,7 +415,7 @@ export const AdminProperties = () => {
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Enter the reason for <strong>'{reasonModal.propertyName}'</strong>. This reason will be stored in PostgreSQL and sent as an in-app notification to the Stay Partner.
+              Enter the reason for <strong>'{reasonModal.propertyName}'</strong>. This reason will be saved and sent as an in-app notification to the Stay Partner.
             </p>
 
             <textarea

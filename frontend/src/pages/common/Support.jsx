@@ -132,7 +132,7 @@ export const SupportPage = () => {
   const faqs = [
     {
       q: 'How does Voyara guarantee my room reservation against double-booking?',
-      a: 'Every reservation on Voyara utilizes database-level atomic row locking in PostgreSQL. When you reserve a room, PostgreSQL locks that room inventory for the duration of the transaction, ensuring zero overlapping bookings.',
+      a: 'Every reservation on Voyara utilizes real-time concurrency locking. When you reserve a room, Voyara locks that room inventory for the duration of the transaction, ensuring zero overlapping bookings.',
     },
     {
       q: 'What is the VeriNova™ Stay Verification framework?',
@@ -400,7 +400,7 @@ export const SupportPage = () => {
                 </div>
                 <div>
                   <strong className="block text-white font-bold">Row-Level Inventory Lock</strong>
-                  <span className="text-slate-300 text-[11px]">Prevents simultaneous double-booking in PostgreSQL.</span>
+                  <span className="text-slate-300 text-[11px]">Prevents simultaneous double-booking in real time.</span>
                 </div>
               </div>
 

@@ -81,7 +81,10 @@ export function App() {
               <Route path="/booking" element={<BookingPage />} />
               <Route path="/booking/confirmation/:id" element={<BookingConfirmation />} />
               <Route path="/customer/bookings" element={<MyBookings />} />
+              <Route path="/my-bookings" element={<MyBookings />} />
+              <Route path="/bookings" element={<MyBookings />} />
               <Route path="/customer/profile" element={<ProfilePage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/customer/support" element={<SupportPage />} />
             </Route>
 

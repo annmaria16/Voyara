@@ -337,7 +337,7 @@ export const AdminSupport = () => {
         {loading ? (
           <div className="p-16 flex flex-col items-center justify-center space-y-3">
             <div className="w-8 h-8 border-3 border-[#087F8C] border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-xs text-slate-400 font-medium">Loading Help & Support Requests from PostgreSQL...</p>
+            <p className="text-xs text-slate-400 font-medium">Loading Help & Support Requests...</p>
           </div>
         ) : tickets.length === 0 ? (
           <div className="p-16 text-center space-y-3">
@@ -648,7 +648,7 @@ export const AdminSupport = () => {
 
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                     <p className="text-[11px] text-slate-400">
-                      All replies submitted here are immediately saved to PostgreSQL and displayed in the user’s conversation history.
+                      All replies submitted here are immediately saved and displayed in the user’s conversation history.
                     </p>
                   </div>
                 </div>

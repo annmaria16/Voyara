@@ -285,10 +285,29 @@ export const ProviderBookings = () => {
             const roomName = b.booking_rooms?.[0]?.room_name || b.room_name || 'Standard Unit';
             const experience = b.booking_experiences?.[0];
             const isActionBusy = actionLoading === b.id;
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const isBeforeCheckIn = b.check_in && b.check_in > todayStr;
+            const formattedCheckIn = b.check_in ? new Date(b.check_in + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+            // Financial Calculations
+            const originalGross = b.original_total_amount || b.total_amount || 0;
+            const partnerSettlement = b.provider_settlement_amount !== undefined && b.provider_settlement_amount !== null
+              ? b.provider_settlement_amount
+              : isConfirmed
+              ? Math.round(originalGross * 0.90)
+              : 0;
+            const voyaraCommission = b.commission_amount !== undefined && b.commission_amount !== null
+              ? b.commission_amount
+              : isConfirmed
+              ? Math.round(originalGross * 0.10)
+              : 0;
+            const isCommissionFinalized = b.commission_status === 'FINALIZED';
 
             return (
               <div
                 key={b.id}
+                data-testid={`provider-booking-card-${b.id}`}
                 className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:border-[#087F8C]/40 transition-all"
               >
                 {/* 1. Header Strip: Booking Reference, Status & Trust Badges */}
@@ -300,16 +319,31 @@ export const ProviderBookings = () => {
                     </span>
 
                     {/* Booking Status Pill */}
-                    <span className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
-                      isCancelled
-                        ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
-                        : isCheckedIn
-                        ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30'
-                        : isCompleted
-                        ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
-                        : 'bg-[#35A66F]/15 text-[#236C48] dark:text-emerald-300 border border-[#35A66F]/30'
-                    }`}>
+                    <span
+                      data-testid="provider-booking-status"
+                      className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                        isCancelled
+                          ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
+                          : isCheckedIn
+                          ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30'
+                          : isCompleted
+                          ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
+                          : 'bg-[#35A66F]/15 text-[#236C48] dark:text-emerald-300 border border-[#35A66F]/30'
+                      }`}
+                    >
                       {b.status === 'CHECKED_IN' ? 'CHECKED IN' : b.status}
+                    </span>
+
+                    {/* Commission Status Badge */}
+                    <span
+                      data-testid="provider-commission-status"
+                      className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                        isCommissionFinalized
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                          : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                      }`}
+                    >
+                      <span>{isCommissionFinalized ? '✓ Commission Finalized' : '⏳ Commission Pending Check-In'}</span>
                     </span>
 
                     {/* Booking Date */}
@@ -333,7 +367,7 @@ export const ProviderBookings = () => {
                     {/* Payment Pill */}
                     <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold border border-blue-500/20">
                       <CreditCard className="w-3 h-3" />
-                      <span>{isCancelled ? 'Refund Processed' : 'Paid via Razorpay'}</span>
+                      <span>{isCancelled ? 'Refund Reconciled' : 'Paid via Razorpay'}</span>
                     </span>
                   </div>
                 </div>
@@ -402,34 +436,67 @@ export const ProviderBookings = () => {
 
                   {/* Column 4: Payout & Actions (xl:col-span-3) */}
                   <div className="xl:col-span-3 flex flex-row xl:flex-col items-center xl:items-end justify-between xl:justify-center gap-4 border-t xl:border-t-0 xl:border-l border-slate-100 dark:border-slate-800/80 pt-4 xl:pt-0 xl:pl-6 shrink-0">
-                    {/* Gross Payout Amount */}
-                    <div className="text-left xl:text-right">
+                    {/* Partner Net Settlement & Breakdown */}
+                    <div className="text-left xl:text-right space-y-1">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                        Gross Payout
+                        {isCancelled ? 'Partner Retained Settlement' : 'Your Payout (90%)'}
                       </span>
-                      <span className="text-xl font-serif font-black text-orange-600 dark:text-orange-400 block">
-                        ₹{b.total_amount?.toLocaleString('en-IN')}
+                      <span
+                        data-testid="provider-settlement-amount"
+                        className="text-xl font-serif font-black text-emerald-600 dark:text-emerald-400 block"
+                      >
+                        ₹{partnerSettlement.toLocaleString('en-IN')}
                       </span>
-                      {isCancelled && b.refund && (
-                        <span className="text-[10px] text-rose-500 block font-semibold">
-                          Refund: ₹{b.refund.refund_amount?.toLocaleString('en-IN')} ({b.refund.refund_percentage}%)
-                        </span>
-                      )}
+
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 space-y-0.5">
+                        <div className="flex items-center justify-start xl:justify-end space-x-1">
+                          <span>Gross:</span>
+                          <strong className="text-slate-700 dark:text-slate-300">₹{originalGross.toLocaleString('en-IN')}</strong>
+                        </div>
+                        <div className="flex items-center justify-start xl:justify-end space-x-1">
+                          <span>Voyara (10%):</span>
+                          <span data-testid="provider-commission-amount" className="text-slate-700 dark:text-slate-300">₹{voyaraCommission.toLocaleString('en-IN')}</span>
+                        </div>
+                        {isCancelled && (
+                          <div className="text-rose-500 font-medium">
+                            Refunded to Guest: ₹{(b.refund_amount || 0).toLocaleString('en-IN')}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Action Buttons */}
                     <div className="flex items-center space-x-2 flex-wrap gap-y-2">
                       {/* Check-In Action Button */}
                       {isConfirmed && (
-                        <button
-                          type="button"
-                          onClick={() => handleCheckIn(b.id)}
-                          disabled={isActionBusy}
-                          className="px-3.5 py-2 bg-gradient-to-r from-[#087F8C] to-[#066570] hover:from-[#066570] hover:to-[#044c54] text-white rounded-xl text-xs font-bold shadow-md shadow-[#087F8C]/20 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          <UserCheck className="w-3.5 h-3.5" />
-                          <span>{isActionBusy ? 'Updating...' : 'Mark Checked-In'}</span>
-                        </button>
+                        isBeforeCheckIn ? (
+                          <div className="relative group">
+                            <button
+                              type="button"
+                              disabled={true}
+                              data-testid="mark-checked-in-btn"
+                              className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 border border-slate-200/80 dark:border-slate-700/80 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-not-allowed select-none"
+                            >
+                              <UserCheck className="w-3.5 h-3.5 opacity-60" />
+                              <span>Mark Checked-In</span>
+                            </button>
+                            <div className="absolute bottom-full right-0 mb-2 hidden group-hover:flex items-center space-x-1 whitespace-nowrap z-20 px-2.5 py-1.5 bg-[#091B29] text-amber-300 text-[10px] font-semibold rounded-lg shadow-xl border border-slate-700 pointer-events-none">
+                              <Clock className="w-3 h-3 text-amber-400 shrink-0" />
+                              <span>Available on {formattedCheckIn || b.check_in}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleCheckIn(b.id)}
+                            disabled={isActionBusy}
+                            data-testid="mark-checked-in-btn"
+                            className="px-3.5 py-2 bg-gradient-to-r from-[#087F8C] to-[#066570] hover:from-[#066570] hover:to-[#044c54] text-white rounded-xl text-xs font-bold shadow-md shadow-[#087F8C]/20 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>{isActionBusy ? 'Updating...' : 'Mark Checked-In'}</span>
+                          </button>
+                        )
                       )}
 
                       {/* Check-Out Action Button */}
@@ -438,6 +505,7 @@ export const ProviderBookings = () => {
                           type="button"
                           onClick={() => handleCheckOut(b.id)}
                           disabled={isActionBusy}
+                          data-testid="mark-checked-out-btn"
                           className="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -449,6 +517,7 @@ export const ProviderBookings = () => {
                       <button
                         type="button"
                         onClick={() => setInvoiceBooking(b)}
+                        data-testid="view-invoice-btn"
                         className="px-3 py-2 bg-[#FFFDF7] dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-slate-700 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all inline-flex items-center space-x-1 cursor-pointer shadow-2xs"
                       >
                         <FileText className="w-3.5 h-3.5" />

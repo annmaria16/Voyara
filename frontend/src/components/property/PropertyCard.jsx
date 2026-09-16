@@ -34,12 +34,16 @@ export const PropertyCard = ({ property }) => {
 
   return (
     <div className="group card-voyara card-lift rounded-3xl overflow-hidden flex flex-col justify-between">
-      {/* Image Container */}
-      <div className="relative aspect-4/3 overflow-hidden bg-slate-100 dark:bg-slate-800 img-zoom-container">
+      {/* Image Container - Clickable Link to Stay Details */}
+      <Link
+        to={`/properties/${property.id}`}
+        className="block relative aspect-4/3 overflow-hidden bg-slate-100 dark:bg-slate-800 img-zoom-container cursor-pointer"
+        title={`Review details for ${property.name}`}
+      >
         <img
           src={primaryImg}
           alt={property.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
           loading="lazy"
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80';
@@ -79,14 +83,16 @@ export const PropertyCard = ({ property }) => {
             <span className="text-white/70 text-[10px]">({property.review_count || 14})</span>
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Body Details */}
       <div className="p-5 flex-1 flex flex-col justify-between space-y-3 bg-white dark:bg-[#0F273D]">
         <div>
-          <h3 className="text-base sm:text-lg font-bold font-serif text-[#17324D] dark:text-white group-hover:text-[#087F8C] dark:group-hover:text-[#27B7A8] transition-colors line-clamp-1">
-            {property.name}
-          </h3>
+          <Link to={`/properties/${property.id}`} className="block">
+            <h3 className="text-base sm:text-lg font-bold font-serif text-[#17324D] dark:text-white group-hover:text-[#087F8C] dark:group-hover:text-[#27B7A8] transition-colors line-clamp-1">
+              {property.name}
+            </h3>
+          </Link>
           {(property.provider_business_name || property.host_name) && (
             <span className="text-[11px] font-semibold text-[#087F8C] dark:text-[#27B7A8] block mt-0.5">
               Stay Partner: {property.provider_business_name || property.host_name}

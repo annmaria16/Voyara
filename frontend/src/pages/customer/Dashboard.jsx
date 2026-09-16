@@ -777,7 +777,7 @@ export const CustomerDashboard = () => {
             </div>
             <h4 className="text-sm font-serif font-bold text-white">Row-Level Double Booking Safety</h4>
             <p className="text-slate-300 leading-relaxed font-light">
-              Atomic PostgreSQL database row-level locks protect every room transaction so simultaneous bookings never conflict.
+              Real-time concurrency locks protect every room transaction so simultaneous bookings never conflict.
             </p>
           </div>
 

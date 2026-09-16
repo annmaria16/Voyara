@@ -12,17 +12,11 @@ import {
   X
 } from 'lucide-react';
 
-// Popular Indian stay destinations for quick one-click pinning
-const POPULAR_LOCATIONS = [
-  { name: 'Munnar, Kerala', lat: 10.0889, lng: 77.0595, city: 'Munnar', state: 'Kerala', pincode: '685612' },
-  { name: 'Calangute, Goa', lat: 15.5439, lng: 73.7554, city: 'Goa', state: 'Goa', pincode: '403516' },
-  { name: 'Old Manali, HP', lat: 32.2432, lng: 77.1892, city: 'Manali', state: 'Himachal Pradesh', pincode: '175131' },
-  { name: 'Wayanad, Kerala', lat: 11.6854, lng: 76.1320, city: 'Wayanad', state: 'Kerala', pincode: '673121' },
-  { name: 'Kochi, Kerala', lat: 9.9312, lng: 76.2673, city: 'Kochi', state: 'Kerala', pincode: '682001' },
-  { name: 'Ooty, Tamil Nadu', lat: 11.4102, lng: 76.6950, city: 'Ooty', state: 'Tamil Nadu', pincode: '643001' },
-  { name: 'Udaipur, Rajasthan', lat: 24.5854, lng: 73.7125, city: 'Udaipur', state: 'Rajasthan', pincode: '313001' },
-  { name: 'Varkala, Kerala', lat: 8.7379, lng: 76.7163, city: 'Varkala', state: 'Kerala', pincode: '695141' },
-];
+// Geographic center of India for initial default view (no pin placed until user selects)
+const INDIA_CENTER = {
+  lat: 20.5937,
+  lng: 78.9629,
+};
 
 // India Geographic Bounding Box Limits
 const INDIA_BOUNDS = {
@@ -42,10 +36,10 @@ export const GoogleMapLocationPicker = ({
   pincode = '',
   readOnly = false,
 }) => {
-  const [currentLat, setCurrentLat] = useState(latitude || 10.0889);
-  const [currentLng, setCurrentLng] = useState(longitude || 77.0595);
+  const [currentLat, setCurrentLat] = useState(latitude);
+  const [currentLng, setCurrentLng] = useState(longitude);
   const [hasSelected, setHasSelected] = useState(!!(latitude && longitude));
-  const [zoomLevel, setZoomLevel] = useState(14);
+  const [zoomLevel, setZoomLevel] = useState(latitude && longitude ? 14 : 5);
 
   // Search & Suggestions State (Swiggy / Google Maps style)
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,20 +60,87 @@ export const GoogleMapLocationPicker = ({
   const leafletMapRef = useRef(null);
   const leafletMarkerRef = useRef(null);
 
-  // Synchronize internal coordinates and animate map when parent updates them (e.g. from Pincode lookup)
+  // Helper to create custom branded pin marker icon
+  const getCustomMarkerIcon = () => {
+    if (!window.L) return null;
+    return window.L.divIcon({
+      className: 'voyara-map-marker',
+      html: `
+        <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center;">
+          <div style="background: #091B29; color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); margin-bottom: 2px;">
+            📍 Property Location
+          </div>
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: #F97316; color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 2px solid white;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </div>
+          <div style="width: 6px; height: 6px; background: #ea580c; border-radius: 50%; margin-top: 2px;"></div>
+        </div>
+      `,
+      iconSize: [32, 48],
+      iconAnchor: [16, 48],
+    });
+  };
+
+  // Synchronize internal coordinates and animate map when parent updates them (e.g. from Pincode lookup or reset)
   useEffect(() => {
-    if (latitude && longitude) {
-      const isDifferent =
-        Math.abs(latitude - currentLat) > 0.0001 ||
-        Math.abs(longitude - currentLng) > 0.0001;
+    if (latitude !== null && latitude !== undefined && longitude !== null && longitude !== undefined && latitude !== '' && longitude !== '') {
+      const numLat = parseFloat(latitude);
+      const numLng = parseFloat(longitude);
 
-      setCurrentLat(latitude);
-      setCurrentLng(longitude);
-      setHasSelected(true);
+      if (!isNaN(numLat) && !isNaN(numLng)) {
+        const isDifferent =
+          currentLat === null ||
+          currentLng === null ||
+          Math.abs(numLat - currentLat) > 0.0001 ||
+          Math.abs(numLng - currentLng) > 0.0001;
 
-      if (isDifferent && leafletMapRef.current && leafletMarkerRef.current) {
-        leafletMapRef.current.flyTo([latitude, longitude], 15, { duration: 1.2 });
-        leafletMarkerRef.current.setLatLng([latitude, longitude]);
+        setCurrentLat(numLat);
+        setCurrentLng(numLng);
+        setHasSelected(true);
+
+        if (leafletMapRef.current) {
+          if (!leafletMarkerRef.current && window.L) {
+            const icon = getCustomMarkerIcon();
+            const marker = window.L.marker([numLat, numLng], {
+              icon,
+              draggable: !readOnly,
+            }).addTo(leafletMapRef.current);
+
+            if (!readOnly) {
+              marker.on('dragend', () => {
+                const pos = marker.getLatLng();
+                const newLat = parseFloat(pos.lat.toFixed(6));
+                const newLng = parseFloat(pos.lng.toFixed(6));
+                handleCoordinateSelection(newLat, newLng, true);
+              });
+            }
+            leafletMarkerRef.current = marker;
+          } else if (leafletMarkerRef.current) {
+            leafletMarkerRef.current.setLatLng([numLat, numLng]);
+          }
+
+          if (isDifferent) {
+            leafletMapRef.current.flyTo([numLat, numLng], 15, { duration: 1.2 });
+          }
+        }
+      }
+    } else if (latitude === null && longitude === null) {
+      setCurrentLat(null);
+      setCurrentLng(null);
+      setHasSelected(false);
+      setReadableAddress('');
+      setReadablePlaceName('');
+      setReadableDetails('');
+      setSearchQuery('');
+      if (leafletMarkerRef.current) {
+        leafletMarkerRef.current.remove();
+        leafletMarkerRef.current = null;
+      }
+      if (leafletMapRef.current) {
+        leafletMapRef.current.setView([INDIA_CENTER.lat, INDIA_CENTER.lng], 5);
       }
     }
   }, [latitude, longitude]);
@@ -163,12 +224,14 @@ export const GoogleMapLocationPicker = ({
   const initLeafletMap = () => {
     if (!mapContainerRef.current || !window.L || leafletMapRef.current) return;
 
-    const initialLat = currentLat || 10.0889;
-    const initialLng = currentLng || 77.0595;
+    const hasInitialCoords = currentLat !== null && currentLng !== null && !isNaN(currentLat) && !isNaN(currentLng);
+    const centerLat = hasInitialCoords ? currentLat : INDIA_CENTER.lat;
+    const centerLng = hasInitialCoords ? currentLng : INDIA_CENTER.lng;
+    const initialZoom = hasInitialCoords ? (zoomLevel || 14) : 5;
 
     const map = window.L.map(mapContainerRef.current, {
-      center: [initialLat, initialLng],
-      zoom: zoomLevel,
+      center: [centerLat, centerLng],
+      zoom: initialZoom,
       zoomControl: false,
       maxBounds: [
         [INDIA_BOUNDS.minLat - 2, INDIA_BOUNDS.minLng - 2],
@@ -183,47 +246,50 @@ export const GoogleMapLocationPicker = ({
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
 
-    // Custom branded pin marker icon
-    const customIcon = window.L.divIcon({
-      className: 'voyara-map-marker',
-      html: `
-        <div style="transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center;">
-          <div style="background: #091B29; color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); margin-bottom: 2px;">
-            📍 Sanctuary Location
-          </div>
-          <div style="width: 32px; height: 32px; border-radius: 50%; background: #F97316; color: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 2px solid white;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-          </div>
-          <div style="width: 6px; height: 6px; background: #ea580c; border-radius: 50%; margin-top: 2px;"></div>
-        </div>
-      `,
-      iconSize: [32, 48],
-      iconAnchor: [16, 48],
-    });
+    const customIcon = getCustomMarkerIcon();
 
-    const marker = window.L.marker([initialLat, initialLng], {
-      icon: customIcon,
-      draggable: !readOnly,
-    }).addTo(map);
+    let marker = null;
+    if (hasInitialCoords) {
+      marker = window.L.marker([centerLat, centerLng], {
+        icon: customIcon,
+        draggable: !readOnly,
+      }).addTo(map);
+
+      if (!readOnly) {
+        // Marker drag handler with automatic reverse geocoding
+        marker.on('dragend', () => {
+          const position = marker.getLatLng();
+          const newLat = parseFloat(position.lat.toFixed(6));
+          const newLng = parseFloat(position.lng.toFixed(6));
+          handleCoordinateSelection(newLat, newLng, true);
+        });
+      }
+    }
 
     if (!readOnly) {
-      // Marker drag handler with automatic reverse geocoding
-      marker.on('dragend', () => {
-        const position = marker.getLatLng();
-        const newLat = parseFloat(position.lat.toFixed(6));
-        const newLng = parseFloat(position.lng.toFixed(6));
-        handleCoordinateSelection(newLat, newLng, true);
-      });
-
-      // Map click handler (moves marker automatically & updates coordinates with reverse geocoding)
+      // Map click handler (creates/moves marker automatically & updates coordinates with reverse geocoding)
       map.on('click', (e) => {
         const { lat, lng } = e.latlng;
         const newLat = parseFloat(lat.toFixed(6));
         const newLng = parseFloat(lng.toFixed(6));
-        marker.setLatLng([newLat, newLng]);
+
+        if (!leafletMarkerRef.current && window.L) {
+          const newMarker = window.L.marker([newLat, newLng], {
+            icon: customIcon,
+            draggable: true,
+          }).addTo(map);
+
+          newMarker.on('dragend', () => {
+            const position = newMarker.getLatLng();
+            const dLat = parseFloat(position.lat.toFixed(6));
+            const dLng = parseFloat(position.lng.toFixed(6));
+            handleCoordinateSelection(dLat, dLng, true);
+          });
+          leafletMarkerRef.current = newMarker;
+        } else if (leafletMarkerRef.current) {
+          leafletMarkerRef.current.setLatLng([newLat, newLng]);
+        }
+
         handleCoordinateSelection(newLat, newLng, true);
       });
     }
@@ -232,8 +298,8 @@ export const GoogleMapLocationPicker = ({
     leafletMarkerRef.current = marker;
 
     // If initial coords exist, do an initial reverse geocode to show address
-    if (latitude && longitude && !readableAddress) {
-      reverseGeocodeCoordinates(latitude, longitude);
+    if (hasInitialCoords && !readableAddress) {
+      reverseGeocodeCoordinates(centerLat, centerLng);
     }
   };
 
@@ -307,10 +373,26 @@ export const GoogleMapLocationPicker = ({
     setCurrentLng(lng);
     setHasSelected(true);
 
-    if (leafletMarkerRef.current) {
-      leafletMarkerRef.current.setLatLng([lat, lng]);
-    }
     if (leafletMapRef.current) {
+      if (!leafletMarkerRef.current && window.L) {
+        const icon = getCustomMarkerIcon();
+        const marker = window.L.marker([lat, lng], {
+          icon,
+          draggable: !readOnly,
+        }).addTo(leafletMapRef.current);
+
+        if (!readOnly) {
+          marker.on('dragend', () => {
+            const pos = marker.getLatLng();
+            const newLat = parseFloat(pos.lat.toFixed(6));
+            const newLng = parseFloat(pos.lng.toFixed(6));
+            handleCoordinateSelection(newLat, newLng, true);
+          });
+        }
+        leafletMarkerRef.current = marker;
+      } else if (leafletMarkerRef.current) {
+        leafletMarkerRef.current.setLatLng([lat, lng]);
+      }
       leafletMapRef.current.panTo([lat, lng]);
     }
 
@@ -428,9 +510,6 @@ export const GoogleMapLocationPicker = ({
     if (leafletMapRef.current) {
       leafletMapRef.current.flyTo([newLat, newLng], 15, { duration: 1.2 });
     }
-    if (leafletMarkerRef.current) {
-      leafletMarkerRef.current.setLatLng([newLat, newLng]);
-    }
 
     handleCoordinateSelection(newLat, newLng, false, {
       formatted_address: fullAddress,
@@ -501,28 +580,6 @@ export const GoogleMapLocationPicker = ({
     }
   };
 
-  const handlePresetClick = (loc) => {
-    setSearchQuery(loc.name);
-    setReadablePlaceName(loc.name);
-    setReadableAddress(`${loc.name} (${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)})`);
-    setReadableDetails(`${loc.city}, ${loc.state}${loc.pincode ? ' - ' + loc.pincode : ''}`);
-
-    if (leafletMapRef.current) {
-      leafletMapRef.current.flyTo([loc.lat, loc.lng], 14, { duration: 1.0 });
-    }
-    if (leafletMarkerRef.current) {
-      leafletMarkerRef.current.setLatLng([loc.lat, loc.lng]);
-    }
-
-    handleCoordinateSelection(loc.lat, loc.lng, false, {
-      city: loc.city,
-      state: loc.state,
-      pincode: loc.pincode,
-      formatted_address: loc.name,
-      place_name: loc.name,
-    });
-  };
-
   return (
     <div className="space-y-3.5 select-none">
       {/* Header and Coordinates Chip */}
@@ -534,7 +591,7 @@ export const GoogleMapLocationPicker = ({
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
             {readOnly
               ? '📍 Verified GPS coordinates (Locked after approval)'
-              : 'Search your place/area or tap anywhere on the map. The readable address and coordinates will auto-fill.'}
+              : 'Search and select your property location on the map or tap directly on the map to pin the coordinates.'}
           </p>
         </div>
 
@@ -546,10 +603,10 @@ export const GoogleMapLocationPicker = ({
             </span>
           )}
 
-          {hasSelected ? (
+          {hasSelected && currentLat !== null && currentLng !== null ? (
             <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-mono font-bold shadow-xs">
               <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>{currentLat.toFixed(4)}° N, {currentLng.toFixed(4)}° E</span>
+              <span>{parseFloat(currentLat).toFixed(4)}° N, {parseFloat(currentLng).toFixed(4)}° E</span>
             </span>
           ) : (
             <span className="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 rounded-xl text-[11px] font-bold">
@@ -559,7 +616,7 @@ export const GoogleMapLocationPicker = ({
         </div>
       </div>
 
-      {/* Swiggy-like Live Autocomplete Search Input (editable mode only) */}
+      {/* Live Autocomplete Search Input (editable mode only) */}
       {!readOnly && (
         <div ref={searchContainerRef} className="relative">
           <div className="flex gap-2">
@@ -567,7 +624,7 @@ export const GoogleMapLocationPicker = ({
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search area, landmark, street, town (e.g. Munnar, Pothamedu, Calangute Beach)..."
+                placeholder="Search and select property location (e.g. area, street, landmark)..."
                 value={searchQuery}
                 onChange={handleSearchInputChange}
                 onFocus={() => {
@@ -621,7 +678,7 @@ export const GoogleMapLocationPicker = ({
             </button>
           </div>
 
-          {/* Floating Autocomplete Dropdown (Swiggy style) */}
+          {/* Floating Autocomplete Dropdown */}
           {showSuggestions && suggestions.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#131D2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800/60 max-h-60 overflow-y-auto custom-scrollbar">
               {suggestions.map((item, idx) => {
@@ -673,7 +730,7 @@ export const GoogleMapLocationPicker = ({
           </div>
           {reverseGeocoding && (
             <span className="text-[10px] text-orange-500 font-bold flex items-center space-x-1">
-              <Loader2 className="w-3 h-3 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
               <span>Fetching address...</span>
             </span>
           )}
@@ -686,7 +743,7 @@ export const GoogleMapLocationPicker = ({
             </p>
           ) : (
             <p className="text-xs text-slate-400 font-medium italic">
-              {readOnly ? 'Verified location pinned.' : "Search a place or click on the map to pin your property's address."}
+              {readOnly ? 'Verified location pinned.' : 'Search and select property location or click on the map to pin your property.'}
             </p>
           )}
 
@@ -697,23 +754,6 @@ export const GoogleMapLocationPicker = ({
           )}
         </div>
       </div>
-
-      {/* Quick Destination Chips (editable mode only) */}
-      {!readOnly && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar text-xs">
-          <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">Quick Pin (India):</span>
-          {POPULAR_LOCATIONS.map((loc) => (
-            <button
-              key={loc.name}
-              type="button"
-              onClick={() => handlePresetClick(loc)}
-              className="px-2.5 py-1 rounded-lg bg-[#FFF8F0] dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-orange-500 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-orange-500 shrink-0 transition-all cursor-pointer shadow-2xs"
-            >
-              {loc.name}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Interactive Map Canvas Container */}
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm aspect-16/9 sm:aspect-21/9 bg-slate-900">
@@ -743,7 +783,7 @@ export const GoogleMapLocationPicker = ({
         <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none">
           <div className="px-3 py-1.5 bg-slate-900/85 backdrop-blur-md rounded-xl text-white text-[11px] font-medium shadow-md border border-white/10 flex items-center space-x-1.5">
             <Compass className="w-3.5 h-3.5 text-orange-400" />
-            <span>Click any location or drag pin anywhere across India</span>
+            <span>{readOnly ? '📍 Verified GPS coordinates locked' : 'Search and select property location on map or click anywhere across India'}</span>
           </div>
 
           <div className="px-2.5 py-1 bg-emerald-600/90 text-white rounded-lg text-[10px] font-bold shadow-md">
@@ -755,33 +795,57 @@ export const GoogleMapLocationPicker = ({
       {/* Lat/Long Fine Tuning Inputs */}
       <div className="grid grid-cols-2 gap-3 pt-1">
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-            Latitude (India: 6.5° to 37.5° N)
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-between">
+            <span>Latitude (India: 6.5° to 37.5° N)</span>
+            {readOnly && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">🔒 Locked</span>}
           </label>
           <input
             type="number"
             step="0.000001"
-            value={currentLat}
+            disabled={readOnly}
+            readOnly={readOnly}
+            placeholder="Latitude (select on map)"
+            value={currentLat !== null && currentLat !== undefined ? currentLat : ''}
             onChange={(e) => {
-              const val = parseFloat(e.target.value) || 0;
-              handleCoordinateSelection(val, currentLng, true);
+              if (!readOnly) {
+                const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                if (val !== null && !isNaN(val)) {
+                  handleCoordinateSelection(val, currentLng || INDIA_CENTER.lng, true);
+                }
+              }
             }}
-            className="w-full px-3 py-1.5 bg-[#FFF8F0]/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-hidden"
+            className={`w-full px-3 py-2 rounded-xl text-xs font-mono font-bold ${
+              readOnly
+                ? 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
+                : 'bg-[#FFF8F0]/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden'
+            }`}
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-            Longitude (India: 68.0° to 97.5° E)
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-between">
+            <span>Longitude (India: 68.0° to 97.5° E)</span>
+            {readOnly && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">🔒 Locked</span>}
           </label>
           <input
             type="number"
             step="0.000001"
-            value={currentLng}
+            disabled={readOnly}
+            readOnly={readOnly}
+            placeholder="Longitude (select on map)"
+            value={currentLng !== null && currentLng !== undefined ? currentLng : ''}
             onChange={(e) => {
-              const val = parseFloat(e.target.value) || 0;
-              handleCoordinateSelection(currentLat, val, true);
+              if (!readOnly) {
+                const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                if (val !== null && !isNaN(val)) {
+                  handleCoordinateSelection(currentLat || INDIA_CENTER.lat, val, true);
+                }
+              }
             }}
-            className="w-full px-3 py-1.5 bg-[#FFF8F0]/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-hidden"
+            className={`w-full px-3 py-2 rounded-xl text-xs font-mono font-bold ${
+              readOnly
+                ? 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
+                : 'bg-[#FFF8F0]/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden'
+            }`}
           />
         </div>
       </div>

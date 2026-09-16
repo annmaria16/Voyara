@@ -1,9 +1,10 @@
 from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from app.models.room import Room, RoomImage, RoomAmenity
+from app.models.room import Room, RoomImage, RoomAmenity, RoomRule
 from app.models.property import Property
 from app.schemas.room import RoomCreate, RoomUpdate
+from app.services.ai.stayguide_service import StayGuideService
 
 class RoomService:
     @staticmethod
@@ -29,6 +30,14 @@ class RoomService:
         db.add(room)
         db.commit()
         db.refresh(room)
+
+        # Room Rules
+        if data.rules:
+            rules_dict = data.rules.model_dump()
+            db.add(RoomRule(room_id=room.id, **rules_dict))
+            db.commit()
+        else:
+            StayGuideService.get_or_create_room_rules(db, room.id)
 
         # Amenities
         if data.amenities:
@@ -74,9 +83,19 @@ class RoomService:
         update_dict = data.model_dump(exclude_unset=True)
         amenities = update_dict.pop("amenities", None)
         images = update_dict.pop("images", None)
+        rules_data = update_dict.pop("rules", None)
 
         for key, val in update_dict.items():
             setattr(room, key, val)
+
+        if rules_data is not None:
+            rr = room.rules
+            if not rr:
+                rr = RoomRule(room_id=room.id)
+                db.add(rr)
+            rr_dict = rules_data if isinstance(rules_data, dict) else (rules_data.model_dump(exclude_unset=True) if hasattr(rules_data, 'model_dump') else {})
+            for rk, rv in rr_dict.items():
+                setattr(rr, rk, rv)
 
         if amenities is not None:
             db.query(RoomAmenity).filter(RoomAmenity.room_id == room.id).delete()
@@ -100,3 +119,4 @@ class RoomService:
         db.delete(room)
         db.commit()
         return {"message": "Room deleted successfully", "success": True}
+

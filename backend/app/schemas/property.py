@@ -4,6 +4,8 @@ from typing import List, Optional
 from pydantic import BaseModel, field_validator
 from app.models.property import PropertyType, PropertyVerificationStatus
 from app.schemas.room import RoomCreate, RoomResponse
+from app.schemas.experience import ExperienceCreate
+from app.schemas.stayguide import PropertyRuleResponse, PropertyRuleCreate
 
 def clean_indian_phone(v: Optional[str]) -> Optional[str]:
     if v is None:
@@ -54,6 +56,8 @@ class PropertyCreate(BaseModel):
     images: List[str] = []  # List of image URLs
     ownership_proof_url: Optional[str] = None
     rooms: List[RoomCreate] = []  # Embedded room units created with the property
+    experiences: List[ExperienceCreate] = []  # Embedded experiences created with the property
+    home_rules: Optional[PropertyRuleCreate] = None
 
     @field_validator("contact_phone")
     @classmethod
@@ -81,6 +85,7 @@ class PropertyUpdate(BaseModel):
     amenities: Optional[List[str]] = None
     images: Optional[List[str]] = None
     ownership_proof_url: Optional[str] = None
+    home_rules: Optional[PropertyRuleCreate] = None
 
     @field_validator("contact_phone")
     @classmethod
@@ -141,6 +146,7 @@ class PropertyResponse(BaseModel):
     created_at: datetime
     images: List[PropertyImageSchema] = []
     amenities: List[PropertyAmenitySchema] = []
+    home_rules: Optional[PropertyRuleResponse] = None
     min_price: Optional[float] = None
     room_count: Optional[int] = 0
     experience_count: Optional[int] = 0
@@ -183,6 +189,7 @@ class ProviderPropertyResponse(BaseModel):
     images: List[PropertyImageSchema] = []
     amenities: List[PropertyAmenitySchema] = []
     rooms: List[RoomResponse] = []
+    home_rules: Optional[PropertyRuleResponse] = None
     min_price: Optional[float] = None
     room_count: Optional[int] = 0
     room_types_count: Optional[int] = 0
@@ -250,7 +257,10 @@ class AdminPropertyResponse(BaseModel):
     images: List[PropertyImageSchema] = []
     amenities: List[PropertyAmenitySchema] = []
     rooms: List[RoomResponse] = []
+    home_rules: Optional[PropertyRuleResponse] = None
+    rule_consistency_warnings: List[str] = []
 
     class Config:
         from_attributes = True
+
 
