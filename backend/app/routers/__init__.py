@@ -8,6 +8,8 @@ from app.routers.upload.router import router as upload_router
 from app.routers.support.router import router as support_router
 from app.routers.notifications.router import router as notifications_router
 from app.routers.ai.router import router as ai_router
+from app.routers.bookings.messaging_router import router as messaging_router
+from app.routers.legal_documents import router as legal_documents_router
 
 api_router = APIRouter(prefix="/api")
 
@@ -20,6 +22,7 @@ api_router.include_router(upload_router)
 api_router.include_router(support_router)
 api_router.include_router(notifications_router)
 api_router.include_router(ai_router)
+api_router.include_router(messaging_router)
+api_router.include_router(legal_documents_router)
 
 __all__ = ["api_router"]
-

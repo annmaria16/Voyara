@@ -93,6 +93,7 @@ def ensure_db_schema():
             conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS cot_available VARCHAR(20) DEFAULT 'No' NOT NULL;"))
             conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS cot_price FLOAT DEFAULT 0.0;"))
             conn.execute(text("ALTER TABLE room_rules ADD COLUMN IF NOT EXISTS cot_charge_unit VARCHAR(50) DEFAULT 'Free';"))
+            conn.execute(text("ALTER TABLE properties ADD COLUMN IF NOT EXISTS legal_document_status VARCHAR(50) DEFAULT 'PENDING';"))
 
             conn.commit()
     except Exception as e:
@@ -110,6 +111,18 @@ async def periodic_checkin_reminders_task():
         except Exception as e:
             print("Background reminder check exception:", e)
         await asyncio.sleep(900)  # Check every 15 minutes
+
+# Background task for daily legal document expiry checks
+async def periodic_legal_document_expiry_task():
+    while True:
+        try:
+            from app.services.properties.legal_document_expiry_cron import LegalDocumentExpiryCron
+            db = SessionLocal()
+            LegalDocumentExpiryCron.run_daily_expiry_checks(db)
+            db.close()
+        except Exception as e:
+            print("Background legal document expiry check exception:", e)
+        await asyncio.sleep(3600)  # Check every hour
 
 # Production Security Validation
 def validate_security_configuration():
@@ -129,8 +142,10 @@ async def lifespan(app: FastAPI):
     validate_security_configuration()
     ensure_db_schema()
     reminder_task = asyncio.create_task(periodic_checkin_reminders_task())
+    expiry_task = asyncio.create_task(periodic_legal_document_expiry_task())
     yield
     reminder_task.cancel()
+    expiry_task.cancel()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

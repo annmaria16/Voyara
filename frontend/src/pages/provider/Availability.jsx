@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { providerApi } from '../../api/provider';
+import { CalendarWidget } from '../../components/dashboard/CalendarWidget';
 import {
   Calendar,
   Lock,
@@ -21,7 +22,15 @@ export const ProviderAvailability = () => {
   const [selectedPropertyId, setSelectedPropertyId] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [calendarData, setCalendarData] = useState(null);
+  const [closuresData, setClosuresData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [calLoading, setCalLoading] = useState(false);
+
+  // Month navigation state
+  const now = new Date();
+  const [calendarYear, setCalendarYear] = useState(now.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(now.toLocaleString('default', { month: 'long' }));
+  const [calendarMonthNum, setCalendarMonthNum] = useState(now.getMonth() + 1);
 
   // Closure Form State
   const [closureStartDate, setClosureStartDate] = useState('');
@@ -44,7 +53,7 @@ export const ProviderAvailability = () => {
       setProperties(Array.isArray(data) ? data : []);
       if (data.length > 0) {
         setSelectedPropertyId(data[0].id);
-        fetchCalendarAndRooms(data[0].id);
+        fetchCalendarAndRooms(data[0].id, calendarYear, calendarMonthNum);
       }
     } catch (err) {
       setError(err.message || 'Failed to load properties.');
@@ -53,19 +62,28 @@ export const ProviderAvailability = () => {
     }
   };
 
-  const fetchCalendarAndRooms = async (propId) => {
+  const fetchCalendarAndRooms = async (propId, year, monthNum) => {
+    if (!propId) return;
+    setCalLoading(true);
     try {
-      const [cal, roomList] = await Promise.all([
+      const [cal, avail, roomList] = await Promise.all([
+        providerApi.getPropertyCalendar(propId, {
+          year: year || calendarYear,
+          month: monthNum || calendarMonthNum,
+        }),
         providerApi.getAvailability(propId),
         providerApi.getPropertyRooms(propId),
       ]);
       setCalendarData(cal);
+      setClosuresData(avail);
       setRooms(Array.isArray(roomList) ? roomList : []);
-      if (roomList.length > 0) {
+      if (roomList.length > 0 && !blockRoomId) {
         setBlockRoomId(roomList[0].id);
       }
     } catch (err) {
       console.error('Error fetching calendar:', err);
+    } finally {
+      setCalLoading(false);
     }
   };
 
@@ -75,7 +93,16 @@ export const ProviderAvailability = () => {
 
   const handlePropertyChange = (propId) => {
     setSelectedPropertyId(propId);
-    fetchCalendarAndRooms(propId);
+    fetchCalendarAndRooms(propId, calendarYear, calendarMonthNum);
+  };
+
+  const handleMonthChange = (newMonth, newYear, newMonthIdx) => {
+    setCalendarMonth(newMonth);
+    setCalendarYear(newYear);
+    setCalendarMonthNum(newMonthIdx);
+    if (selectedPropertyId) {
+      fetchCalendarAndRooms(selectedPropertyId, newYear, newMonthIdx);
+    }
   };
 
   const handleCloseProperty = async (e) => {
@@ -91,7 +118,7 @@ export const ProviderAvailability = () => {
       });
       setClosureStartDate('');
       setClosureEndDate('');
-      fetchCalendarAndRooms(selectedPropertyId);
+      fetchCalendarAndRooms(selectedPropertyId, calendarYear, calendarMonthNum);
     } catch (err) {
       setError(err.message || 'Failed to close property dates.');
     } finally {
@@ -113,7 +140,7 @@ export const ProviderAvailability = () => {
       });
       setBlockStartDate('');
       setBlockEndDate('');
-      fetchCalendarAndRooms(selectedPropertyId);
+      fetchCalendarAndRooms(selectedPropertyId, calendarYear, calendarMonthNum);
     } catch (err) {
       setError(err.message || 'Failed to block room dates.');
     } finally {
@@ -124,7 +151,7 @@ export const ProviderAvailability = () => {
   const handleRemoveClosure = async (closureId) => {
     try {
       await providerApi.removePropertyClosure(closureId);
-      fetchCalendarAndRooms(selectedPropertyId);
+      fetchCalendarAndRooms(selectedPropertyId, calendarYear, calendarMonthNum);
     } catch (err) {
       alert(err.message || 'Failed to remove closure.');
     }
@@ -133,26 +160,24 @@ export const ProviderAvailability = () => {
   const handleRemoveRoomBlock = async (blockId) => {
     try {
       await providerApi.removeRoomBlock(blockId);
-      fetchCalendarAndRooms(selectedPropertyId);
+      fetchCalendarAndRooms(selectedPropertyId, calendarYear, calendarMonthNum);
     } catch (err) {
       alert(err.message || 'Failed to unblock room.');
     }
   };
+
+  const selectedProperty = properties.find((p) => p.id === selectedPropertyId);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
-            <span>Property Availability Calendar</span>
-          </div>
           <h1 className="text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
             Calendar & Blackouts
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 font-light">
-            Enforce property seasonal closures, room unit blackouts, and private reservation holds.
+            Enforce property seasonal closures, room unit blackouts, and inspect real-time traveler occupancy.
           </p>
         </div>
       </div>
@@ -185,6 +210,21 @@ export const ProviderAvailability = () => {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Interactive Month Availability Calendar Widget for Selected Property */}
+      {selectedPropertyId && (
+        <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 shadow-sm rounded-3xl p-6 sm:p-8">
+          <CalendarWidget
+            propertyName={selectedProperty?.name || 'Property Calendar'}
+            propertyId={selectedPropertyId}
+            calendarData={calendarData}
+            loading={calLoading}
+            initialMonth={calendarMonth}
+            initialYear={calendarYear}
+            onMonthChange={handleMonthChange}
+          />
         </div>
       )}
 
@@ -249,12 +289,12 @@ export const ProviderAvailability = () => {
           {/* Active Closures List */}
           <div className="space-y-3 pt-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-              Active Closures ({calendarData?.closures?.length || 0})
+              Active Closures ({closuresData?.closures?.length || 0})
             </span>
-            {calendarData?.closures?.length === 0 ? (
+            {closuresData?.closures?.length === 0 ? (
               <p className="text-xs text-slate-400 italic">No scheduled closures. Property is open for booking.</p>
             ) : (
-              calendarData?.closures?.map((cl) => (
+              closuresData?.closures?.map((cl) => (
                 <div
                   key={cl.id}
                   className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl flex items-center justify-between text-xs text-rose-900 dark:text-rose-200"
@@ -298,7 +338,7 @@ export const ProviderAvailability = () => {
               >
                 {rooms.map((r) => (
                   <option key={r.id} value={r.id} className="dark:bg-slate-900 text-slate-900 dark:text-white">
-                    {r.name} ({r.room_type})
+                    {r.name} ({r.room_type}) — {r.quantity} unit(s)
                   </option>
                 ))}
               </select>
@@ -350,12 +390,12 @@ export const ProviderAvailability = () => {
           {/* Active Room Blocks */}
           <div className="space-y-3 pt-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-              Active Room Blocks ({calendarData?.room_blocks?.length || 0})
+              Active Room Blocks ({closuresData?.room_blocks?.length || 0})
             </span>
-            {calendarData?.room_blocks?.length === 0 ? (
+            {closuresData?.room_blocks?.length === 0 ? (
               <p className="text-xs text-slate-400 italic">No room unit blackouts configured.</p>
             ) : (
-              calendarData?.room_blocks?.map((rb) => (
+              closuresData?.room_blocks?.map((rb) => (
                 <div
                   key={rb.id}
                   className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-2xl flex items-center justify-between text-xs text-amber-900 dark:text-amber-200"

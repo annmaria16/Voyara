@@ -42,6 +42,7 @@ class Property(Base):
     
     # VeriNova Trust & Assessment Fields
     verification_status = Column(String(50), default="PENDING_VERIFICATION", nullable=False, index=True)
+    legal_document_status = Column(String(50), default="PENDING", nullable=False, index=True)  # PENDING, VALID, DOCUMENT_EXPIRED, SUSPENDED, REJECTED
     ownership_proof_url = Column(String(500), nullable=True)
     evidence_status = Column(String(50), default="NOT_PROVIDED", nullable=False)
     trust_score = Column(Integer, default=0, nullable=False)
@@ -54,8 +55,8 @@ class Property(Base):
     reviewed_at = Column(DateTime, nullable=True)
 
     is_active = Column(Boolean, default=True, nullable=False)
-    rating = Column(Float, default=4.8, nullable=False)
-    review_count = Column(Integer, default=12, nullable=False)
+    rating = Column(Float, default=0.0, nullable=False)
+    review_count = Column(Integer, default=0, nullable=False)
     featured = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -72,6 +73,7 @@ class Property(Base):
     reviews = relationship("Review", back_populates="property", cascade="all, delete-orphan", order_by="desc(Review.created_at)")
     verinova_assessments = relationship("VeriNovaPropertyAssessment", foreign_keys="[VeriNovaPropertyAssessment.property_id]", back_populates="property", cascade="all, delete-orphan", order_by="desc(VeriNovaPropertyAssessment.created_at)")
     home_rules = relationship("PropertyRule", back_populates="property", uselist=False, cascade="all, delete-orphan")
+    legal_documents = relationship("PropertyLegalDocument", back_populates="property", cascade="all, delete-orphan", order_by="desc(PropertyLegalDocument.version_number)")
 
 class PropertyImage(Base):
     __tablename__ = "property_images"
@@ -165,4 +167,5 @@ class PropertyRule(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     property = relationship("Property", back_populates="home_rules")
+
 

@@ -15,6 +15,73 @@ from app.services.availability.availability_service import AvailabilityService
 
 router = APIRouter()
 
+from datetime import date
+from typing import Optional
+from app.schemas.calendar import PropertyCalendarResponse, CalendarDayDetail
+
+@router.get("/properties/{property_id}/calendar", response_model=PropertyCalendarResponse)
+def get_property_month_calendar(
+    property_id: int,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """
+    Get authoritative monthly availability calendar for a single property,
+    including day-by-day room inventory, traveler bookings, and blackouts.
+    """
+    return AvailabilityService.get_property_month_calendar(
+        db=db,
+        property_id=property_id,
+        provider_id=provider.id,
+        year=year,
+        month=month
+    )
+
+@router.get("/properties/{property_id}/calendar/{date_str}", response_model=CalendarDayDetail)
+def get_property_date_detail(
+    property_id: int,
+    date_str: str,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """
+    Get comprehensive booking, room inventory breakdown, and blackout details for a single date.
+    """
+    try:
+        target_date = date.fromisoformat(date_str)
+    except ValueError:
+        from fastapi import HTTPException, status
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date format. Expected YYYY-MM-DD.")
+
+    return AvailabilityService.get_property_date_detail(
+        db=db,
+        property_id=property_id,
+        provider_id=provider.id,
+        target_date=target_date
+    )
+
+@router.get("/calendar", response_model=PropertyCalendarResponse)
+def get_provider_overview_calendar(
+    property_id: Optional[int] = None,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """
+    Get provider calendar overview. If property_id is specified, returns that property's calendar;
+    otherwise returns aggregated overview across all properties owned by this provider.
+    """
+    return AvailabilityService.get_provider_overview_calendar(
+        db=db,
+        provider_id=provider.id,
+        property_id=property_id,
+        year=year,
+        month=month
+    )
+
 @router.get("/properties/{property_id}/availability")
 def get_property_availability(
     property_id: int,

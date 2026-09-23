@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../api/auth';
 import { uploadApi } from '../../api/upload';
+import { providerApi } from '../../api/provider';
 import {
   User,
   Mail,
@@ -13,34 +14,40 @@ import {
   Camera,
   Upload,
   MapPin,
-  Globe,
-  DollarSign,
-  Heart,
   Lock,
   Sparkles,
   AlertCircle,
   Save,
   Check,
   Trash2,
-  Info,
   Eye,
   EyeOff,
-  Building,
+  Building2,
+  Shield,
+  Activity,
+  Compass,
 } from 'lucide-react';
 
 export const ProfilePage = () => {
   const { user, roleLabel, updateUserProfile } = useAuth();
+
+  const role = user?.role || 'CUSTOMER';
+  const isCustomer = role === 'CUSTOMER';
+  const isProvider = role === 'PROVIDER';
+  const isAdmin = role === 'ADMIN';
 
   // Profile fields state
   const [name, setName] = useState(user?.name || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [location, setLocation] = useState(user?.location || '');
-  const [currency, setCurrency] = useState(user?.preferred_currency || 'INR');
-  const [language, setLanguage] = useState(user?.preferred_language || 'English');
   const [selectedStyles, setSelectedStyles] = useState(
-    user?.travel_styles ? user.travel_styles.split(',').filter(Boolean) : ['Hill Stations & Mountain Treks', 'Eco & Nature Retreats']
+    user?.travel_styles ? user.travel_styles.split(',').map((s) => s.trim()).filter(Boolean) : ['Nature', 'Mountains']
   );
+
+  // Provider real property count state
+  const [propertyCount, setPropertyCount] = useState(null);
+  const [loadingProperties, setLoadingProperties] = useState(false);
 
   // Upload & Save state
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -66,23 +73,39 @@ export const ProfilePage = () => {
       setAvatarUrl(user.avatar_url || '');
       setBio(user.bio || '');
       setLocation(user.location || '');
-      setCurrency(user.preferred_currency || 'INR');
-      setLanguage(user.preferred_language || 'English');
       if (user.travel_styles) {
-        setSelectedStyles(user.travel_styles.split(',').filter(Boolean));
+        setSelectedStyles(user.travel_styles.split(',').map((s) => s.trim()).filter(Boolean));
       }
     }
   }, [user]);
 
+  // Fetch real property count for Stay Partner from PostgreSQL
+  useEffect(() => {
+    if (isProvider) {
+      setLoadingProperties(true);
+      providerApi
+        .getProperties()
+        .then((res) => {
+          const props = Array.isArray(res) ? res : res?.properties || [];
+          setPropertyCount(props.length);
+        })
+        .catch((err) => {
+          console.error('Failed to load properties for Stay Partner profile:', err);
+          setPropertyCount(0);
+        })
+        .finally(() => {
+          setLoadingProperties(false);
+        });
+    }
+  }, [isProvider]);
+
+  // Simple travel styles for Traveler
   const travelStyleOptions = [
-    { id: 'Hill Stations & Mountain Treks', label: 'Hill Stations & Treks', icon: '🏔️' },
-    { id: 'Seaside & Cliff Villas', label: 'Seaside & Beach Villas', icon: '🏖️' },
-    { id: 'Eco & Nature Retreats', label: 'Eco & Nature Stays', icon: '🌿' },
-    { id: 'Heritage & Cultural Stays', label: 'Heritage & Culture', icon: '🏛️' },
-    { id: 'Acoustic Campfires & Glamping', label: 'Campfire & Glamping', icon: '🔥' },
-    { id: 'Local Culinary & Spice Trails', label: 'Culinary & Local Food', icon: '🍲' },
-    { id: 'Kayaking & Water Adventures', label: 'Water Adventures', icon: '🛶' },
-    { id: 'Luxury & Wellness Retreats', label: 'Luxury & Wellness', icon: '🧖' },
+    { id: 'Nature', label: 'Nature', icon: '🌿' },
+    { id: 'Beach', label: 'Beach', icon: '🏖️' },
+    { id: 'Mountains', label: 'Mountains', icon: '🏔️' },
+    { id: 'Adventure', label: 'Adventure', icon: '🧗' },
+    { id: 'Heritage', label: 'Heritage', icon: '🏛️' },
   ];
 
   const toggleStyle = (styleId) => {
@@ -114,17 +137,20 @@ export const ProfilePage = () => {
       const newUrl = uploadRes.url;
       setAvatarUrl(newUrl);
 
-      // Auto-save the new avatar to backend profile
-      const updatedUser = await authApi.updateProfile({
+      const payload = {
         name: name.trim() || user?.name,
         avatar_url: newUrl,
-        bio,
-        location,
-        preferred_currency: currency,
-        preferred_language: language,
-        travel_styles: selectedStyles.join(','),
-      });
+      };
 
+      if (!isAdmin) {
+        payload.bio = bio.trim();
+        payload.location = location.trim();
+      }
+      if (isCustomer) {
+        payload.travel_styles = selectedStyles.join(',');
+      }
+
+      const updatedUser = await authApi.updateProfile(payload);
       updateUserProfile(updatedUser);
       setProfileSuccess('Profile photo updated successfully!');
       setTimeout(() => setProfileSuccess(''), 4000);
@@ -143,16 +169,20 @@ export const ProfilePage = () => {
 
     try {
       setAvatarUrl('');
-      const updatedUser = await authApi.updateProfile({
+      const payload = {
         name: name.trim() || user?.name,
         avatar_url: '',
-        bio,
-        location,
-        preferred_currency: currency,
-        preferred_language: language,
-        travel_styles: selectedStyles.join(','),
-      });
+      };
 
+      if (!isAdmin) {
+        payload.bio = bio.trim();
+        payload.location = location.trim();
+      }
+      if (isCustomer) {
+        payload.travel_styles = selectedStyles.join(',');
+      }
+
+      const updatedUser = await authApi.updateProfile(payload);
       updateUserProfile(updatedUser);
       setProfileSuccess('Profile photo removed.');
       setTimeout(() => setProfileSuccess(''), 4000);
@@ -175,16 +205,21 @@ export const ProfilePage = () => {
     setProfileSuccess('');
 
     try {
-      const updatedUser = await authApi.updateProfile({
+      const payload = {
         name: name.trim(),
         avatar_url: avatarUrl,
-        bio: bio.trim(),
-        location: location.trim(),
-        preferred_currency: currency,
-        preferred_language: language,
-        travel_styles: selectedStyles.join(','),
-      });
+      };
 
+      if (!isAdmin) {
+        payload.bio = bio.trim();
+        payload.location = location.trim();
+      }
+
+      if (isCustomer) {
+        payload.travel_styles = selectedStyles.join(',');
+      }
+
+      const updatedUser = await authApi.updateProfile(payload);
       updateUserProfile(updatedUser);
       setProfileSuccess('Profile details saved successfully!');
       setTimeout(() => setProfileSuccess(''), 4000);
@@ -247,11 +282,17 @@ export const ProfilePage = () => {
       : `http://localhost:8000${avatarUrl}`
     : null;
 
+  const displayRoleBadge = isAdmin
+    ? 'VOYARA CONTROL CENTER'
+    : isProvider
+    ? 'STAY PARTNER'
+    : 'TRAVELER';
+
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-12">
-      {/* 1. Header Profile Banner */}
+      {/* 1. Profile Header Banner */}
       <div className="relative bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm overflow-hidden">
-        {/* Subtle decorative background gradient */}
+        {/* Subtle decorative background glow */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#087F8C]/15 via-orange-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start space-y-6 sm:space-y-0 sm:space-x-8">
@@ -303,24 +344,28 @@ export const ProfilePage = () => {
                 {name || user?.name || 'Voyara User'}
               </h1>
               <span className="px-3 py-1 rounded-xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] text-xs font-black uppercase tracking-wider border border-[#087F8C]/20">
-                {roleLabel || user?.role || 'Traveler'}
+                {displayRoleBadge}
               </span>
               <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-500/20">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Verified Account</span>
+                <span>{isAdmin ? 'System Administrator' : isProvider ? 'Verified Partner' : 'Verified Account'}</span>
               </span>
             </div>
 
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 max-w-xl leading-relaxed font-light">
-              {bio || 'Verified member of the Voyara community. Discover and book authentic stays, retreats, and guided local experiences.'}
-            </p>
+            {!isAdmin && (
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 max-w-xl leading-relaxed font-light">
+                {bio || (isProvider
+                  ? 'Stay Partner hosting authentic retreats and verified boutique stays on Voyara.'
+                  : 'Voyara Traveler exploring curated stays, unique retreats, and local experiences.')}
+              </p>
+            )}
 
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 pt-1 text-xs text-slate-500 dark:text-slate-400">
               <span className="inline-flex items-center space-x-1">
                 <Calendar className="w-3.5 h-3.5 text-[#087F8C]" />
                 <span>Member since {formattedJoinDate}</span>
               </span>
-              {location && (
+              {!isAdmin && location && (
                 <span className="inline-flex items-center space-x-1">
                   <MapPin className="w-3.5 h-3.5 text-orange-500" />
                   <span>{location}</span>
@@ -356,7 +401,7 @@ export const ProfilePage = () => {
         </div>
       </div>
 
-      {/* Profile Form Alerts */}
+      {/* Profile Feedback Notifications */}
       {profileSuccess && (
         <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center space-x-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
@@ -371,25 +416,31 @@ export const ProfilePage = () => {
         </div>
       )}
 
-      {/* 2. Main Profile Edit Form */}
+      {/* 2. Main Profile Form */}
       <form onSubmit={handleSaveProfile} className="space-y-6">
-        {/* Section A: Personal Information & Verified Credentials */}
+        {/* ========================================================================= */}
+        {/* SECTION 1: PERSONAL INFORMATION (ALL ROLES) */}
+        {/* ========================================================================= */}
         <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
               <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white flex items-center space-x-2">
                 <User className="w-5 h-5 text-[#087F8C]" />
-                <span>Account Information</span>
+                <span>Personal Information</span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Update your display name and personalize your public profile.
+                {isAdmin
+                  ? 'Your Voyara Control Center identity and primary account credentials.'
+                  : isProvider
+                  ? 'Your identity as a Stay Partner on the Voyara platform.'
+                  : 'Your traveler identity and verified contact details.'}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Editable Full Name */}
-            <div className="space-y-1.5 md:col-span-2">
+            {/* Full Name */}
+            <div className={`space-y-1.5 ${isAdmin ? 'md:col-span-2' : 'md:col-span-2'}`}>
               <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
                 <span>Full Name</span>
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Editable</span>
@@ -407,10 +458,10 @@ export const ProfilePage = () => {
               </div>
             </div>
 
-            {/* Readonly Email Address */}
-            <div className="space-y-1.5">
+            {/* Email Address */}
+            <div className={`space-y-1.5 ${isAdmin ? 'md:col-span-1' : 'md:col-span-1'}`}>
               <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
-                <span>Email Address</span>
+                <span>Email</span>
                 <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md">
                   <Lock className="w-2.5 h-2.5" />
                   <span>Readonly</span>
@@ -427,184 +478,308 @@ export const ProfilePage = () => {
                 />
               </div>
               <p className="text-[10px] text-slate-400">
-                Primary verified email for account security and booking updates.
+                Primary email used for account authentication and notifications.
               </p>
             </div>
 
-            {/* Readonly Phone Number */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
-                <span>Phone Number</span>
-                <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md">
-                  <Lock className="w-2.5 h-2.5" />
-                  <span>Readonly</span>
+            {/* Admin: Account Status | Traveler/Partner: Phone Number */}
+            {isAdmin ? (
+              <div className="space-y-1.5 md:col-span-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+                  <span>Account Status</span>
+                  <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    <span>Verified</span>
+                  </span>
+                </label>
+                <div className="relative">
+                  <Activity className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={user?.account_status || 'Active'}
+                    readOnly
+                    disabled
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-emerald-600 dark:text-emerald-400 cursor-not-allowed select-all capitalize"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Active Voyara Control Center administrative status.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1.5 md:col-span-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
+                  <span>Phone</span>
+                  <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>Readonly</span>
+                  </span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={user?.phone || 'Not provided'}
+                    readOnly
+                    disabled
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed select-all"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Verified phone number associated with your Voyara account.
+                </p>
+              </div>
+            )}
+
+            {/* About / Bio (Traveler & Stay Partner) */}
+            {!isAdmin && (
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                  About / Bio
+                </label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  rows={3}
+                  placeholder={
+                    isProvider
+                      ? 'Tell Travelers a little about yourself and your background...'
+                      : 'Tell others a little about yourself, your travels, or what you enjoy...'
+                  }
+                  className="w-full px-4 py-3 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] transition-all resize-none"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Admin Save button right here since Admin has no Section 2 form inputs */}
+          {isAdmin && (
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="inline-flex items-center space-x-2 px-6 py-2.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#EA580C] text-white text-xs font-bold rounded-2xl shadow-md shadow-orange-500/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {savingProfile ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Save Profile Details</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SECTION 2: ROLE-SPECIFIC SECTIONS */}
+        {/* ========================================================================= */}
+
+        {/* 2A. TRAVELER: TRAVEL PREFERENCES */}
+        {isCustomer && (
+          <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white flex items-center space-x-2">
+                  <Compass className="w-5 h-5 text-orange-500" />
+                  <span>Travel Preferences</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Who I am + how I like to travel.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block mb-3">
+                  Preferred Travel Style
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  {travelStyleOptions.map((opt) => {
+                    const isSelected = selectedStyles.includes(opt.id);
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => toggleStyle(opt.id)}
+                        className={`inline-flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-sm shadow-teal-500/20 scale-[1.02]'
+                            : 'bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-[#087F8C]'
+                        }`}
+                      >
+                        <span className="text-sm">{opt.icon}</span>
+                        <span>{opt.label}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 ml-0.5" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Save Profile Button */}
+            <div className="pt-4 flex justify-end">
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#EA580C] text-white text-xs font-bold rounded-2xl shadow-md shadow-orange-500/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {savingProfile ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Saving Changes...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Save Profile Details</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 2B. STAY PARTNER: HOSTING INFORMATION */}
+        {isProvider && (
+          <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white flex items-center space-x-2">
+                  <Building2 className="w-5 h-5 text-[#087F8C]" />
+                  <span>Hosting Information</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Who I am + what I do as a Stay Partner.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* Real PostgreSQL Property Summary */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-[#091B29]/70 border border-slate-200/70 dark:border-slate-800 gap-4">
+                <div className="flex items-center space-x-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-[#087F8C]/10 text-[#087F8C] flex items-center justify-center shrink-0">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Managed Properties
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Real-time count of stays listed in your partner account.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 shadow-xs">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Properties:</span>
+                  <span className="text-sm font-black text-[#087F8C] dark:text-[#27B7A8]">
+                    {loadingProperties ? '...' : propertyCount !== null ? propertyCount : 0}
+                  </span>
+                </div>
+              </div>
+
+              {/* Hosting Bio / Style note */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                  Hosting Bio
+                </label>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Tell Travelers a little about your hosting style.
+                </p>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  rows={3}
+                  placeholder="Share a short note about your hospitality philosophy, property atmosphere, or what travelers love most about your stays..."
+                  className="w-full px-4 py-3 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] transition-all resize-none"
+                />
+              </div>
+            </div>
+
+            {/* Save Profile Button */}
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#EA580C] text-white text-xs font-bold rounded-2xl shadow-md shadow-orange-500/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {savingProfile ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Saving Changes...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Save Profile Details</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 2C. ADMIN: CONTROL CENTER ACCOUNT */}
+        {isAdmin && (
+          <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white flex items-center space-x-2">
+                  <ShieldCheck className="w-5 h-5 text-[#087F8C]" />
+                  <span>Control Center Account</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Administrative role credentials and platform privileges.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#091B29]/70 border border-slate-200/70 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Role
                 </span>
-              </label>
-              <div className="relative">
-                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={user?.phone || 'Not provided'}
-                  readOnly
-                  disabled
-                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed select-all"
-                />
+                <p className="text-xs font-black text-[#091B29] dark:text-white flex items-center space-x-1.5">
+                  <Shield className="w-3.5 h-3.5 text-[#087F8C]" />
+                  <span>VOYARA CONTROL CENTER</span>
+                </p>
               </div>
-              <p className="text-[10px] text-slate-400">
-                Verified phone used for host communication and reservation alerts.
-              </p>
-            </div>
 
-            {/* Location / City */}
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                Hometown / Location
-              </label>
-              <div className="relative">
-                <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Kochi, Kerala, India"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Bio / Traveler Story */}
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                About / Bio
-              </label>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                rows={3}
-                placeholder="Share a short note about your travel style, favorite escapes, or hosting philosophy..."
-                className="w-full px-4 py-3 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] transition-all resize-none"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section B: Preferences & Regional Settings */}
-        <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white flex items-center space-x-2">
-                <Globe className="w-5 h-5 text-orange-500" />
-                <span>Regional & Travel Preferences</span>
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Customize currency, language, and the types of stays and experiences you love.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Preferred Currency */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center space-x-1">
-                <DollarSign className="w-3.5 h-3.5 text-[#087F8C]" />
-                <span>Display Currency</span>
-              </label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C]"
-              >
-                <option value="INR">INR (₹) - Indian Rupee</option>
-                <option value="USD">USD ($) - US Dollar</option>
-                <option value="EUR">EUR (€) - Euro</option>
-                <option value="GBP">GBP (£) - British Pound</option>
-                <option value="AED">AED (د.إ) - UAE Dirham</option>
-              </select>
-            </div>
-
-            {/* Preferred Language */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center space-x-1">
-                <Globe className="w-3.5 h-3.5 text-orange-500" />
-                <span>Preferred Language</span>
-              </label>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
-              >
-                <option value="English">English</option>
-                <option value="Hindi">Hindi (हिंदी)</option>
-                <option value="Malayalam">Malayalam (മലയാളം)</option>
-                <option value="Spanish">Spanish (Español)</option>
-                <option value="French">French (Français)</option>
-                <option value="German">German (Deutsch)</option>
-              </select>
-            </div>
-
-            {/* Travel Interests Tag Selection */}
-            <div className="space-y-3 md:col-span-2 pt-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center space-x-1.5">
-                <Sparkles className="w-4 h-4 text-[#087F8C]" />
-                <span>Favorite Stay Styles & Adventure Interests</span>
-              </label>
-              <div className="flex flex-wrap gap-2.5">
-                {travelStyleOptions.map((opt) => {
-                  const isSelected = selectedStyles.includes(opt.id);
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => toggleStyle(opt.id)}
-                      className={`inline-flex items-center space-x-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-sm shadow-teal-500/20 scale-[1.02]'
-                          : 'bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-[#087F8C]'
-                      }`}
-                    >
-                      <span>{opt.icon}</span>
-                      <span>{opt.label}</span>
-                      {isSelected && <Check className="w-3.5 h-3.5" />}
-                    </button>
-                  );
-                })}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#091B29]/70 border border-slate-200/70 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Account Status
+                </span>
+                <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 flex items-center space-x-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Active</span>
+                </p>
               </div>
             </div>
           </div>
-
-          {/* Save Profile Button */}
-          <div className="pt-4 flex justify-end">
-            <button
-              type="submit"
-              disabled={savingProfile}
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#EA580C] text-white text-xs font-bold rounded-2xl shadow-md shadow-orange-500/20 transition-all cursor-pointer disabled:opacity-50"
-            >
-              {savingProfile ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Saving Changes...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>Save Profile Details</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        )}
       </form>
 
-      {/* 3. Security & Password Management */}
+      {/* ========================================================================= */}
+      {/* SECTION 3: SECURITY / CHANGE PASSWORD */}
+      {/* ========================================================================= */}
       <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h2 className="text-base sm:text-lg font-bold font-serif text-[#091B29] dark:text-white flex items-center space-x-2">
               <KeyRound className="w-5 h-5 text-[#087F8C]" />
-              <span>Password & Security</span>
+              <span>Security</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Change your login password to keep your Voyara account protected.
+              Change your password to keep your Voyara account secure.
             </p>
           </div>
         </div>
@@ -705,34 +880,12 @@ export const ProfilePage = () => {
               ) : (
                 <>
                   <KeyRound className="w-3.5 h-3.5" />
-                  <span>Update Password</span>
+                  <span>Change Password</span>
                 </>
               )}
             </button>
           </div>
         </form>
-      </div>
-
-      {/* 4. VeriNova Verification & Trust Summary */}
-      <div className="bg-gradient-to-r from-[#091B29] via-[#0F273D] to-[#091B29] border border-teal-900/40 text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#087F8C]/20 text-xs font-bold text-[#27B7A8] border border-[#087F8C]/30">
-              <ShieldCheck className="w-4 h-4" />
-              <span>VeriNova Verified Member</span>
-            </div>
-            <h3 className="text-lg font-bold font-serif">Trust & Protection Standards</h3>
-            <p className="text-xs text-slate-300 max-w-xl leading-relaxed font-light">
-              Your account identity is verified and protected by the VeriNova Transaction Verification engine. Double bookings and fraudulent listings are automatically audited in real time.
-            </p>
-          </div>
-
-          <div className="shrink-0 p-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 text-center space-y-1">
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Trust Rating</p>
-            <p className="text-2xl font-black text-[#27B7A8]">100%</p>
-            <p className="text-[10px] text-emerald-400 font-semibold">Active & Audited</p>
-          </div>
-        </div>
       </div>
     </div>
   );

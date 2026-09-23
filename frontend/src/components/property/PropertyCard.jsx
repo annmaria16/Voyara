@@ -78,9 +78,15 @@ export const PropertyCard = ({ property }) => {
             <span className="font-medium truncate">{property.city || property.district || 'Kerala'}, {property.state || 'India'}</span>
           </div>
           <div className="flex items-center space-x-1 bg-black/40 backdrop-blur-xs px-2.5 py-0.5 rounded-full shrink-0">
-            <Star className="w-3 h-3 text-[#F6C945] fill-[#F6C945]" />
-            <span className="font-bold">{property.rating?.toFixed(1) || '4.8'}</span>
-            <span className="text-white/70 text-[10px]">({property.review_count || 14})</span>
+            {property.review_count > 0 ? (
+              <>
+                <Star className="w-3 h-3 text-[#F6C945] fill-[#F6C945]" />
+                <span className="font-bold">{property.rating?.toFixed(1)}</span>
+                <span className="text-white/70 text-[10px]">({property.review_count})</span>
+              </>
+            ) : (
+              <span className="font-bold text-[11px] text-emerald-300">★ New</span>
+            )}
           </div>
         </div>
       </Link>

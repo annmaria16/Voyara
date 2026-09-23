@@ -70,6 +70,7 @@ class Booking(Base):
     refund = relationship("Refund", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     review = relationship("Review", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     rule_snapshot = relationship("BookingRuleSnapshot", back_populates="booking", uselist=False, cascade="all, delete-orphan")
+    messages = relationship("BookingMessage", back_populates="booking", cascade="all, delete-orphan", order_by="BookingMessage.created_at.asc()")
 
     @hybrid_property
     def guest_information_message(self):

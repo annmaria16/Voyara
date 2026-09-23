@@ -16,6 +16,8 @@ import {
   MessageSquare,
   TrendingUp,
   Clock,
+  Star,
+  UserCheck,
 } from 'lucide-react';
 
 export const ProviderDashboard = () => {
@@ -24,6 +26,31 @@ export const ProviderDashboard = () => {
   const [properties, setProperties] = useState([]);
   const [trustData, setTrustData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [calendarData, setCalendarData] = useState(null);
+  const [calendarPropertyId, setCalendarPropertyId] = useState(null);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+
+  const now = new Date();
+  const [calendarYear, setCalendarYear] = useState(now.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(now.toLocaleString('default', { month: 'long' }));
+  const [calendarMonthNum, setCalendarMonthNum] = useState(now.getMonth() + 1);
+
+  const fetchCalendar = async (propId, year, monthNum) => {
+    if (!propId) return;
+    setCalendarLoading(true);
+    try {
+      const data = await providerApi.getPropertyCalendar(propId, {
+        year: year || calendarYear,
+        month: monthNum || calendarMonthNum,
+      });
+      setCalendarData(data);
+    } catch (err) {
+      console.error('Error fetching dashboard calendar:', err);
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,8 +61,16 @@ export const ProviderDashboard = () => {
           providerApi.getTrust().catch(() => null),
         ]);
         setDashboardData(dashRes);
-        setProperties(Array.isArray(propsRes) ? propsRes : []);
+        const propsList = Array.isArray(propsRes) ? propsRes : [];
+        setProperties(propsList);
         setTrustData(trustRes);
+
+        // Default immediately to the first specific property
+        if (propsList.length > 0) {
+          const firstPropId = propsList[0].id;
+          setCalendarPropertyId(firstPropId);
+          fetchCalendar(firstPropId, now.getFullYear(), now.getMonth() + 1);
+        }
       } catch (err) {
         console.error('Error fetching host dashboard data:', err);
       } finally {
@@ -44,6 +79,20 @@ export const ProviderDashboard = () => {
     };
     fetchData();
   }, []);
+
+  const handlePropertyCalendarChange = (propId) => {
+    setCalendarPropertyId(propId);
+    fetchCalendar(propId, calendarYear, calendarMonthNum);
+  };
+
+  const handleMonthChange = (newMonth, newYear, newMonthIdx) => {
+    setCalendarMonth(newMonth);
+    setCalendarYear(newYear);
+    setCalendarMonthNum(newMonthIdx);
+    if (calendarPropertyId) {
+      fetchCalendar(calendarPropertyId, newYear, newMonthIdx);
+    }
+  };
 
   const stats = dashboardData?.stats || {};
   const recentBookings = dashboardData?.recent_bookings || [];
@@ -59,25 +108,6 @@ export const ProviderDashboard = () => {
     featuredProperty?.images?.[0]?.image_url ||
     featuredProperty?.image_url ||
     'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=85';
-
-  // Extract live booked dates from actual database bookings for current month
-  const now = new Date();
-  const currentMonthIdx = now.getMonth();
-  const currentYearNum = now.getFullYear();
-  const currentMonthName = now.toLocaleString('default', { month: 'long' });
-
-  const bookedDays = [];
-  recentBookings.forEach((b) => {
-    if (b.check_in && b.check_out) {
-      const start = new Date(b.check_in);
-      const end = new Date(b.check_out);
-      if (start.getFullYear() === currentYearNum && start.getMonth() === currentMonthIdx) {
-        for (let d = start.getDate(); d <= Math.min(31, end.getDate()); d++) {
-          if (!bookedDays.includes(d)) bookedDays.push(d);
-        }
-      }
-    }
-  });
 
   return (
     <div className="space-y-10">
@@ -97,17 +127,12 @@ export const ProviderDashboard = () => {
         {/* Hero Content */}
         <div className="relative z-10 p-6 sm:p-10 lg:p-14 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[#27B7A8] text-xs font-bold tracking-wide">
-              <ShieldCheck className="w-4 h-4 text-[#27B7A8]" />
-              <span>Stay Partner Dashboard • Operations & Inventory</span>
-            </div>
-
             <h1 className="text-3xl sm:text-5xl font-serif text-white tracking-tight leading-tight">
-              Stay Partner Dashboard
+              Partner Dashboard
             </h1>
 
             <p className="text-sm sm:text-base text-slate-200 font-light leading-relaxed">
-              Welcome back, <strong className="text-white font-medium">{dashboardData?.provider?.business_name || user?.name || 'Stay Partner'}</strong>. 
+              Welcome back, <strong className="text-white font-medium">{dashboardData?.provider?.business_name || user?.name || 'Stay Partner'}</strong>.
               {featuredProperty ? (
                 <> Managing <strong className="text-[#F6C945] font-medium">{featuredProperty.name}</strong> and {totalPropsCount} verified properties across India.</>
               ) : (
@@ -212,8 +237,8 @@ export const ProviderDashboard = () => {
       </div>
 
       {/* 3. Property Availability Calendar & Blackouts (Directly Under 4 Blocks) */}
-      <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 shadow-sm rounded-3xl p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-100 dark:border-slate-800 gap-3">
+      <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 shadow-sm rounded-3xl p-6 sm:p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
           <div>
             <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
               <Calendar className="w-5 h-5 text-[#087F8C]" />
@@ -232,12 +257,113 @@ export const ProviderDashboard = () => {
           </Link>
         </div>
 
+        {/* Property Selector for Specific Property Calendar */}
+        {properties.length > 1 && (
+          <div className="flex items-center space-x-2 overflow-x-auto pb-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 shrink-0">
+              Select Property:
+            </span>
+            {properties.map((p) => (
+              <button
+                key={`dash-cal-prop-${p.id}`}
+                type="button"
+                onClick={() => handlePropertyCalendarChange(p.id)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${calendarPropertyId === p.id
+                    ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-xs font-serif'
+                    : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                  }`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         <CalendarWidget
-          bookedDates={bookedDays}
-          blockedDates={[]}
-          initialMonth={currentMonthName}
-          initialYear={currentYearNum}
+          propertyName={
+            properties.find((p) => p.id === calendarPropertyId)?.name || 'Property Calendar'
+          }
+          propertyId={calendarPropertyId}
+          calendarData={calendarData}
+          loading={calendarLoading}
+          initialMonth={calendarMonth}
+          initialYear={calendarYear}
+          onMonthChange={handleMonthChange}
         />
+      </div>
+
+      {/* Guest Reviews & Feedback Summary */}
+      <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 shadow-sm rounded-3xl p-6 sm:p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+          <div>
+            <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
+              <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+              <span>Guest Reviews & Ratings</span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-light">
+              Authentic feedback submitted by travelers following completed checkout stays
+            </p>
+          </div>
+          <Link
+            to="/provider/reviews"
+            className="text-xs font-bold text-[#087F8C] hover:text-orange-500 inline-flex items-center space-x-1.5 transition-colors"
+          >
+            <span>View All Reviews ({stats.total_reviews || 0})</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {/* Average Rating Block */}
+          <div className="p-5 rounded-2xl bg-[#FFF8F0]/70 dark:bg-slate-900/60 border border-orange-200/60 dark:border-teal-900/40 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Overall Rating</span>
+              <strong className="text-2xl sm:text-3xl font-serif font-black text-[#17324D] dark:text-white block mt-0.5">
+                {stats.total_reviews > 0 ? `${Number(stats.average_rating || 0).toFixed(1)} / 5` : '—'}
+              </strong>
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+                {stats.total_reviews > 0 ? `${stats.total_reviews} verified review(s)` : 'No reviews yet'}
+              </span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+              <Star className="w-6 h-6 fill-amber-400" />
+            </div>
+          </div>
+
+          {/* Cleanliness & Staff */}
+          <div className="p-5 rounded-2xl bg-[#FFFDF7] dark:bg-slate-900/60 border border-slate-100 dark:border-teal-900/40 space-y-2">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Hospitality Metrics</span>
+            <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <span>Cleanliness</span>
+              <strong className="text-[#087F8C] dark:text-[#27B7A8]">
+                {stats.total_reviews > 0 ? `${Number(stats.rating_breakdown?.cleanliness || stats.average_rating || 0).toFixed(1)}/5` : '—'}
+              </strong>
+            </div>
+            <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <span>Staff & Care</span>
+              <strong className="text-[#087F8C] dark:text-[#27B7A8]">
+                {stats.total_reviews > 0 ? `${Number(stats.rating_breakdown?.staff || stats.average_rating || 0).toFixed(1)}/5` : '—'}
+              </strong>
+            </div>
+          </div>
+
+          {/* Location & Value */}
+          <div className="p-5 rounded-2xl bg-[#FFFDF7] dark:bg-slate-900/60 border border-slate-100 dark:border-teal-900/40 space-y-2">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Location & Value</span>
+            <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <span>Location</span>
+              <strong className="text-[#087F8C] dark:text-[#27B7A8]">
+                {stats.total_reviews > 0 ? `${Number(stats.rating_breakdown?.location || stats.average_rating || 0).toFixed(1)}/5` : '—'}
+              </strong>
+            </div>
+            <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <span>Value for Money</span>
+              <strong className="text-[#087F8C] dark:text-[#27B7A8]">
+                {stats.total_reviews > 0 ? `${Number(stats.rating_breakdown?.value || stats.average_rating || 0).toFixed(1)}/5` : '—'}
+              </strong>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 4. YOUR VOYARA TRUST SECTION */}
@@ -270,7 +396,7 @@ export const ProviderDashboard = () => {
                 </span>
               ) : (
                 <span className="inline-flex items-center space-x-1.5 text-emerald-300 font-bold">
-                  <Sparkles className="w-4 h-4 text-[#F6C945]" />
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
                   <span>Platform Trust Score: {trustData?.overall_trust_score ?? 85}/100</span>
                 </span>
               )}
@@ -326,7 +452,7 @@ export const ProviderDashboard = () => {
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase font-bold text-slate-400">Profile Completeness</span>
-              <Sparkles className="w-4 h-4 text-[#F6C945]" />
+              <UserCheck className="w-4 h-4 text-[#F6C945]" />
             </div>
             <strong className="block text-sm text-[#F6C945] font-medium">
               {trustData?.profile_completed ? '100% Complete' : 'Active'}

@@ -150,7 +150,7 @@ export const PropertyHomeRulesForm = ({
         <div className="p-5 rounded-2xl bg-gradient-to-br from-[#087F8C]/5 via-[#FFFDF7] to-amber-500/5 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 border border-[#087F8C]/30 shadow-md animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8]">
-              <Sparkles className="w-4 h-4" />
+              <Eye className="w-4 h-4" />
               Live Traveler Preview Card
             </div>
             <span className="text-[11px] text-slate-500">How travelers view your rules</span>

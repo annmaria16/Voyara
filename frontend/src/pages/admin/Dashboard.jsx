@@ -78,15 +78,11 @@ export const AdminDashboard = () => {
       {/* 1. Header: Voyara Control Center */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
-            <span>Platform Trust & Integrity Engine • VeriNova Active</span>
-          </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
             Voyara Control Center
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
-            Platform operations, trust scoring, and real-time transaction intelligence.
+            Manage the platform, properties, bookings, and verification.
           </p>
         </div>
 
@@ -242,13 +238,12 @@ export const AdminDashboard = () => {
                       </span>
                     </div>
                     <div className="absolute top-3 right-3">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                        prop.verification_status === 'VERIFIED'
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${prop.verification_status === 'VERIFIED'
                           ? 'bg-[#35A66F] text-white shadow-xs'
                           : prop.verification_status === 'REJECTED'
-                          ? 'bg-rose-500 text-white shadow-xs'
-                          : 'bg-[#F6C945] text-slate-900 shadow-xs'
-                      }`}>
+                            ? 'bg-rose-500 text-white shadow-xs'
+                            : 'bg-[#F6C945] text-slate-900 shadow-xs'
+                        }`}>
                         {prop.verification_status || 'PENDING'}
                       </span>
                     </div>

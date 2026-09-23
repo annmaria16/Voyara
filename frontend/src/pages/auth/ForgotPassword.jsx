@@ -58,10 +58,6 @@ export const ForgotPassword = () => {
               className="h-16 w-auto mx-auto object-contain rounded-2xl shadow-lg border border-[#087F8C]/20 dark:border-teal-900/40 transition-transform duration-300 group-hover:scale-105"
             />
           </Link>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#087F8C]/10 dark:bg-[#087F8C]/20 text-[#087F8C] dark:text-[#27B7A8] text-xs font-semibold mb-2">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Account Recovery</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-bold font-serif text-[#17324D] dark:text-white">
             Reset your password
           </h1>

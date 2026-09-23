@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     MSG91_AUTH_KEY: str = ""
     TEXTLOCAL_API_KEY: str = ""
 
+    # Gemini AI Trip Planner Configuration
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

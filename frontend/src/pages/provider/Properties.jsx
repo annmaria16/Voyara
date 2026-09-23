@@ -106,10 +106,6 @@ export const ProviderProperties = () => {
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
-            <span>{properties.length} {properties.length === 1 ? 'Property' : 'Properties'}</span>
-          </div>
           <h1 className="text-3xl sm:text-4xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
             My Properties
           </h1>
@@ -227,11 +223,10 @@ export const ProviderProperties = () => {
 
                     {/* Admin Review Note / Reason if rejected or needs review */}
                     {p.verification_reason && (status === 'NEEDS_REVIEW' || status === 'REJECTED') && (
-                      <div className={`p-3.5 rounded-2xl border text-xs space-y-1 ${
-                        status === 'REJECTED'
-                          ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-200'
-                          : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-200'
-                      }`}>
+                      <div className={`p-3.5 rounded-2xl border text-xs space-y-1 ${status === 'REJECTED'
+                        ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-200'
+                        : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-200'
+                        }`}>
                         <div className="font-bold flex items-center space-x-1.5">
                           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                           <span>Review Feedback:</span>

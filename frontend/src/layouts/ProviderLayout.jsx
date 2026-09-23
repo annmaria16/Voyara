@@ -15,13 +15,15 @@ export const ProviderLayout = () => {
     if (pathname.startsWith('/provider/availability')) return 'MANAGE AVAILABILITY';
     if (pathname.startsWith('/provider/experiences')) return 'EXPERIENCES & TOURS';
     if (pathname.startsWith('/provider/bookings')) return 'GUEST RESERVATIONS';
+    if (pathname.startsWith('/provider/messages')) return 'GUEST MESSAGES';
+    if (pathname.startsWith('/provider/reviews')) return 'GUEST REVIEWS & RATINGS';
     if (pathname.startsWith('/provider/profile')) return 'STAY PARTNER PROFILE';
     if (pathname.startsWith('/provider/support')) return 'SUPPORT DESK';
     return 'STAY PARTNER DASHBOARD';
   };
 
   return (
-    <div className="relative min-h-screen flex bg-[#FFFDF7] dark:bg-[#091B29] text-[#17324D] dark:text-slate-100 font-sans antialiased selection:bg-[#087F8C] selection:text-white transition-colors duration-200 overflow-x-hidden">
+    <div className="relative min-h-screen flex bg-[#FFFDF7] dark:bg-[#091B29] text-[#17324D] dark:text-slate-100 font-sans antialiased selection:bg-[#087F8C] selection:text-white transition-colors duration-200">
       {/* 1. Subtle Atmosphere & Ambient Glow Layer */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#087F8C]/10 dark:bg-[#087F8C]/15 rounded-full filter blur-3xl pointer-events-none" />
@@ -41,7 +43,7 @@ export const ProviderLayout = () => {
         <DashboardHeader
           title={getPageTitle(location.pathname)}
           onMenuClick={() => setSidebarOpen(true)}
-          placeholder="Search places, room inventory, arrivals..."
+          placeholder="Search your properties, rooms, bookings..."
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-8">

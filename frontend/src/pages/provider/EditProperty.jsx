@@ -6,6 +6,7 @@ import { MultiImageUploadPicker } from '../../components/common/MultiImageUpload
 import { GoogleMapLocationPicker } from '../../components/common/GoogleMapLocationPicker';
 import { NumberStepperInput } from '../../components/common/NumberStepperInput';
 import { PropertyHomeRulesForm, DEFAULT_HOME_RULES } from '../../components/property/PropertyHomeRulesForm';
+import { PropertyLegalDocumentsSection } from '../../components/property/PropertyLegalDocumentsSection';
 import {
   Home,
   MapPin,
@@ -31,6 +32,7 @@ import {
   AlertTriangle,
   Lock,
   Flame,
+  MessageSquare,
 } from 'lucide-react';
 
 const ROOM_TYPE_OPTIONS = [
@@ -776,8 +778,8 @@ export const EditProperty = () => {
       const phoneDigits = cleanPhone.startsWith('+91')
         ? cleanPhone.slice(3)
         : cleanPhone.startsWith('91') && cleanPhone.length === 12
-        ? cleanPhone.slice(2)
-        : cleanPhone;
+          ? cleanPhone.slice(2)
+          : cleanPhone;
 
       const propertyPayload = {
         name: name.trim(),
@@ -868,10 +870,7 @@ export const EditProperty = () => {
       <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-10 border border-slate-200/80 dark:border-slate-800 shadow-md space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
-            <span className="text-xs uppercase font-bold tracking-widest text-orange-500">
-              Property Management
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-black font-serif text-[#091B29] dark:text-white mt-1">
+            <h2 className="text-2xl sm:text-3xl font-black font-serif text-[#091B29] dark:text-white">
               Edit Property & Room Details
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-light">
@@ -881,11 +880,10 @@ export const EditProperty = () => {
 
           <div className="flex items-center space-x-2">
             <span
-              className={`px-3 py-1 rounded-full text-xs font-bold ${
-                verificationStatus === 'VERIFIED'
+              className={`px-3 py-1 rounded-full text-xs font-bold ${verificationStatus === 'VERIFIED'
                   ? 'bg-[#35A66F]/15 text-[#35A66F] border border-[#35A66F]/30'
                   : 'bg-[#F6C945]/15 text-amber-700 dark:text-[#F6C945] border border-[#F6C945]/30'
-              }`}
+                }`}
             >
               {verificationStatus === 'VERIFIED' ? '✓ Verified & Live' : verificationStatus}
             </span>
@@ -951,11 +949,10 @@ export const EditProperty = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onBlur={() => handleBlur('name')}
-                  className={`w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden transition-colors ${
-                    (touched.name || submitAttempted) && errors.name
+                  className={`w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border rounded-xl font-semibold text-slate-900 dark:text-white focus:outline-hidden transition-colors ${(touched.name || submitAttempted) && errors.name
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                  }`}
+                    }`}
                 />
               </div>
 
@@ -1049,11 +1046,10 @@ export const EditProperty = () => {
                     placeholder="Enter Indian pincode"
                     value={pincode}
                     onChange={(e) => !isLocationLocked && handlePincodeChange(e.target.value)}
-                    className={`w-full p-2.5 rounded-xl font-mono font-bold ${
-                      isLocationLocked
+                    className={`w-full p-2.5 rounded-xl font-mono font-bold ${isLocationLocked
                         ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
                         : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500'
-                    }`}
+                      }`}
                   />
                   {pincodeLoading && !isLocationLocked && (
                     <Loader2 className="w-4 h-4 text-orange-500 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />
@@ -1073,11 +1069,10 @@ export const EditProperty = () => {
                   readOnly={isLocationLocked}
                   value={city}
                   onChange={(e) => !isLocationLocked && setCity(e.target.value)}
-                  className={`w-full p-2.5 rounded-xl font-semibold ${
-                    isLocationLocked
+                  className={`w-full p-2.5 rounded-xl font-semibold ${isLocationLocked
                       ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
                       : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500'
-                  }`}
+                    }`}
                 />
               </div>
 
@@ -1093,11 +1088,10 @@ export const EditProperty = () => {
                   readOnly={isLocationLocked}
                   value={state}
                   onChange={(e) => !isLocationLocked && setState(e.target.value)}
-                  className={`w-full p-2.5 rounded-xl font-semibold ${
-                    isLocationLocked
+                  className={`w-full p-2.5 rounded-xl font-semibold ${isLocationLocked
                       ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
                       : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500'
-                  }`}
+                    }`}
                 />
               </div>
             </div>
@@ -1116,11 +1110,10 @@ export const EditProperty = () => {
                         key={poName}
                         type="button"
                         onClick={() => handleSelectPostOffice(poName)}
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center space-x-1.5 ${
-                          isSelected
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer shadow-2xs flex items-center space-x-1.5 ${isSelected
                             ? 'bg-gradient-to-r from-orange-500 to-[#EA580C] text-white border-orange-500 shadow-xs font-bold'
                             : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-orange-500 hover:text-orange-600 text-slate-700 dark:text-slate-300'
-                        }`}
+                          }`}
                       >
                         <MapPin className="w-3.5 h-3.5" />
                         <span>+ {poName}</span>
@@ -1154,11 +1147,10 @@ export const EditProperty = () => {
                     geocodeStreetAndPincode(address, pincode, city, state, selectedPostOffice);
                   }
                 }}
-                className={`w-full p-2.5 rounded-xl ${
-                  isLocationLocked
+                className={`w-full p-2.5 rounded-xl ${isLocationLocked
                     ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-all'
                     : 'bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500'
-                }`}
+                  }`}
               />
 
               {/* Live locating and map centering status */}
@@ -1181,7 +1173,7 @@ export const EditProperty = () => {
               <GoogleMapLocationPicker
                 latitude={latitude}
                 longitude={longitude}
-                onChange={!isLocationLocked ? handleMapChange : () => {}}
+                onChange={!isLocationLocked ? handleMapChange : () => { }}
                 initialCity={city}
                 initialState={state}
                 initialAddress={address}
@@ -1219,13 +1211,12 @@ export const EditProperty = () => {
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     onBlur={() => handleBlur('contactPhone')}
-                    className={`w-full pl-12 pr-3 py-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:outline-hidden transition-colors ${
-                      (touched.contactPhone || submitAttempted) && errors.contactPhone
+                    className={`w-full pl-12 pr-3 py-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:outline-hidden transition-colors ${(touched.contactPhone || submitAttempted) && errors.contactPhone
                         ? 'border-rose-500 bg-rose-50/20'
                         : touched.contactPhone && !errors.contactPhone && contactPhone.length === 10
-                        ? 'border-emerald-500'
-                        : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                    }`}
+                          ? 'border-emerald-500'
+                          : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
+                      }`}
                   />
                 </div>
                 {(touched.contactPhone || submitAttempted) && errors.contactPhone && (
@@ -1280,18 +1271,17 @@ export const EditProperty = () => {
             <div className="border-b border-slate-200/80 dark:border-slate-800 pb-3 flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4 text-orange-500" />
+                  <MessageSquare className="w-4 h-4 text-orange-500" />
                   <span>Guest Information & Safety Message</span>
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
                   Add important information that guests should know after booking this property.
                 </p>
               </div>
-              <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-md border ${
-                guestInformationMessage.length > 4500
+              <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-md border ${guestInformationMessage.length > 4500
                   ? 'bg-rose-500/10 text-rose-600 border-rose-300 dark:border-rose-800'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-              }`}>
+                }`}>
                 {guestInformationMessage.length} / 5000 characters
               </span>
             </div>
@@ -1356,11 +1346,10 @@ export const EditProperty = () => {
                       key={opt.pct}
                       type="button"
                       onClick={() => setCancellationRefundPercentage(opt.pct)}
-                      className={`p-3 rounded-2xl border text-center transition-all cursor-pointer space-y-1 ${
-                        selected
+                      className={`p-3 rounded-2xl border text-center transition-all cursor-pointer space-y-1 ${selected
                           ? 'bg-gradient-to-tr from-[#087F8C] to-[#17324D] text-white border-[#087F8C] shadow-md shadow-[#087F8C]/20'
                           : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-[#087F8C]/50'
-                      }`}
+                        }`}
                     >
                       <strong className="block text-sm font-serif">{opt.label}</strong>
                       <span className={`block text-[10px] ${selected ? 'text-teal-200' : 'text-slate-400'}`}>
@@ -1381,7 +1370,7 @@ export const EditProperty = () => {
           <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center justify-between">
               <span className="flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-orange-500" />
+                <Layers className="w-4 h-4 text-orange-500" />
                 <span>4. Property Amenities & Facilities</span>
               </span>
               <span className="text-[10px] text-orange-600 font-bold">{amenities.length} selected</span>
@@ -1453,11 +1442,10 @@ export const EditProperty = () => {
                       key={am}
                       type="button"
                       onClick={() => handleTogglePropAmenity(am)}
-                      className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
-                        checked
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${checked
                           ? 'bg-gradient-to-r from-orange-500 to-[#EA580C] text-white border-orange-500 shadow-2xs font-bold'
                           : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-orange-500 hover:text-orange-600'
-                      }`}
+                        }`}
                     >
                       <span>{am}</span>
                       {checked ? (
@@ -1703,11 +1691,10 @@ export const EditProperty = () => {
                                 key={am}
                                 type="button"
                                 onClick={() => handleToggleRoomAmenity(idx, am)}
-                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center space-x-1 ${
-                                  checked
+                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center space-x-1 ${checked
                                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs font-bold'
                                     : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:text-emerald-600'
-                                }`}
+                                  }`}
                               >
                                 <span>{am}</span>
                                 {checked ? (
@@ -1881,6 +1868,15 @@ export const EditProperty = () => {
             <p className="text-slate-600 dark:text-slate-300 leading-relaxed font-light">
               Voyara evaluates stay partner and property trust using multiple platform signals (phone verification, email verification, authentic photos, pricing consistency, accurate location, and complete profile). It does not legally certify property ownership.
             </p>
+          </div>
+
+          {/* Property Legal Authorization & Document Dossier */}
+          <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+            <PropertyLegalDocumentsSection
+              propertyId={id}
+              property={property}
+              onDocumentsUpdated={fetchProperty}
+            />
           </div>
 
           {/* Property Home Rules & Guest Policies */}

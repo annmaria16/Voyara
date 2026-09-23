@@ -7,7 +7,9 @@ from app.database import Base
 class TicketStatus(str, enum.Enum):
     OPEN = "OPEN"
     IN_PROGRESS = "IN_PROGRESS"
+    WAITING_FOR_USER = "WAITING_FOR_USER"
     RESOLVED = "RESOLVED"
+    CLOSED = "CLOSED"
 
 class SupportTicket(Base):
     __tablename__ = "support_tickets"
@@ -15,6 +17,7 @@ class SupportTicket(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     booking_id = Column(Integer, ForeignKey("bookings.id", ondelete="SET NULL"), nullable=True)
+    property_id = Column(Integer, ForeignKey("properties.id", ondelete="SET NULL"), nullable=True)
     subject = Column(String(255), nullable=False)
     category = Column(String(100), default="General Inquiry", nullable=False)
     message = Column(Text, nullable=False)
@@ -25,6 +28,7 @@ class SupportTicket(Base):
 
     user = relationship("User")
     booking = relationship("Booking")
+    property = relationship("Property")
     messages = relationship("SupportMessage", back_populates="ticket", cascade="all, delete-orphan", order_by="SupportMessage.created_at.asc()")
 
 class SupportMessage(Base):
@@ -40,4 +44,3 @@ class SupportMessage(Base):
 
     ticket = relationship("SupportTicket", back_populates="messages")
     sender = relationship("User")
-

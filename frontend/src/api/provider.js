@@ -105,7 +105,22 @@ export const providerApi = {
     return response.data;
   },
 
-  // Availability
+  // Calendar & Availability
+  getPropertyCalendar: async (propertyId, params = {}) => {
+    const response = await api.get(`/provider/properties/${propertyId}/calendar`, { params });
+    return response.data;
+  },
+
+  getPropertyDateDetail: async (propertyId, dateStr) => {
+    const response = await api.get(`/provider/properties/${propertyId}/calendar/${dateStr}`);
+    return response.data;
+  },
+
+  getCalendar: async (params = {}) => {
+    const response = await api.get('/provider/calendar', { params });
+    return response.data;
+  },
+
   getAvailability: async (propertyId) => {
     const response = await api.get(`/provider/properties/${propertyId}/availability`);
     return response.data;
@@ -183,6 +198,23 @@ export const providerApi = {
 
   getBookingRefund: async (bookingId) => {
     const response = await api.get(`/provider/bookings/${bookingId}/refund`);
+    return response.data;
+  },
+
+  // Reviews
+  getReviews: async () => {
+    const response = await api.get('/provider/reviews');
+    return response.data;
+  },
+
+  getPropertyReviews: async (propertyId) => {
+    const response = await api.get(`/provider/properties/${propertyId}/reviews`);
+    return response.data;
+  },
+
+  // Stay Partner Dashboard Search (Isolated to provider's data)
+  search: async (query) => {
+    const response = await api.get('/provider/search', { params: { q: query } });
     return response.data;
   },
 };

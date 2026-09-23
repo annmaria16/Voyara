@@ -72,10 +72,6 @@ export const AdminBookings = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
-            <span>Platform Financial Ledger & Reconciliation</span>
-          </div>
           <h1 className="text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
             Bookings & Settlement Monitor
           </h1>
@@ -135,11 +131,10 @@ export const AdminBookings = () => {
               key={s}
               type="button"
               onClick={() => setStatusFilter(s)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                statusFilter === s
-                  ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-md shadow-teal-900/20'
-                  : 'bg-white dark:bg-[#0F273D] text-slate-700 dark:text-slate-300 hover:bg-[#FFFDF7] dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${statusFilter === s
+                ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-md shadow-teal-900/20'
+                : 'bg-white dark:bg-[#0F273D] text-slate-700 dark:text-slate-300 hover:bg-[#FFFDF7] dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
+                }`}
             >
               {s === 'ALL' ? 'All Bookings' : s.replace(/_/g, ' ')} ({bookings.filter((b) => s === 'ALL' || b.status === s).length})
             </button>
@@ -230,11 +225,10 @@ export const AdminBookings = () => {
                           <span className="font-bold text-slate-900 dark:text-white block">
                             ₹{(b.commission_amount || (isFinalized ? 0 : Math.round(origAmount * 0.10))).toLocaleString('en-IN')}
                           </span>
-                          <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
-                            isFinalized
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                          }`}>
+                          <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${isFinalized
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            }`}>
                             {b.commission_status || 'NOT_FINALIZED'}
                           </span>
                         </div>
@@ -250,15 +244,14 @@ export const AdminBookings = () => {
                         </div>
                       </td>
                       <td className="py-4">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          isCancelled
-                            ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
-                            : isCheckedIn
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${isCancelled
+                          ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
+                          : isCheckedIn
                             ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30'
                             : isCompleted
-                            ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
-                            : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                        }`}>
+                              ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
+                              : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                          }`}>
                           {b.status === 'CHECKED_IN' ? 'CHECKED IN' : b.status}
                         </span>
                       </td>

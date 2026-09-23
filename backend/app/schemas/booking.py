@@ -6,6 +6,7 @@ from app.schemas.property import PropertyResponse
 from app.schemas.user import UserResponse
 from app.schemas.payment import PaymentResponse
 from app.schemas.stayguide import BookingRuleSnapshotResponse
+from app.schemas.review import ReviewResponse
 
 class BookingRoomItemResponse(BaseModel):
     id: int
@@ -150,6 +151,7 @@ class BookingResponse(BaseModel):
     verinova_verified_at: Optional[datetime] = None
     payment: Optional[PaymentResponse] = None
     refund: Optional[RefundResponse] = None
+    review: Optional[ReviewResponse] = None
     rule_snapshot: Optional[BookingRuleSnapshotResponse] = None
 
     class Config:

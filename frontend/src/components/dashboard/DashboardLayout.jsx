@@ -34,10 +34,10 @@ export const DashboardLayout = ({ role, title, children }) => {
           onMenuClick={() => setSidebarOpen(true)}
           placeholder={
             activeRole === 'PROVIDER'
-              ? 'Search listings, bookings...'
+              ? 'Search your properties, rooms, bookings...'
               : activeRole === 'ADMIN'
-              ? 'Search users, properties, records...'
-              : 'Search destinations or experiences...'
+              ? 'Search users, properties, bookings...'
+              : 'Search destinations, stays, experiences...'
           }
         />
 

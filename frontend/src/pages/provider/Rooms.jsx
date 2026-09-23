@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { providerApi } from '../../api/provider';
 import { MultiImageUploadPicker } from '../../components/common/MultiImageUploadPicker';
 import { NumberStepperInput } from '../../components/common/NumberStepperInput';
@@ -15,7 +15,7 @@ import {
   Check,
   Bed,
   X,
-  Sparkles,
+  Eye,
   BedDouble,
   ShieldCheck,
   CheckCircle2,
@@ -102,6 +102,27 @@ export const ProviderRooms = () => {
   });
   const [modalLoading, setModalLoading] = useState(false);
   const [error, setError] = useState('');
+  const formScrollRef = useRef(null);
+
+  // Automatically scroll to the top of the form and lock body scroll when modal opens
+  useEffect(() => {
+    if (modalOpen) {
+      if (formScrollRef.current) {
+        formScrollRef.current.scrollTop = 0;
+      }
+      const raf = requestAnimationFrame(() => {
+        if (formScrollRef.current) {
+          formScrollRef.current.scrollTop = 0;
+        }
+      });
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        cancelAnimationFrame(raf);
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [modalOpen, editingRoomId]);
 
   const fetchProperties = async () => {
     setLoading(true);
@@ -181,20 +202,36 @@ export const ProviderRooms = () => {
   };
 
   const openEditModal = (room) => {
+    if (!room) return;
     setEditingRoomId(room.id);
-    setName(room.name);
-    setRoomType(room.room_type);
-    setDescription(room.description);
-    setCapacity(String(room.capacity));
-    setQuantity(String(room.quantity));
-    setBasePrice(String(room.base_price));
+    setName(room.name || '');
+    setRoomType(room.room_type || 'Deluxe Room');
+    setDescription(room.description || '');
+    setCapacity(String(room.capacity || 2));
+    setQuantity(String(room.quantity || 1));
+    setBasePrice(room.base_price !== undefined && room.base_price !== null ? String(room.base_price) : '');
     setIsActive(room.is_active !== undefined ? room.is_active : true);
-    setImages(room.images?.map((img) => (typeof img === 'string' ? img : img.image_url)).filter(Boolean) || []);
-    setAmenities(room.amenities?.map((a) => a.amenity_name || a) || ['King Bed', 'Attached Bathroom']);
+    
+    // Extract clean string image URLs
+    const safeImages = Array.isArray(room.images)
+      ? room.images
+          .map((img) => (typeof img === 'string' ? img : (img?.image_url || img?.url || '')))
+          .filter(Boolean)
+      : [];
+    setImages(safeImages);
+
+    // Extract clean string amenity names
+    const safeAmenities = Array.isArray(room.amenities)
+      ? room.amenities
+          .map((a) => (typeof a === 'string' ? a : (a?.amenity_name || a?.name || '')))
+          .filter(Boolean)
+      : [];
+    setAmenities(safeAmenities.length > 0 ? safeAmenities : ['King Bed', 'Attached Bathroom']);
+
     const r = room.rules || {};
     setRoomRules({
       max_adults: r.max_adults ?? room.capacity ?? 2,
-      max_children: r.max_children ?? room.capacity ?? 1,
+      max_children: r.max_children ?? 0,
       additional_children_allowed: r.additional_children_allowed ?? 0,
       max_child_age: r.max_child_age ?? '',
       free_additional_children: r.free_additional_children ?? 0,
@@ -225,12 +262,15 @@ export const ProviderRooms = () => {
   };
 
   const handleAmenityToggle = (am) => {
+    const targetStr = typeof am === 'string' ? am : (am?.amenity_name || am?.name || String(am));
+    if (!targetStr) return;
     setAmenities((prev) => {
-      const exists = prev.some((a) => a.toLowerCase() === am.toLowerCase());
+      const list = (prev || []).map((a) => (typeof a === 'string' ? a : (a?.amenity_name || a?.name || String(a))));
+      const exists = list.some((a) => a.toLowerCase() === targetStr.toLowerCase());
       if (exists) {
-        return prev.filter((a) => a.toLowerCase() !== am.toLowerCase());
+        return list.filter((a) => a.toLowerCase() !== targetStr.toLowerCase());
       } else {
-        return [...prev, am];
+        return [...list, targetStr];
       }
     });
   };
@@ -238,14 +278,23 @@ export const ProviderRooms = () => {
   const handleAddCustomAmenity = () => {
     const val = customAmenity.trim();
     if (!val) return;
-    if (!amenities.some((a) => a.toLowerCase() === val.toLowerCase())) {
-      setAmenities((prev) => [...prev, val]);
-    }
+    setAmenities((prev) => {
+      const list = (prev || []).map((a) => (typeof a === 'string' ? a : (a?.amenity_name || a?.name || String(a))));
+      if (!list.some((a) => a.toLowerCase() === val.toLowerCase())) {
+        return [...list, val];
+      }
+      return list;
+    });
     setCustomAmenity('');
   };
 
   const handleRemoveAmenity = (am) => {
-    setAmenities((prev) => prev.filter((a) => a.toLowerCase() !== am.toLowerCase()));
+    const targetStr = typeof am === 'string' ? am : (am?.amenity_name || am?.name || String(am));
+    setAmenities((prev) =>
+      (prev || [])
+        .map((a) => (typeof a === 'string' ? a : (a?.amenity_name || a?.name || String(a))))
+        .filter((a) => a.toLowerCase() !== targetStr.toLowerCase())
+    );
   };
 
   const handleFormSubmit = async (e) => {
@@ -371,10 +420,6 @@ export const ProviderRooms = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
-            <span>Property Inventory Matrix</span>
-          </div>
           <h1 className="text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
             Room Inventory & Units
           </h1>
@@ -537,14 +582,18 @@ export const ProviderRooms = () => {
                         {/* Amenities Tags */}
                         {r.amenities && r.amenities.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
-                            {r.amenities.slice(0, 4).map((am, i) => (
-                              <span
-                                key={i}
-                                className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-slate-600 dark:text-slate-300"
-                              >
-                                {am.amenity_name || am}
-                              </span>
-                            ))}
+                            {r.amenities.slice(0, 4).map((am, i) => {
+                              const label = typeof am === 'string' ? am : (am?.amenity_name || am?.name || '');
+                              if (!label) return null;
+                              return (
+                                <span
+                                  key={i}
+                                  className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-medium text-slate-600 dark:text-slate-300"
+                                >
+                                  {label}
+                                </span>
+                              );
+                            })}
                             {r.amenities.length > 4 && (
                               <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-500">
                                 +{r.amenities.length - 4} more
@@ -589,9 +638,10 @@ export const ProviderRooms = () => {
 
       {/* Modal for Add / Edit Room */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xs overflow-hidden">
+          <div className="relative w-full max-w-3xl max-h-[90vh] sm:max-h-[92vh] bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Fixed Header */}
+            <div className="shrink-0 flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0F273D] z-10">
               <div>
                 <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white">
                   {editingRoomId ? 'Edit Room Unit' : 'Add New Room Unit'}
@@ -604,19 +654,25 @@ export const ProviderRooms = () => {
                 type="button"
                 onClick={() => setModalOpen(false)}
                 className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Close"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {error && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleModalSubmit} className="space-y-4 text-xs">
+            {/* Form wrapping scrollable body and sticky footer */}
+            <form onSubmit={handleFormSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Scrollable Form Body */}
+              <div
+                ref={formScrollRef}
+                className="flex-1 overflow-y-auto min-h-0 px-6 py-6 sm:px-8 sm:py-6 space-y-6 text-xs custom-scrollbar"
+              >
+                {error && (
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center space-x-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -731,22 +787,26 @@ export const ProviderRooms = () => {
                 {/* Active Amenities Badges */}
                 {amenities.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {amenities.map((am) => (
-                      <span
-                        key={am}
-                        className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-[#087F8C] text-white text-xs font-bold shadow-xs"
-                      >
-                        <span>{am}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAmenity(am)}
-                          className="hover:bg-white/30 rounded-full p-0.5 transition-colors cursor-pointer"
-                          title={`Remove ${am}`}
+                    {amenities.map((am, idx) => {
+                      const amName = typeof am === 'string' ? am : (am?.amenity_name || am?.name || String(am));
+                      if (!amName) return null;
+                      return (
+                        <span
+                          key={`${amName}-${idx}`}
+                          className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-[#087F8C] text-white text-xs font-bold shadow-xs"
                         >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
+                          <span>{amName}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAmenity(amName)}
+                            className="hover:bg-white/30 rounded-full p-0.5 transition-colors cursor-pointer"
+                            title={`Remove ${amName}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -781,9 +841,10 @@ export const ProviderRooms = () => {
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {DEFAULT_AMENITIES.map((am) => {
-                      const checked = (amenities || []).some(
-                        (a) => a.toLowerCase() === am.toLowerCase()
-                      );
+                      const checked = (amenities || []).some((a) => {
+                        const str = typeof a === 'string' ? a : (a?.amenity_name || a?.name || String(a || ''));
+                        return str.toLowerCase() === String(am).toLowerCase();
+                      });
                       return (
                         <button
                           key={am}
@@ -1143,7 +1204,7 @@ export const ProviderRooms = () => {
                 {/* Live Room Policy Preview */}
                 <div className="p-3.5 rounded-xl bg-teal-50/70 dark:bg-slate-800/80 border border-teal-200/80 dark:border-slate-700 space-y-1.5">
                   <div className="flex items-center space-x-1.5 text-[#087F8C] dark:text-[#27B7A8] font-bold text-[11px]">
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Eye className="w-3.5 h-3.5" />
                     <span>Live Room Policy Preview for Travelers</span>
                   </div>
                   <div className="text-[11px] text-slate-700 dark:text-slate-300 space-y-1">
@@ -1192,18 +1253,21 @@ export const ProviderRooms = () => {
                 </label>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              </div>
+
+              {/* Fixed Sticky Footer */}
+              <div className="shrink-0 flex items-center gap-3 px-6 py-4 sm:px-8 sm:py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-xs z-10">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer text-xs"
+                  className="flex-1 py-3 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 cursor-pointer text-xs transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={modalLoading}
-                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-2xl cursor-pointer disabled:opacity-50 text-xs shadow-md"
+                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-2xl cursor-pointer disabled:opacity-50 text-xs shadow-md transition-all"
                 >
                   {modalLoading ? 'Saving...' : editingRoomId ? 'Update Room Unit' : 'Create Room Unit'}
                 </button>

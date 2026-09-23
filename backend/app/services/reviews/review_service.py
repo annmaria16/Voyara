@@ -101,13 +101,14 @@ class ReviewService:
         if not reviews:
             return {
                 "property_id": property_id,
-                "average_rating": 4.8,
+                "average_rating": 0.0,
                 "review_count": 0,
+                "total_reviews": 0,
                 "rating_breakdown": {
-                    "cleanliness": 4.9,
-                    "staff": 4.8,
-                    "location": 4.9,
-                    "value": 4.7
+                    "cleanliness": 0.0,
+                    "staff": 0.0,
+                    "location": 0.0,
+                    "value": 0.0
                 },
                 "reviews": []
             }
@@ -134,6 +135,188 @@ class ReviewService:
         }
 
     @staticmethod
+    def get_provider_reviews(db: Session, provider_id: int) -> dict:
+        """Fetch all verified reviews grouped by property for a specific Stay Partner."""
+        provider_props = db.query(Property).filter(Property.provider_id == provider_id).all()
+        
+        property_summaries = []
+        all_reviews = []
+        all_ratings = []
+        all_cleanliness = []
+        all_staff = []
+        all_location = []
+        all_value = []
+
+        for prop in provider_props:
+            prop_reviews = db.query(Review).filter(
+                Review.property_id == prop.id
+            ).order_by(Review.created_at.desc()).all()
+
+            prop_cleanliness = [r.cleanliness_rating for r in prop_reviews if r.cleanliness_rating is not None]
+            prop_staff = [r.staff_rating for r in prop_reviews if r.staff_rating is not None]
+            prop_location = [r.location_rating for r in prop_reviews if r.location_rating is not None]
+            prop_value = [r.value_rating for r in prop_reviews if r.value_rating is not None]
+
+            prop_avg = round(sum(r.rating for r in prop_reviews) / len(prop_reviews), 1) if prop_reviews else 0.0
+
+            # Rating distribution (counts of 5, 4, 3, 2, 1 stars)
+            distribution = {
+                "5": sum(1 for r in prop_reviews if round(r.rating) >= 5),
+                "4": sum(1 for r in prop_reviews if round(r.rating) == 4),
+                "3": sum(1 for r in prop_reviews if round(r.rating) == 3),
+                "2": sum(1 for r in prop_reviews if round(r.rating) == 2),
+                "1": sum(1 for r in prop_reviews if round(r.rating) <= 1),
+            }
+
+            formatted_prop_reviews = [
+                {
+                    "id": r.id,
+                    "property_id": r.property_id,
+                    "property_name": prop.name,
+                    "booking_id": r.booking_id,
+                    "booking_number": r.booking.booking_number if r.booking else f"VOY-{r.booking_id}",
+                    "user_id": r.user_id,
+                    "user_name": r.user.name if r.user else "Verified Traveler",
+                    "user_avatar": r.user.avatar_url if r.user else None,
+                    "rating": r.rating,
+                    "cleanliness_rating": r.cleanliness_rating,
+                    "staff_rating": r.staff_rating,
+                    "location_rating": r.location_rating,
+                    "value_rating": r.value_rating,
+                    "comment": r.comment,
+                    "created_at": r.created_at
+                }
+                for r in prop_reviews
+            ]
+
+            primary_img = None
+            if prop.images and len(prop.images) > 0:
+                primary_img = prop.images[0].image_url
+
+            property_summaries.append({
+                "property_id": prop.id,
+                "property_name": prop.name,
+                "property_type": prop.property_type,
+                "city": prop.city,
+                "state": prop.state,
+                "country": prop.country,
+                "image_url": primary_img,
+                "average_rating": prop_avg,
+                "review_count": len(prop_reviews),
+                "rating_breakdown": {
+                    "cleanliness": round(sum(prop_cleanliness) / len(prop_cleanliness), 1) if prop_cleanliness else prop_avg,
+                    "staff": round(sum(prop_staff) / len(prop_staff), 1) if prop_staff else prop_avg,
+                    "location": round(sum(prop_location) / len(prop_location), 1) if prop_location else prop_avg,
+                    "value": round(sum(prop_value) / len(prop_value), 1) if prop_value else prop_avg,
+                },
+                "rating_distribution": distribution,
+                "reviews": formatted_prop_reviews
+            })
+
+            all_reviews.extend(formatted_prop_reviews)
+            all_ratings.extend([r.rating for r in prop_reviews])
+            all_cleanliness.extend(prop_cleanliness)
+            all_staff.extend(prop_staff)
+            all_location.extend(prop_location)
+            all_value.extend(prop_value)
+
+        overall_avg = round(sum(all_ratings) / len(all_ratings), 1) if all_ratings else 0.0
+
+        return {
+            "properties": property_summaries,
+            "summary": {
+                "total_properties": len(provider_props),
+                "total_reviews": len(all_reviews),
+                "average_rating": overall_avg,
+                "rating_breakdown": {
+                    "cleanliness": round(sum(all_cleanliness) / len(all_cleanliness), 1) if all_cleanliness else overall_avg,
+                    "staff": round(sum(all_staff) / len(all_staff), 1) if all_staff else overall_avg,
+                    "location": round(sum(all_location) / len(all_location), 1) if all_location else overall_avg,
+                    "value": round(sum(all_value) / len(all_value), 1) if all_value else overall_avg,
+                }
+            },
+            "reviews": all_reviews
+        }
+
+    @staticmethod
+    def get_provider_property_reviews(db: Session, provider_id: int, property_id: int) -> dict:
+        """Fetch all verified reviews for a specific property owned by a Stay Partner."""
+        prop = db.query(Property).filter(
+            Property.id == property_id,
+            Property.provider_id == provider_id
+        ).first()
+
+        if not prop:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Property not found or access denied for this Stay Partner."
+            )
+
+        reviews = db.query(Review).filter(
+            Review.property_id == prop.id
+        ).order_by(Review.created_at.desc()).all()
+
+        cleanliness_scores = [r.cleanliness_rating for r in reviews if r.cleanliness_rating is not None]
+        staff_scores = [r.staff_rating for r in reviews if r.staff_rating is not None]
+        location_scores = [r.location_rating for r in reviews if r.location_rating is not None]
+        value_scores = [r.value_rating for r in reviews if r.value_rating is not None]
+
+        avg_rating = round(sum(r.rating for r in reviews) / len(reviews), 1) if reviews else 0.0
+
+        distribution = {
+            "5": sum(1 for r in reviews if round(r.rating) >= 5),
+            "4": sum(1 for r in reviews if round(r.rating) == 4),
+            "3": sum(1 for r in reviews if round(r.rating) == 3),
+            "2": sum(1 for r in reviews if round(r.rating) == 2),
+            "1": sum(1 for r in reviews if round(r.rating) <= 1),
+        }
+
+        review_list = [
+            {
+                "id": r.id,
+                "property_id": r.property_id,
+                "property_name": prop.name,
+                "booking_id": r.booking_id,
+                "booking_number": r.booking.booking_number if r.booking else f"VOY-{r.booking_id}",
+                "user_id": r.user_id,
+                "user_name": r.user.name if r.user else "Verified Traveler",
+                "user_avatar": r.user.avatar_url if r.user else None,
+                "rating": r.rating,
+                "cleanliness_rating": r.cleanliness_rating,
+                "staff_rating": r.staff_rating,
+                "location_rating": r.location_rating,
+                "value_rating": r.value_rating,
+                "comment": r.comment,
+                "created_at": r.created_at
+            }
+            for r in reviews
+        ]
+
+        primary_img = None
+        if prop.images and len(prop.images) > 0:
+            primary_img = prop.images[0].image_url
+
+        return {
+            "property_id": prop.id,
+            "property_name": prop.name,
+            "property_type": prop.property_type,
+            "city": prop.city,
+            "state": prop.state,
+            "country": prop.country,
+            "image_url": primary_img,
+            "average_rating": avg_rating,
+            "review_count": len(reviews),
+            "rating_distribution": distribution,
+            "rating_breakdown": {
+                "cleanliness": round(sum(cleanliness_scores) / len(cleanliness_scores), 1) if cleanliness_scores else avg_rating,
+                "staff": round(sum(staff_scores) / len(staff_scores), 1) if staff_scores else avg_rating,
+                "location": round(sum(location_scores) / len(location_scores), 1) if location_scores else avg_rating,
+                "value": round(sum(value_scores) / len(value_scores), 1) if value_scores else avg_rating,
+            },
+            "reviews": review_list
+        }
+
+    @staticmethod
     def get_booking_review_eligibility(db: Session, booking_id: int, user_id: int) -> dict:
         """Checks if a specific booking is eligible for a customer review."""
         booking = db.query(Booking).filter(
@@ -157,6 +340,10 @@ class ReviewService:
                 "existing_review": {
                     "id": existing_review.id,
                     "rating": existing_review.rating,
+                    "cleanliness_rating": existing_review.cleanliness_rating,
+                    "staff_rating": existing_review.staff_rating,
+                    "location_rating": existing_review.location_rating,
+                    "value_rating": existing_review.value_rating,
                     "comment": existing_review.comment,
                     "created_at": existing_review.created_at
                 }

@@ -21,6 +21,9 @@ export const supportApi = {
     if (filters.status && filters.status !== 'ALL') {
       params.append('status', filters.status);
     }
+    if (filters.role && filters.role !== 'ALL') {
+      params.append('role', filters.role);
+    }
     if (filters.category && filters.category !== 'ALL') {
       params.append('category', filters.category);
     }
@@ -42,6 +45,11 @@ export const supportApi = {
     return response.data;
   },
 
+  updateTicketStatus: async (ticketId, status) => {
+    const response = await api.patch(`/support/admin/tickets/${ticketId}/status`, { status });
+    return response.data;
+  },
+
   replyUserTicket: async (ticketId, messageData) => {
     const response = await api.post(`/support/tickets/${ticketId}/reply`, messageData);
     return response.data;
@@ -49,4 +57,3 @@ export const supportApi = {
 };
 
 export default supportApi;
-

@@ -131,8 +131,8 @@ def seed_database():
         contact_email="reservations@mountainbreeze.in",
         check_in_time="14:00",
         check_out_time="11:00",
-        rating=4.9,
-        review_count=38,
+        rating=0.0,
+        review_count=0,
         featured=True,
         is_active=True
     )
@@ -230,8 +230,8 @@ def seed_database():
         contact_email="stay@greenvalleyhomestay.in",
         check_in_time="13:00",
         check_out_time="11:00",
-        rating=4.8,
-        review_count=24,
+        rating=0.0,
+        review_count=0,
         featured=True,
         is_active=True
     )
@@ -296,8 +296,8 @@ def seed_database():
         contact_email="concierge@azurehorizon.com",
         check_in_time="15:00",
         check_out_time="12:00",
-        rating=5.0,
-        review_count=19,
+        rating=0.0,
+        review_count=0,
         featured=True,
         is_active=True
     )
@@ -362,8 +362,8 @@ def seed_database():
         contact_email="camp@serenityshores.in",
         check_in_time="13:00",
         check_out_time="11:00",
-        rating=4.7,
-        review_count=31,
+        rating=0.0,
+        review_count=0,
         featured=False,
         is_active=True
     )
@@ -410,8 +410,8 @@ def seed_database():
         contact_email="stay@pinecrestmanali.com",
         check_in_time="14:00",
         check_out_time="11:00",
-        rating=4.9,
-        review_count=16,
+        rating=0.0,
+        review_count=0,
         featured=False,
         is_active=True
     )

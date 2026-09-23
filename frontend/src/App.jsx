@@ -25,6 +25,8 @@ import { BookingPage } from './pages/customer/Booking';
 import { BookingConfirmation } from './pages/customer/BookingConfirmation';
 import { MyBookings } from './pages/customer/MyBookings';
 import { CustomerDashboard } from './pages/customer/Dashboard';
+import { CustomerMessages } from './pages/customer/Messages';
+import { TripPlanner } from './pages/customer/TripPlanner';
 
 // Provider Pages
 import { ProviderDashboard } from './pages/provider/Dashboard';
@@ -35,6 +37,8 @@ import { ProviderRooms } from './pages/provider/Rooms';
 import { ProviderAvailability } from './pages/provider/Availability';
 import { ProviderExperiences } from './pages/provider/Experiences';
 import { ProviderBookings } from './pages/provider/Bookings';
+import { ProviderMessages } from './pages/provider/Messages';
+import { ProviderReviews } from './pages/provider/Reviews';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/Dashboard';
@@ -74,6 +78,10 @@ export function App() {
               }
             >
               <Route path="/customer" element={<CustomerDashboard />} />
+              <Route path="/traveler/trip-planner" element={<TripPlanner />} />
+              <Route path="/trip-planner" element={<TripPlanner />} />
+              <Route path="/customer/trip-planner" element={<TripPlanner />} />
+              <Route path="/customer/saved-trips" element={<TripPlanner />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/properties/:id" element={<PropertyDetails />} />
               <Route path="/experiences" element={<ExperienceDetails />} />
@@ -83,6 +91,8 @@ export function App() {
               <Route path="/customer/bookings" element={<MyBookings />} />
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/bookings" element={<MyBookings />} />
+              <Route path="/customer/messages" element={<CustomerMessages />} />
+              <Route path="/messages" element={<CustomerMessages />} />
               <Route path="/customer/profile" element={<ProfilePage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/customer/support" element={<SupportPage />} />
@@ -105,6 +115,8 @@ export function App() {
               <Route path="availability" element={<ProviderAvailability />} />
               <Route path="experiences" element={<ProviderExperiences />} />
               <Route path="bookings" element={<ProviderBookings />} />
+              <Route path="messages" element={<ProviderMessages />} />
+              <Route path="reviews" element={<ProviderReviews />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="support" element={<SupportPage />} />
             </Route>

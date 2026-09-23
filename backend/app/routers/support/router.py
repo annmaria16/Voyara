@@ -8,6 +8,9 @@ from app.database import get_db
 from app.auth.dependencies import get_current_user, get_current_admin
 from app.models.user import User, UserRole
 from app.models.support import SupportTicket, SupportMessage, TicketStatus
+from app.models.booking import Booking
+from app.models.property import Property
+from app.services.notifications.notification_service import NotificationService
 
 router = APIRouter(prefix="/support", tags=["Support"])
 
@@ -15,6 +18,7 @@ class TicketCreateSchema(BaseModel):
     subject: str
     category: Optional[str] = "General Inquiry"
     booking_id: Optional[int] = None
+    property_id: Optional[int] = None
     message: str
 
 class TicketReplySchema(BaseModel):
@@ -24,6 +28,9 @@ class TicketReplySchema(BaseModel):
 
 class UserReplySchema(BaseModel):
     message: str
+
+class TicketStatusUpdateSchema(BaseModel):
+    status: str
 
 def format_ticket_dict(ticket: SupportTicket, include_messages: bool = True):
     user_data = None
@@ -36,6 +43,26 @@ def format_ticket_dict(ticket: SupportTicket, include_messages: bool = True):
             "role": ticket.user.role.value if hasattr(ticket.user.role, "value") else str(ticket.user.role),
             "avatar_url": ticket.user.avatar_url,
             "created_at": ticket.user.created_at,
+        }
+
+    booking_data = None
+    if ticket.booking:
+        booking_data = {
+            "id": ticket.booking.id,
+            "booking_number": ticket.booking.booking_number,
+            "property_name": ticket.booking.property.name if ticket.booking.property else "Stay Sanctuary",
+            "check_in": str(ticket.booking.check_in),
+            "check_out": str(ticket.booking.check_out),
+            "status": ticket.booking.status.value if hasattr(ticket.booking.status, "value") else str(ticket.booking.status),
+        }
+
+    property_data = None
+    if ticket.property:
+        property_data = {
+            "id": ticket.property.id,
+            "name": ticket.property.name,
+            "city": ticket.property.city,
+            "state": ticket.property.state,
         }
 
     messages_data = []
@@ -53,8 +80,10 @@ def format_ticket_dict(ticket: SupportTicket, include_messages: bool = True):
 
     return {
         "id": ticket.id,
+        "ticket_number": f"VN-SUP-{ticket.id + 1000}",
         "user_id": ticket.user_id,
         "booking_id": ticket.booking_id,
+        "property_id": ticket.property_id,
         "subject": ticket.subject,
         "category": ticket.category,
         "message": ticket.message,
@@ -63,6 +92,8 @@ def format_ticket_dict(ticket: SupportTicket, include_messages: bool = True):
         "created_at": ticket.created_at,
         "updated_at": ticket.updated_at,
         "user": user_data,
+        "booking": booking_data,
+        "property": property_data,
         "user_name": ticket.user.name if ticket.user else "User",
         "user_email": ticket.user.email if ticket.user else "",
         "user_phone": ticket.user.phone if ticket.user else "Not provided",
@@ -83,9 +114,12 @@ def create_ticket(
     if not payload.message or not payload.message.strip():
         raise HTTPException(status_code=400, detail="Message is required")
 
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+
     ticket = SupportTicket(
         user_id=current_user.id,
         booking_id=payload.booking_id,
+        property_id=payload.property_id,
         subject=payload.subject.strip(),
         category=payload.category.strip() if payload.category else "General Inquiry",
         message=payload.message.strip(),
@@ -94,16 +128,29 @@ def create_ticket(
     db.add(ticket)
     db.flush()
 
-    sender_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     first_msg = SupportMessage(
         ticket_id=ticket.id,
         sender_id=current_user.id,
-        sender_role=sender_role,
+        sender_role=user_role_str,
         sender_name=current_user.name or "User",
         message=payload.message.strip(),
         created_at=datetime.utcnow()
     )
     db.add(first_msg)
+
+    # Dispatch notification to Admins
+    try:
+        sender_label = "Stay Partner" if user_role_str == "PROVIDER" else "Traveler"
+        NotificationService.notify_admins(
+            db=db,
+            title=f"New support request from a {sender_label}",
+            message=f"{current_user.name} logged Ticket #{ticket.id}: '{ticket.subject}' in category '{ticket.category}'.",
+            type="SUPPORT_MESSAGE",
+            link="/admin/support"
+        )
+    except Exception as e:
+        print("Error sending admin support notification:", e)
+
     db.commit()
     db.refresh(ticket)
     return format_ticket_dict(ticket, include_messages=True)
@@ -116,7 +163,12 @@ def get_my_tickets(
     """Retrieve all support tickets submitted by current user with message history."""
     tickets = (
         db.query(SupportTicket)
-        .options(joinedload(SupportTicket.messages), joinedload(SupportTicket.user))
+        .options(
+            joinedload(SupportTicket.messages),
+            joinedload(SupportTicket.user),
+            joinedload(SupportTicket.booking).joinedload(Booking.property),
+            joinedload(SupportTicket.property),
+        )
         .filter(SupportTicket.user_id == current_user.id)
         .order_by(SupportTicket.updated_at.desc(), SupportTicket.created_at.desc())
         .all()
@@ -132,7 +184,12 @@ def get_ticket_details(
     """Get single ticket details with full conversation history."""
     ticket = (
         db.query(SupportTicket)
-        .options(joinedload(SupportTicket.messages), joinedload(SupportTicket.user))
+        .options(
+            joinedload(SupportTicket.messages),
+            joinedload(SupportTicket.user),
+            joinedload(SupportTicket.booking).joinedload(Booking.property),
+            joinedload(SupportTicket.property),
+        )
         .filter(SupportTicket.id == ticket_id)
         .first()
     )
@@ -148,6 +205,7 @@ def get_ticket_details(
 @router.get("/admin/tickets")
 def get_all_tickets_admin(
     status_filter: Optional[str] = Query(None, alias="status"),
+    role_filter: Optional[str] = Query(None, alias="role"),
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     date_sort: Optional[str] = Query("desc"),
@@ -156,7 +214,8 @@ def get_all_tickets_admin(
 ):
     """
     Admin endpoint to inspect all platform support inquiries with rich filtering:
-    - status: OPEN / IN_PROGRESS / RESOLVED / ALL
+    - status: OPEN / IN_PROGRESS / WAITING_FOR_USER / RESOLVED / CLOSED / ALL
+    - role: ALL / CUSTOMER / PROVIDER
     - category: filter by category
     - search: keyword search in user name, email, subject, message
     - date_sort: 'desc' (newest first) or 'asc' (oldest first)
@@ -164,16 +223,29 @@ def get_all_tickets_admin(
     query = (
         db.query(SupportTicket)
         .join(SupportTicket.user)
-        .options(joinedload(SupportTicket.messages), joinedload(SupportTicket.user))
+        .options(
+            joinedload(SupportTicket.messages),
+            joinedload(SupportTicket.user),
+            joinedload(SupportTicket.booking).joinedload(Booking.property),
+            joinedload(SupportTicket.property),
+        )
     )
 
     # Status filter
     if status_filter and status_filter.upper() != "ALL":
-        normalized_status = status_filter.upper()
+        normalized_status = status_filter.upper().replace(" ", "_")
         if normalized_status == "NEW":
             normalized_status = "OPEN"
         if normalized_status in [s.value for s in TicketStatus]:
             query = query.filter(SupportTicket.status == TicketStatus[normalized_status])
+
+    # Role filter
+    if role_filter and role_filter.upper() != "ALL":
+        rf_upper = role_filter.upper()
+        if rf_upper in ["TRAVELER", "CUSTOMER", "TRAVELERS"]:
+            query = query.filter(User.role == UserRole.CUSTOMER)
+        elif rf_upper in ["STAY_PARTNER", "PROVIDER", "HOST", "STAY_PARTNERS", "PROVIDERS"]:
+            query = query.filter(User.role == UserRole.PROVIDER)
 
     # Category filter
     if category and category.strip() and category.upper() != "ALL":
@@ -228,7 +300,7 @@ def reply_ticket_admin(
         ticket_id=ticket.id,
         sender_id=admin.id,
         sender_role="ADMIN",
-        sender_name=admin.name or "Voyara Concierge Admin",
+        sender_name=admin.name or "Voyara Control Center Admin",
         message=reply_text,
         created_at=datetime.utcnow()
     )
@@ -237,7 +309,7 @@ def reply_ticket_admin(
     # Update ticket response and status
     ticket.admin_response = reply_text
     if payload.status:
-        st_upper = payload.status.upper()
+        st_upper = payload.status.upper().replace(" ", "_")
         if st_upper == "NEW":
             st_upper = "OPEN"
         if st_upper in [s.value for s in TicketStatus]:
@@ -246,6 +318,67 @@ def reply_ticket_admin(
         ticket.status = TicketStatus.RESOLVED
 
     ticket.updated_at = datetime.utcnow()
+
+    # Notify User about the admin reply
+    try:
+        user_link = "/customer/support" if (ticket.user and ticket.user.role == UserRole.CUSTOMER) else "/provider/support"
+        NotificationService.create_notification(
+            db=db,
+            user_id=ticket.user_id,
+            title="Support reply from Voyara Control Center",
+            message=f"Admin responded to Ticket #{ticket.id} ('{ticket.subject}'). Status: {ticket.status.value}.",
+            type="SUPPORT_MESSAGE",
+            link=user_link
+        )
+    except Exception as e:
+        print("Error sending user support notification:", e)
+
+    db.commit()
+    db.refresh(ticket)
+    return format_ticket_dict(ticket, include_messages=True)
+
+@router.patch("/admin/tickets/{ticket_id}/status")
+@router.patch("/tickets/{ticket_id}/status")
+def update_ticket_status(
+    ticket_id: int,
+    payload: TicketStatusUpdateSchema,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin updates the workflow status of a support ticket."""
+    ticket = (
+        db.query(SupportTicket)
+        .options(joinedload(SupportTicket.messages), joinedload(SupportTicket.user))
+        .filter(SupportTicket.id == ticket_id)
+        .first()
+    )
+    if not ticket:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Support ticket not found")
+
+    st_upper = payload.status.upper().replace(" ", "_")
+    if st_upper not in [s.value for s in TicketStatus]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status '{payload.status}'. Allowed: {[s.value for s in TicketStatus]}"
+        )
+
+    ticket.status = TicketStatus[st_upper]
+    ticket.updated_at = datetime.utcnow()
+
+    # Notify User about status update
+    try:
+        user_link = "/customer/support" if (ticket.user and ticket.user.role == UserRole.CUSTOMER) else "/provider/support"
+        NotificationService.create_notification(
+            db=db,
+            user_id=ticket.user_id,
+            title=f"Ticket #{ticket.id} marked as {ticket.status.value}",
+            message=f"Voyara Control Center updated your ticket status to {ticket.status.value}.",
+            type="SUPPORT_MESSAGE",
+            link=user_link
+        )
+    except Exception as e:
+        print("Error sending user support status notification:", e)
+
     db.commit()
     db.refresh(ticket)
     return format_ticket_dict(ticket, include_messages=True)
@@ -285,12 +418,24 @@ def reply_ticket_user(
     )
     db.add(user_msg)
 
-    # If user replies to a resolved ticket, change status back to IN_PROGRESS or OPEN
-    if not is_admin and ticket.status == TicketStatus.RESOLVED:
-        ticket.status = TicketStatus.IN_PROGRESS
+    # If user replies to a resolved/closed ticket, change status back to IN_PROGRESS
+    if not is_admin:
+        if ticket.status in [TicketStatus.RESOLVED, TicketStatus.CLOSED, TicketStatus.WAITING_FOR_USER]:
+            ticket.status = TicketStatus.IN_PROGRESS
+
+        # Notify Admin of user follow-up
+        try:
+            NotificationService.notify_admins(
+                db=db,
+                title=f"New support reply on Ticket #{ticket.id}",
+                message=f"{current_user.name} replied to Ticket #{ticket.id} ('{ticket.subject}').",
+                type="SUPPORT_MESSAGE",
+                link="/admin/support"
+            )
+        except Exception as e:
+            print("Error notifying admin of user support reply:", e)
 
     ticket.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(ticket)
     return format_ticket_dict(ticket, include_messages=True)
-

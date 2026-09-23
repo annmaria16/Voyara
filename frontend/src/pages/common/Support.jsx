@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supportApi } from '../../api/support';
 import { StatusBadge } from '../../components/dashboard/StatusBadge';
+import { formatMessageTime } from '../../utils/dateUtils';
 import {
   MessageSquare,
   Send,
@@ -30,6 +31,9 @@ import {
 
 export const SupportPage = () => {
   const { user } = useAuth();
+  const isProvider = user?.role === 'PROVIDER';
+  const isCustomer = user?.role === 'CUSTOMER';
+
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -41,11 +45,39 @@ export const SupportPage = () => {
   const [replyingTicketId, setReplyingTicketId] = useState(null);
   const [replyError, setReplyError] = useState('');
 
+  // Role-Specific Categories
+  const travelerCategories = [
+    'Booking Problem',
+    'Cancellation / Refund',
+    'Payment Problem',
+    'Account Problem',
+    'Property Problem',
+    'Technical Issue',
+    'Report a Problem',
+    'General Question',
+  ];
+
+  const providerCategories = [
+    'Property Verification',
+    'Property Approval',
+    'Property Management',
+    'Booking Problems',
+    'Availability Problems',
+    'Experience Problems',
+    'Payment / Commission Questions',
+    'Account Problems',
+    'Technical Problems',
+    'General Voyara Questions',
+  ];
+
+  const availableCategories = isProvider ? providerCategories : travelerCategories;
+
   // Form State
   const [subject, setSubject] = useState('');
-  const [category, setCategory] = useState('Booking Inquiry');
+  const [category, setCategory] = useState(isProvider ? 'Property Management' : 'Booking Problem');
   const [message, setMessage] = useState('');
   const [bookingId, setBookingId] = useState('');
+  const [propertyId, setPropertyId] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -87,7 +119,8 @@ export const SupportPage = () => {
         subject: subject.trim(),
         category: category.trim(),
         message: message.trim(),
-        booking_id: bookingId ? parseInt(bookingId, 10) : null
+        booking_id: bookingId ? parseInt(bookingId, 10) : null,
+        property_id: propertyId ? parseInt(propertyId, 10) : null,
       };
 
       const newTicket = await supportApi.createTicket(payload);
@@ -95,6 +128,7 @@ export const SupportPage = () => {
       setSubject('');
       setMessage('');
       setBookingId('');
+      setPropertyId('');
       loadTickets();
       // Auto-expand new ticket
       if (newTicket?.id) {
@@ -156,11 +190,6 @@ export const SupportPage = () => {
         <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-radial from-orange-500/10 via-transparent to-transparent rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold shadow-xs backdrop-blur-md">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>24/7 VeriNova Concierge & Guest Protection</span>
-          </div>
-
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black font-serif tracking-tight text-white leading-tight">
             Voyara Help, Trust & <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-300 via-emerald-300 to-amber-200">Support</span>
           </h1>
@@ -248,27 +277,43 @@ export const SupportPage = () => {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full p-3 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] focus:ring-1 focus:ring-[#087F8C] transition-all cursor-pointer"
                   >
-                    <option value="Booking Inquiry">Booking Inquiry</option>
-                    <option value="Stay Experience">Stay Experience</option>
-                    <option value="Payment / Verification">Payment / Verification</option>
-                    <option value="Stay Partner Listing Help">Stay Partner Listing Help</option>
-                    <option value="General Inquiry">General Inquiry</option>
-                    <option value="Other">Other</option>
+                    {availableCategories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1.5">
-                  Booking Reference ID (Optional)
-                </label>
-                <input
-                  type="number"
-                  value={bookingId}
-                  onChange={(e) => setBookingId(e.target.value)}
-                  placeholder="e.g. 1024 (leave blank if general inquiry)"
-                  className="w-full p-3 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] focus:ring-1 focus:ring-[#087F8C] transition-all"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1.5">
+                    Booking ID (Optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={bookingId}
+                    onChange={(e) => setBookingId(e.target.value)}
+                    placeholder="e.g. 1024 (optional)"
+                    className="w-full p-3 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] focus:ring-1 focus:ring-[#087F8C] transition-all"
+                  />
+                </div>
+
+                {isProvider && (
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-200 mb-1.5">
+                      Property ID (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      value={propertyId}
+                      onChange={(e) => setPropertyId(e.target.value)}
+                      placeholder="e.g. 1 (optional)"
+                      className="w-full p-3 bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:border-[#087F8C] focus:ring-1 focus:ring-[#087F8C] transition-all"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
@@ -528,12 +573,7 @@ export const SupportPage = () => {
                             {t.messages && t.messages.length > 0 ? (
                               t.messages.map((m, idx) => {
                                 const isAdmin = m.sender_role === 'ADMIN';
-                                const time = m.created_at
-                                  ? new Date(m.created_at).toLocaleTimeString('en-IN', {
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })
-                                  : '';
+                                const time = formatMessageTime(m.created_at);
 
                                 return (
                                   <div

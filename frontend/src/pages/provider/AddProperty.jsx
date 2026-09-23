@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { providerApi } from '../../api/provider';
+import { legalDocumentsApi } from '../../api/legalDocuments';
 import { MultiImageUploadPicker } from '../../components/common/MultiImageUploadPicker';
 import { GoogleMapLocationPicker } from '../../components/common/GoogleMapLocationPicker';
 import { NumberStepperInput } from '../../components/common/NumberStepperInput';
@@ -27,7 +28,90 @@ import {
   IndianRupee,
   X,
   Flame,
+  FileText,
+  Lock,
+  FileCheck,
+  AlertTriangle,
+  RefreshCw,
+  Upload,
 } from 'lucide-react';
+
+const LEGAL_RELATIONSHIPS = [
+  {
+    relationship: 'PROPERTY_OWNER',
+    label: 'Property Owner',
+    description: 'I am the lawful owner of this property (individual or direct owner).',
+    allowed_document_types: [
+      { type: 'SALE_DEED', label: 'Registered Sale Deed', description: 'Conveys absolute ownership rights.' },
+      { type: 'PROPERTY_OWNERSHIP_DEED', label: 'Property Ownership Deed', description: 'Title deed or ownership proof.' },
+      { type: 'LAND_RECORD', label: 'Land / Property Record', description: 'Patta, Khata, or Revenue record.' },
+      { type: 'BUILDING_REGISTRATION', label: 'Property Registration Certificate', description: 'Municipal or statutory registration.' },
+      { type: 'PROPERTY_TAX_RECEIPT', label: 'Property Tax Record / Receipt', description: 'Recent property tax assessment receipt.' },
+      { type: 'OTHER_LEGAL_PROPERTY_DOCUMENT', label: 'Other Accepted Ownership Document', description: 'Other formal ownership evidence.' },
+    ],
+  },
+  {
+    relationship: 'LEASEHOLDER_TENANT',
+    label: 'Leaseholder / Tenant',
+    description: 'I hold a valid lease or tenancy agreement permitting commercial or hospitality use.',
+    allowed_document_types: [
+      { type: 'LEASE_AGREEMENT', label: 'Registered Lease Agreement', description: 'Formal registered lease deed.' },
+      { type: 'RENT_AGREEMENT', label: 'Registered Rent Agreement', description: 'Tenancy contract with occupancy terms.' },
+      { type: 'OTHER_LEGAL_PROPERTY_DOCUMENT', label: 'Valid Tenancy / Occupancy Agreement', description: 'Occupancy agreement.' },
+    ],
+  },
+  {
+    relationship: 'AUTHORIZED_PROPERTY_MANAGER',
+    label: 'Authorized Property Manager',
+    description: 'I am appointed or authorized by the owner to manage and list this property.',
+    allowed_document_types: [
+      { type: 'MANAGEMENT_AUTHORIZATION', label: 'Property Management Authorization', description: 'Formal management contract or POA.' },
+      { type: 'AUTHORIZATION_LETTER', label: 'Authorization Letter from Owner', description: 'Written owner authorization.' },
+      { type: 'OTHER_LEGAL_PROPERTY_DOCUMENT', label: 'Management Contract', description: 'Operational agreement.' },
+    ],
+  },
+  {
+    relationship: 'BUSINESS_ESTABLISHMENT_OPERATOR',
+    label: 'Business / Establishment Operator',
+    description: 'The property is operated by a registered commercial enterprise, hotel, or business.',
+    allowed_document_types: [
+      { type: 'BUSINESS_REGISTRATION', label: 'Business Registration / Establishment Certificate', description: 'GSTIN, MSME, or Trade License.' },
+      { type: 'BUILDING_REGISTRATION', label: 'Trade / Establishment Registration', description: 'Municipal establishment license.' },
+      { type: 'OTHER_LEGAL_PROPERTY_DOCUMENT', label: 'Business-related Property Authorization', description: 'Commercial authorization.' },
+    ],
+  },
+  {
+    relationship: 'PARTNERSHIP_CO_OWNER',
+    label: 'Partnership / Co-owner',
+    description: 'The property is owned by a partnership firm or jointly with co-owners.',
+    allowed_document_types: [
+      { type: 'PARTNERSHIP_DEED', label: 'Partnership Deed', description: 'Registered Deed of Partnership.' },
+      { type: 'PROPERTY_OWNERSHIP_DEED', label: 'Registered Partnership Document / Co-ownership', description: 'Co-ownership title deed.' },
+      { type: 'AUTHORIZATION_LETTER', label: 'Authorization from Co-owner(s)', description: 'Co-owner consent letter.' },
+      { type: 'OTHER_LEGAL_PROPERTY_DOCUMENT', label: 'Other Accepted Partnership Document', description: 'Partnership resolution.' },
+    ],
+  },
+  {
+    relationship: 'AUTHORIZED_REPRESENTATIVE',
+    label: 'Authorized Representative',
+    description: 'I have power of attorney or specific written authorization to represent the owner.',
+    allowed_document_types: [
+      { type: 'AUTHORIZATION_LETTER', label: 'Authorization Letter', description: 'Owner letter of authorization.' },
+      { type: 'MANAGEMENT_AUTHORIZATION', label: 'Power of Attorney / Property Authorization', description: 'Formal power of attorney.' },
+      { type: 'OTHER_LEGAL_PROPERTY_DOCUMENT', label: 'Owner Authorization Document', description: 'Representative consent.' },
+    ],
+  },
+  {
+    relationship: 'OTHER_LEGAL_AUTHORITY',
+    label: 'Other Legal Authority',
+    description: 'Other legally recognized authority or statutory right to operate the property.',
+    allowed_document_types: [
+      { type: 'OTHER_LEGAL_PROPERTY_DOCUMENT', label: 'Other Legal Property Document', description: 'Accepted statutory document.' },
+      { type: 'AUTHORIZATION_LETTER', label: 'Authorization Letter', description: 'Supporting authority letter.' },
+      { type: 'PROPERTY_OWNERSHIP_DEED', label: 'Supporting Property Deed', description: 'Supporting deed evidence.' },
+    ],
+  },
+];
 
 const ROOM_TYPE_OPTIONS = [
   'Deluxe Room',
@@ -132,6 +216,106 @@ export const AddProperty = () => {
 
   // 7. Property Home Rules State
   const [homeRules, setHomeRules] = useState(DEFAULT_HOME_RULES);
+
+  // 8. Property Legal Verification State (Mandatory)
+  const [legalRelationship, setLegalRelationship] = useState('PROPERTY_OWNER');
+  const [selectedDocType, setSelectedDocType] = useState('PROPERTY_OWNERSHIP_DEED');
+  const [legalDocFile, setLegalDocFile] = useState(null);
+  const [validityFrom, setValidityFrom] = useState('');
+  const [validityUntil, setValidityUntil] = useState('');
+  const [isManualDate, setIsManualDate] = useState(false);
+  const [legalValLoading, setLegalValLoading] = useState(false);
+  const [legalValResult, setLegalValResult] = useState(null);
+  const [legalValError, setLegalValError] = useState('');
+  const legalFileInputRef = useRef(null);
+
+  const currentRelationshipConfig = useMemo(() => {
+    return LEGAL_RELATIONSHIPS.find((r) => r.relationship === legalRelationship) || LEGAL_RELATIONSHIPS[0];
+  }, [legalRelationship]);
+
+  const triggerLegalValidation = async (file, rel, docType) => {
+    if (!file) return;
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setLegalValError('Invalid file format. Legal verification documents must be uploaded ONLY as PDF.');
+      setLegalValResult(null);
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setLegalValError('Document file size exceeds the 10 MB maximum limit.');
+      setLegalValResult(null);
+      return;
+    }
+
+    setLegalValLoading(true);
+    setLegalValError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('legal_relationship', rel);
+      formData.append('document_type', docType);
+      if (name) formData.append('property_name', name);
+      if (city) formData.append('city', city);
+      if (state) formData.append('state', state);
+      if (pincode) formData.append('pincode', pincode);
+
+      const res = await legalDocumentsApi.validateDocumentContent(formData);
+      setLegalValResult(res);
+
+      if (res.content_status !== 'PASSED' || res.relationship_consistency !== 'PASSED' || res.property_consistency === 'FAILED') {
+        setLegalValError(res.message || 'Document validation failed. Please check the requirements.');
+      } else {
+        setLegalValError('');
+        if (res.extracted_data?.effective_date && !validityFrom) {
+          setValidityFrom(res.extracted_data.effective_date);
+        }
+        if (res.extracted_data?.expiry_date && !validityUntil) {
+          setValidityUntil(res.extracted_data.expiry_date);
+        }
+      }
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Failed to validate document.';
+      setLegalValError(msg);
+      setLegalValResult(null);
+    } finally {
+      setLegalValLoading(false);
+    }
+  };
+
+  const handleRelationshipChange = (newRel) => {
+    setLegalRelationship(newRel);
+    const config = LEGAL_RELATIONSHIPS.find((r) => r.relationship === newRel) || LEGAL_RELATIONSHIPS[0];
+    const newDefaultType = config.allowed_document_types[0]?.type || 'PROPERTY_OWNERSHIP_DEED';
+    setSelectedDocType(newDefaultType);
+    if (legalDocFile) {
+      triggerLegalValidation(legalDocFile, newRel, newDefaultType);
+    }
+  };
+
+  const handleDocTypeChange = (newDocType) => {
+    setSelectedDocType(newDocType);
+    if (legalDocFile) {
+      triggerLegalValidation(legalDocFile, legalRelationship, newDocType);
+    }
+  };
+
+  const handleLegalFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLegalDocFile(file);
+    triggerLegalValidation(file, legalRelationship, selectedDocType);
+  };
+
+  const handleClearLegalDocFile = () => {
+    setLegalDocFile(null);
+    setLegalValResult(null);
+    setLegalValError('');
+    if (legalFileInputRef.current) {
+      legalFileInputRef.current.value = '';
+    }
+  };
 
   // 8. Submission & UI States
   const [loading, setLoading] = useState(false);
@@ -420,6 +604,13 @@ export const AddProperty = () => {
       });
     }
 
+    // 14. Mandatory Property Legal Verification Document
+    if (!legalDocFile) {
+      errs.legalDoc = 'A legal property verification document (PDF) is required.';
+    } else if (!legalValResult || legalValResult.content_status !== 'PASSED' || legalValResult.relationship_consistency !== 'PASSED' || legalValResult.property_consistency === 'FAILED') {
+      errs.legalDoc = legalValError || 'The uploaded legal document did not pass content & relationship verification.';
+    }
+
     return errs;
   }, [
     name,
@@ -436,6 +627,9 @@ export const AddProperty = () => {
     contactEmail,
     images,
     rooms,
+    legalDocFile,
+    legalValResult,
+    legalValError,
   ]);
 
   const isFormValid = Object.keys(errors).length === 0;
@@ -714,8 +908,22 @@ export const AddProperty = () => {
           })),
       };
 
-      await providerApi.createProperty(payload);
-      setSuccessMessage('Property successfully created! Redirecting to My Places...');
+      const createdProp = await providerApi.createProperty(payload);
+
+      // Upload the mandatory validated legal document
+      if (legalDocFile && createdProp && createdProp.id) {
+        const docFormData = new FormData();
+        docFormData.append('file', legalDocFile);
+        docFormData.append('legal_relationship', legalRelationship);
+        docFormData.append('document_type', selectedDocType);
+        if (validityUntil) {
+          docFormData.append('manual_expiry_date', validityUntil);
+          docFormData.append('is_manual_date', isManualDate ? 'true' : 'false');
+        }
+        await legalDocumentsApi.uploadDocument(createdProp.id, docFormData);
+      }
+
+      setSuccessMessage('Property & Legal Verification submitted successfully! Redirecting to My Places...');
       setTimeout(() => {
         navigate('/provider/properties');
       }, 1500);
@@ -742,10 +950,7 @@ export const AddProperty = () => {
       <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-10 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-8">
         {/* Page Header */}
         <div>
-          <span className="text-xs uppercase font-bold tracking-widest text-orange-500">
-            List Your Property
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#091B29] dark:text-white mt-1">
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#091B29] dark:text-white">
             Add New Property
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
@@ -806,11 +1011,10 @@ export const AddProperty = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onBlur={() => handleBlur('name')}
-                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden transition-colors ${
-                    (touched.name || submitAttempted) && errors.name
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden transition-colors ${(touched.name || submitAttempted) && errors.name
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                  }`}
+                    }`}
                 />
                 {(touched.name || submitAttempted) && errors.name && (
                   <p className="text-[11px] text-rose-500 font-semibold mt-1 flex items-center space-x-1">
@@ -855,11 +1059,10 @@ export const AddProperty = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 onBlur={() => handleBlur('description')}
-                className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden transition-colors ${
-                  (touched.description || submitAttempted) && errors.description
+                className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden transition-colors ${(touched.description || submitAttempted) && errors.description
                     ? 'border-rose-500 bg-rose-50/20'
                     : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                }`}
+                  }`}
               />
               {(touched.description || submitAttempted) && errors.description && (
                 <p className="text-[11px] text-rose-500 font-semibold mt-1 flex items-center space-x-1">
@@ -895,13 +1098,12 @@ export const AddProperty = () => {
                     value={pincode}
                     onChange={(e) => handlePincodeChange(e.target.value)}
                     onBlur={() => handleBlur('pincode')}
-                    className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-mono font-bold text-slate-900 dark:text-white focus:outline-hidden ${
-                      (touched.pincode || submitAttempted) && errors.pincode
+                    className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-mono font-bold text-slate-900 dark:text-white focus:outline-hidden ${(touched.pincode || submitAttempted) && errors.pincode
                         ? 'border-rose-500 bg-rose-50/20'
                         : pincodeVerified
-                        ? 'border-emerald-500 bg-emerald-50/10'
-                        : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                    }`}
+                          ? 'border-emerald-500 bg-emerald-50/10'
+                          : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
+                      }`}
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-1">
                     {pincodeLoading && <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />}
@@ -938,11 +1140,10 @@ export const AddProperty = () => {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   onBlur={() => handleBlur('city')}
-                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden ${
-                    (touched.city || submitAttempted) && errors.city
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden ${(touched.city || submitAttempted) && errors.city
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                  }`}
+                    }`}
                 />
                 {(touched.city || submitAttempted) && errors.city && (
                   <p className="text-[11px] text-rose-500 font-semibold mt-1">
@@ -963,11 +1164,10 @@ export const AddProperty = () => {
                   value={state}
                   onChange={(e) => setState(e.target.value)}
                   onBlur={() => handleBlur('state')}
-                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden ${
-                    (touched.state || submitAttempted) && errors.state
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden ${(touched.state || submitAttempted) && errors.state
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                  }`}
+                    }`}
                 />
                 {(touched.state || submitAttempted) && errors.state && (
                   <p className="text-[11px] text-rose-500 font-semibold mt-1">
@@ -991,11 +1191,10 @@ export const AddProperty = () => {
                         key={poName}
                         type="button"
                         onClick={() => handleSelectPostOffice(poName)}
-                        className={`px-3 py-1 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
-                          isSelected
+                        className={`px-3 py-1 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${isSelected
                             ? 'bg-orange-500 text-white border-orange-500 font-bold'
                             : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-orange-500 text-slate-700 dark:text-slate-300'
-                        }`}
+                          }`}
                       >
                         <MapPin className="w-3.5 h-3.5" />
                         <span>{poName}</span>
@@ -1020,11 +1219,10 @@ export const AddProperty = () => {
                   value={address}
                   onChange={(e) => handleStreetAddressChange(e.target.value)}
                   onBlur={() => handleBlur('address')}
-                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${
-                    (touched.address || submitAttempted) && errors.address
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${(touched.address || submitAttempted) && errors.address
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                  }`}
+                    }`}
                 />
 
                 {(touched.address || submitAttempted) && errors.address && (
@@ -1101,11 +1299,10 @@ export const AddProperty = () => {
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     onBlur={() => handleBlur('contactPhone')}
-                    className={`w-full pl-12 pr-3 py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:outline-hidden transition-colors ${
-                      (touched.contactPhone || submitAttempted) && errors.contactPhone
+                    className={`w-full pl-12 pr-3 py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:outline-hidden transition-colors ${(touched.contactPhone || submitAttempted) && errors.contactPhone
                         ? 'border-rose-500 bg-rose-50/20'
                         : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                    }`}
+                      }`}
                   />
                 </div>
                 {(touched.contactPhone || submitAttempted) && errors.contactPhone && (
@@ -1128,11 +1325,10 @@ export const AddProperty = () => {
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   onBlur={() => handleBlur('contactEmail')}
-                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${
-                    (touched.contactEmail || submitAttempted) && errors.contactEmail
+                  className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${(touched.contactEmail || submitAttempted) && errors.contactEmail
                       ? 'border-rose-500 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                  }`}
+                    }`}
                 />
                 {(touched.contactEmail || submitAttempted) && errors.contactEmail && (
                   <p className="text-[11px] text-rose-500 font-semibold mt-1">
@@ -1203,11 +1399,10 @@ export const AddProperty = () => {
                       key={opt.pct}
                       type="button"
                       onClick={() => setCancellationRefundPercentage(opt.pct)}
-                      className={`p-3 rounded-2xl border text-center transition-all cursor-pointer space-y-0.5 ${
-                        isSelected
+                      className={`p-3 rounded-2xl border text-center transition-all cursor-pointer space-y-0.5 ${isSelected
                           ? 'bg-[#087F8C] text-white border-[#087F8C] shadow-sm font-bold'
                           : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-[#087F8C]'
-                      }`}
+                        }`}
                     >
                       <span className="block text-xs font-bold">{opt.label}</span>
                       <span className={`block text-[10px] ${isSelected ? 'text-teal-100' : 'text-slate-400'}`}>
@@ -1224,7 +1419,7 @@ export const AddProperty = () => {
           <div className="space-y-4">
             <div className="border-b border-slate-200 dark:border-slate-800 pb-2.5 flex items-center justify-between">
               <h2 className="text-base font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-orange-500" />
+                <Layers className="w-4 h-4 text-orange-500" />
                 <span>Property Amenities</span>
               </h2>
               <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">
@@ -1296,11 +1491,10 @@ export const AddProperty = () => {
                       key={am}
                       type="button"
                       onClick={() => handleTogglePropAmenity(am)}
-                      className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
-                        isChecked
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${isChecked
                           ? 'bg-orange-500 text-white border-orange-500 shadow-xs font-bold'
                           : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-orange-500 hover:text-orange-600'
-                      }`}
+                        }`}
                     >
                       <span>{am}</span>
                       {isChecked ? (
@@ -1429,11 +1623,10 @@ export const AddProperty = () => {
                           placeholder="e.g. Deluxe Valley Room"
                           value={room.name}
                           onChange={(e) => handleUpdateRoom(idx, 'name', e.target.value)}
-                          className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden ${
-                            submitAttempted && errors[`room_${idx}_name`]
+                          className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-medium text-slate-900 dark:text-white focus:outline-hidden ${submitAttempted && errors[`room_${idx}_name`]
                               ? 'border-rose-500 bg-rose-50/20'
                               : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                          }`}
+                            }`}
                         />
                         {submitAttempted && errors[`room_${idx}_name`] && (
                           <p className="text-[11px] text-rose-500 font-semibold mt-1">
@@ -1454,11 +1647,10 @@ export const AddProperty = () => {
                         placeholder="Describe room features, view, comfort, bed configuration..."
                         value={room.description}
                         onChange={(e) => handleUpdateRoom(idx, 'description', e.target.value)}
-                        className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${
-                          submitAttempted && errors[`room_${idx}_desc`]
+                        className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white focus:outline-hidden ${submitAttempted && errors[`room_${idx}_desc`]
                             ? 'border-rose-500 bg-rose-50/20'
                             : 'border-slate-200 dark:border-slate-800 focus:border-orange-500'
-                        }`}
+                          }`}
                       />
                       {submitAttempted && errors[`room_${idx}_desc`] && (
                         <p className="text-[11px] text-rose-500 font-semibold mt-0.5">
@@ -1598,11 +1790,10 @@ export const AddProperty = () => {
                               key={am}
                               type="button"
                               onClick={() => handleToggleRoomAmenity(idx, am)}
-                              className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center space-x-1 ${
-                                isChecked
+                              className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer flex items-center space-x-1 ${isChecked
                                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs font-bold'
                                   : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500'
-                              }`}
+                                }`}
                             >
                               <span>{am}</span>
                               {isChecked ? (
@@ -1820,7 +2011,222 @@ export const AddProperty = () => {
             <PropertyHomeRulesForm rules={homeRules} onChange={setHomeRules} />
           </div>
 
-          {/* SECTION 8: FINAL SUBMIT */}
+          {/* SECTION 8: PROPERTY LEGAL VERIFICATION (MANDATORY) */}
+          <div id="legal-verification-section" className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-6 scroll-mt-24">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center font-bold">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                    <span>Property Legal Verification</span>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 font-bold border border-rose-500/30">
+                      Required
+                    </span>
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl font-light leading-relaxed">
+                  Upload a valid legal document that establishes your ownership, lease, management, partnership, or authorization to operate this property. The document will be securely reviewed by the Voyara Control Center.
+                </p>
+              </div>
+
+              <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-xs font-mono font-semibold border border-slate-200/60 dark:border-slate-700 shrink-0">
+                <Lock className="w-3.5 h-3.5 text-orange-500" />
+                <span>Private Encrypted Storage</span>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-3xl bg-[#FFFDF7] dark:bg-[#091B29] border border-amber-200/80 dark:border-amber-900/40 space-y-5 shadow-xs">
+              {/* Question 1: What is your legal relationship? */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-900 dark:text-white">
+                  What is your legal relationship to this property? *
+                </label>
+                <select
+                  value={legalRelationship}
+                  onChange={(e) => handleRelationshipChange(e.target.value)}
+                  className="w-full p-3 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500 shadow-2xs"
+                >
+                  {LEGAL_RELATIONSHIPS.map((rel) => (
+                    <option key={rel.relationship} value={rel.relationship}>
+                      {rel.label} — {rel.description}
+                    </option>
+                  ))}
+                </select>
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] leading-relaxed">
+                  <strong>Relationship Note:</strong> {currentRelationshipConfig.description}
+                </div>
+              </div>
+
+              {/* Question 2: Document Type Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-900 dark:text-white">
+                  Legal Document Type (Relevant to {currentRelationshipConfig.label}) *
+                </label>
+                <select
+                  value={selectedDocType}
+                  onChange={(e) => handleDocTypeChange(e.target.value)}
+                  className="w-full p-3 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500 shadow-2xs"
+                >
+                  {currentRelationshipConfig.allowed_document_types.map((docT) => (
+                    <option key={docT.type} value={docT.type}>
+                      {docT.label} ({docT.description})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Question 3: PDF File Upload */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-900 dark:text-white">
+                  Upload Document (PDF Only, Max 10 MB) *
+                </label>
+                <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-4 bg-white/70 dark:bg-slate-900/60 hover:border-orange-500 transition-all">
+                  <input
+                    ref={legalFileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={handleLegalFileSelect}
+                    className="w-full px-2 py-1 text-xs text-slate-600 dark:text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100 cursor-pointer"
+                  />
+                  {legalDocFile && (
+                    <div className="mt-3 flex items-center justify-between p-3 bg-white dark:bg-[#0F273D] rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                      <div className="flex items-center space-x-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                          <FileCheck className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {legalDocFile.name}
+                          </p>
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            {(legalDocFile.size / 1024).toFixed(1)} KB • PDF Document
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearLegalDocFile}
+                        className="px-2.5 py-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ml-2 border border-rose-200 dark:border-rose-900/50"
+                        title="Remove / Delete selected file"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="text-xs font-bold">Remove</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Question 4: Validity Dates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-amber-200/40 dark:border-slate-800">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Document Valid From (Effective Date)
+                  </label>
+                  <input
+                    type="date"
+                    value={validityFrom}
+                    onChange={(e) => {
+                      setValidityFrom(e.target.value);
+                      setIsManualDate(true);
+                    }}
+                    className="w-full p-2.5 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Document Valid Until (Expiry Date if Applicable)
+                  </label>
+                  <input
+                    type="date"
+                    value={validityUntil}
+                    onChange={(e) => {
+                      setValidityUntil(e.target.value);
+                      setIsManualDate(true);
+                    }}
+                    className="w-full p-2.5 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden"
+                  />
+                  {isManualDate && (
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                      * Date entered by Stay Partner — requires Admin confirmation.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Validation Status & Live Progress Card */}
+              {legalValLoading && (
+                <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-800 dark:text-orange-300 text-xs flex items-center space-x-3 animate-pulse">
+                  <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                  <span>Analyzing document text streams & verifying legal relationship evidence...</span>
+                </div>
+              )}
+
+              {legalValError && !legalValLoading && (
+                <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900 text-rose-800 dark:text-rose-200 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 font-bold text-rose-700 dark:text-rose-300">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>Document Validation Failed</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearLegalDocFile}
+                      className="text-[11px] text-rose-600 hover:text-rose-800 dark:text-rose-400 font-bold underline flex items-center space-x-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Clear & Upload Different File</span>
+                    </button>
+                  </div>
+                  <p className="pl-6">{legalValError}</p>
+                </div>
+              )}
+
+              {legalValResult && legalValResult.content_status === 'PASSED' && !legalValLoading && (
+                <div className="p-4 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 font-bold text-emerald-800 dark:text-emerald-300">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Document Ready for Admin Review</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30">
+                      Score: {Math.round((legalValResult.validation_score || 1.0) * 100)}%
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-2 border-t border-emerald-200 dark:border-emerald-800/80">
+                    <div className="flex items-center space-x-1.5 text-emerald-700 dark:text-emerald-300">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Document analyzed ({legalDocFile?.name})</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5 text-emerald-700 dark:text-emerald-300">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Document type matched ({selectedDocType.replace(/_/g, ' ')})</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5 text-emerald-700 dark:text-emerald-300">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Property information consistent</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5 text-emerald-700 dark:text-emerald-300">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Ownership relationship consistent ({currentRelationshipConfig?.label || legalRelationship.replace(/_/g, ' ')})</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-[11px] text-slate-500 dark:text-slate-400 font-light border-t border-amber-200/40 dark:border-slate-800/80 pt-3">
+                <span>✓ Accepted format: <strong>PDF only</strong></span>
+                <span>✓ Maximum size: <strong>10 MB</strong></span>
+                <span>✓ Private storage: <strong>Never exposed publicly</strong></span>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 9: FINAL SUBMIT */}
           <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
             <button
               type="submit"

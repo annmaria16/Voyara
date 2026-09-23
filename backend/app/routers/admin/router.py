@@ -16,8 +16,23 @@ from app.routers.admin.properties import router as properties_router
 from app.routers.admin.bookings import router as bookings_router
 from app.routers.admin.verification import router as verification_router
 from app.routers.admin.verinova import router as verinova_router
+from app.routers.admin.legal_documents import router as legal_documents_router
+from app.services.search.admin_search_service import AdminSearchService
+from fastapi import Query
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+
+@router.get("/search")
+def search_admin_data(
+    q: str = Query("", description="Search term across users, properties, and bookings"),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Search platform management data for the Voyara Control Center.
+    """
+    return AdminSearchService.search(db=db, query=q)
 
 
 @router.get("/dashboard")
@@ -156,4 +171,5 @@ router.include_router(properties_router)
 router.include_router(bookings_router)
 router.include_router(verification_router)
 router.include_router(verinova_router)
+router.include_router(legal_documents_router)
 

@@ -44,10 +44,6 @@ export const ExperienceDetails = () => {
         <div className="absolute right-1/4 -top-20 w-60 h-60 bg-orange-500/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-3xl space-y-4 relative z-10">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#087F8C]/30 text-xs font-bold text-[#27B7A8] border border-teal-400/30 backdrop-blur-md">
-            <Sparkles className="w-3.5 h-3.5 text-[#F6C945]" />
-            <span>Stay Partner-Led Adventures & Authentic Moments</span>
-          </div>
           <h1 className="text-3xl sm:text-5xl font-black font-serif text-white tracking-tight leading-tight">
             Voyara Experiences & Events
           </h1>
@@ -69,7 +65,7 @@ export const ExperienceDetails = () => {
                 : 'bg-white dark:bg-[#0F273D] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-xs'
             }`}
           >
-            {cat === 'All' ? '✨ All Activities' : cat}
+            {cat === 'All' ? 'All Activities' : cat}
           </button>
         ))}
       </div>

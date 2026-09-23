@@ -7,21 +7,25 @@ export const CustomerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
+  const isPlannerPage = location.pathname.includes('trip-planner') || location.pathname.includes('saved-trips');
+
   const getPageTitle = (pathname) => {
     if (pathname === '/customer') return 'TRAVELER DASHBOARD';
+    if (pathname.includes('trip-planner') || pathname.includes('saved-trips')) return 'PLAN YOUR JOURNEY';
     if (pathname.startsWith('/search')) return 'EXPLORE STAYS';
     if (pathname.startsWith('/properties')) return 'STAY DETAILS';
     if (pathname.startsWith('/experiences')) return 'EXPERIENCES & ADVENTURES';
     if (pathname.startsWith('/booking/confirmation')) return 'JOURNEY CONFIRMATION';
     if (pathname.startsWith('/booking')) return 'SECURE CHECKOUT';
     if (pathname.startsWith('/customer/bookings')) return 'MY JOURNEYS';
+    if (pathname.startsWith('/customer/messages')) return 'MESSAGES';
     if (pathname.startsWith('/customer/profile')) return 'TRAVELER PROFILE';
     if (pathname.startsWith('/customer/support')) return 'HELP & SUPPORT';
     return 'TRAVELER DASHBOARD';
   };
 
   return (
-    <div className="relative min-h-screen flex bg-[#FFFDF7] dark:bg-[#091B29] text-[#17324D] dark:text-slate-100 font-sans antialiased selection:bg-[#087F8C] selection:text-white transition-colors duration-200 overflow-x-hidden">
+    <div className={`relative ${isPlannerPage ? 'h-screen overflow-hidden' : 'min-h-screen'} flex bg-[#FFFDF7] dark:bg-[#091B29] text-[#17324D] dark:text-slate-100 font-sans antialiased selection:bg-[#087F8C] selection:text-white transition-colors duration-200`}>
       {/* 1. Subtle Atmosphere & Ambient Glow Layer */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#087F8C]/10 dark:bg-[#087F8C]/15 rounded-full filter blur-3xl pointer-events-none" />
@@ -37,14 +41,14 @@ export const CustomerLayout = () => {
       />
 
       {/* 3. Main Content Area */}
-      <div className="relative z-10 flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className={`relative z-10 flex-1 flex flex-col min-w-0 ${isPlannerPage ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
         <DashboardHeader
           title={getPageTitle(location.pathname)}
           onMenuClick={() => setSidebarOpen(true)}
           placeholder="Search destinations, stays, experiences..."
         />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-8">
+        <main className={`flex-1 ${isPlannerPage ? 'p-2 sm:p-3 lg:p-4 max-w-full w-full mx-auto flex flex-col min-h-0 overflow-hidden' : 'p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-8'}`}>
           <Outlet />
         </main>
       </div>

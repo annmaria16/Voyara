@@ -23,7 +23,11 @@ import {
   Sparkles,
   ArrowUpDown,
   Tag,
-  LifeBuoy
+  LifeBuoy,
+  Home,
+  CheckCircle,
+  AlertTriangle,
+  UserCheck
 } from 'lucide-react';
 
 export const AdminSupport = () => {
@@ -34,6 +38,7 @@ export const AdminSupport = () => {
 
   // Filters State
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [roleFilter, setRoleFilter] = useState('ALL'); // 'ALL' | 'CUSTOMER' | 'PROVIDER'
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateSort, setDateSort] = useState('desc');
@@ -51,6 +56,9 @@ export const AdminSupport = () => {
     'Stay Experience',
     'Payment / Verification',
     'Stay Partner Listing Help',
+    'Property Management',
+    'Payout & Commission',
+    'Guest Communication',
     'General Inquiry',
     'Other'
   ];
@@ -60,6 +68,7 @@ export const AdminSupport = () => {
     try {
       const data = await supportApi.getAdminTickets({
         status: statusFilter,
+        role: roleFilter,
         category: categoryFilter,
         search: searchQuery,
         date_sort: dateSort
@@ -74,7 +83,7 @@ export const AdminSupport = () => {
 
   useEffect(() => {
     fetchTickets();
-  }, [statusFilter, categoryFilter, dateSort]);
+  }, [statusFilter, roleFilter, categoryFilter, dateSort]);
 
   // Handle Search Debounce / Enter
   const handleSearchSubmit = (e) => {
@@ -138,14 +147,11 @@ export const AdminSupport = () => {
   const handleStatusChange = async (newStatus) => {
     if (!selectedTicket) return;
     try {
-      const updated = await supportApi.replyAdminTicket(selectedTicket.id, {
-        admin_response: selectedTicket.admin_response || 'Status updated by Admin.',
-        status: newStatus
-      });
+      const updated = await supportApi.updateTicketStatus(selectedTicket.id, newStatus);
       setSelectedTicket(updated);
       fetchTickets();
     } catch (err) {
-      alert('Failed to update status: ' + err.message);
+      alert('Failed to update status: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -154,8 +160,9 @@ export const AdminSupport = () => {
     const total = tickets.length;
     const newCount = tickets.filter(t => t.status === 'OPEN').length;
     const inProgressCount = tickets.filter(t => t.status === 'IN_PROGRESS').length;
-    const resolvedCount = tickets.filter(t => t.status === 'RESOLVED').length;
-    return { total, newCount, inProgressCount, resolvedCount };
+    const waitingCount = tickets.filter(t => t.status === 'WAITING_FOR_USER').length;
+    const resolvedCount = tickets.filter(t => t.status === 'RESOLVED' || t.status === 'CLOSED').length;
+    return { total, newCount, inProgressCount, waitingCount, resolvedCount };
   }, [tickets]);
 
   return (
@@ -163,23 +170,19 @@ export const AdminSupport = () => {
       {/* 1. Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center space-x-1.5 px-3 py-0.5 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-[11px] font-bold mb-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
-            <span>Admin Help & Support Request Console</span>
-          </div>
           <h1 className="text-xl sm:text-2xl font-black font-serif text-[#091B29] dark:text-white tracking-tight">
-            Help & Support Requests
+            Help & Support Center
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Filter, inspect user details, and reply to traveler & stay partner inquiries directly in real-time.
+            Manage inquiries from Travelers and Stay Partners with real-time updates, status tracking, and linked booking context.
           </p>
         </div>
 
-        {/* Dedicated Support Email Badge */}
+        {/* Dedicated Support Email Badge & Refresh */}
         <div className="flex items-center gap-3">
           <div className="px-3.5 py-2 rounded-2xl bg-orange-500/10 dark:bg-orange-500/15 border border-orange-500/30 text-xs font-bold text-orange-600 dark:text-orange-400 flex items-center space-x-2">
             <Mail className="w-4 h-4 text-orange-500" />
-            <span>Help & Support: <strong>adminvoyara@gmail.com</strong></span>
+            <span>Support: <strong>adminvoyara@gmail.com</strong></span>
           </div>
           <button
             type="button"
@@ -192,45 +195,86 @@ export const AdminSupport = () => {
         </div>
       </div>
 
-      {/* 2. Metrics Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+      {/* 2. Role Filter Tabs */}
+      <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 flex items-center gap-1">
+          <UserCheck className="w-3.5 h-3.5 text-[#087F8C]" />
+          Audience:
+        </span>
+        <button
+          type="button"
+          onClick={() => setRoleFilter('ALL')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            roleFilter === 'ALL'
+              ? 'bg-[#087F8C] text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          All Users
+        </button>
+        <button
+          type="button"
+          onClick={() => setRoleFilter('CUSTOMER')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+            roleFilter === 'CUSTOMER'
+              ? 'bg-orange-500 text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <span>Travelers</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setRoleFilter('PROVIDER')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+            roleFilter === 'PROVIDER'
+              ? 'bg-teal-600 text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <span>Stay Partners</span>
+        </button>
+      </div>
+
+      {/* 3. Metrics Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
         <button
           onClick={() => setStatusFilter('ALL')}
-          className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
             statusFilter === 'ALL'
               ? 'bg-white dark:bg-[#0F273D] border-[#087F8C] shadow-md ring-2 ring-[#087F8C]/20'
               : 'bg-white dark:bg-[#0F273D] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total Requests</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total</span>
             <MessageSquare className="w-4 h-4 text-slate-400" />
           </div>
-          <p className="text-xl sm:text-2xl font-black font-serif text-[#091B29] dark:text-white mt-1">
+          <p className="text-lg sm:text-xl font-black font-serif text-[#091B29] dark:text-white mt-1">
             {metrics.total}
           </p>
         </button>
 
         <button
           onClick={() => setStatusFilter('OPEN')}
-          className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
             statusFilter === 'OPEN'
               ? 'bg-white dark:bg-[#0F273D] border-amber-500 shadow-md ring-2 ring-amber-500/20'
               : 'bg-white dark:bg-[#0F273D] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-600 dark:text-amber-400">New / Open</span>
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Open</span>
             <Clock className="w-4 h-4 text-amber-500" />
           </div>
-          <p className="text-xl sm:text-2xl font-black font-serif text-amber-600 dark:text-amber-400 mt-1">
+          <p className="text-lg sm:text-xl font-black font-serif text-amber-600 dark:text-amber-400 mt-1">
             {metrics.newCount}
           </p>
         </button>
 
         <button
           onClick={() => setStatusFilter('IN_PROGRESS')}
-          className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
             statusFilter === 'IN_PROGRESS'
               ? 'bg-white dark:bg-[#0F273D] border-teal-500 shadow-md ring-2 ring-teal-500/20'
               : 'bg-white dark:bg-[#0F273D] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
@@ -240,30 +284,47 @@ export const AdminSupport = () => {
             <span className="text-xs font-bold text-teal-600 dark:text-teal-400">In Progress</span>
             <RefreshCw className="w-4 h-4 text-teal-500" />
           </div>
-          <p className="text-xl sm:text-2xl font-black font-serif text-teal-600 dark:text-teal-400 mt-1">
+          <p className="text-lg sm:text-xl font-black font-serif text-teal-600 dark:text-teal-400 mt-1">
             {metrics.inProgressCount}
           </p>
         </button>
 
         <button
+          onClick={() => setStatusFilter('WAITING_FOR_USER')}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            statusFilter === 'WAITING_FOR_USER'
+              ? 'bg-white dark:bg-[#0F273D] border-indigo-500 shadow-md ring-2 ring-indigo-500/20'
+              : 'bg-white dark:bg-[#0F273D] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">Waiting User</span>
+            <AlertCircle className="w-4 h-4 text-indigo-500" />
+          </div>
+          <p className="text-lg sm:text-xl font-black font-serif text-indigo-600 dark:text-indigo-400 mt-1">
+            {metrics.waitingCount}
+          </p>
+        </button>
+
+        <button
           onClick={() => setStatusFilter('RESOLVED')}
-          className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-            statusFilter === 'RESOLVED'
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            statusFilter === 'RESOLVED' || statusFilter === 'CLOSED'
               ? 'bg-white dark:bg-[#0F273D] border-emerald-500 shadow-md ring-2 ring-emerald-500/20'
               : 'bg-white dark:bg-[#0F273D] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Resolved</span>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Resolved / Closed</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
-          <p className="text-xl sm:text-2xl font-black font-serif text-emerald-600 dark:text-emerald-400 mt-1">
+          <p className="text-lg sm:text-xl font-black font-serif text-emerald-600 dark:text-emerald-400 mt-1">
             {metrics.resolvedCount}
           </p>
         </button>
       </div>
 
-      {/* 3. Filter Bar (Status, Category, Search, Date Sort) */}
+      {/* 4. Filter Bar (Status, Category, Search, Date Sort) */}
       <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Search bar */}
@@ -273,7 +334,7 @@ export const AdminSupport = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by user name, email, subject, or message..."
+              placeholder="Search by ticket ID, user name, email, subject, or message..."
               className="w-full pl-10 pr-24 py-2.5 bg-slate-50 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-[#087F8C]"
             />
             <button
@@ -286,6 +347,23 @@ export const AdminSupport = () => {
 
           {/* Filters Row */}
           <div className="flex flex-wrap items-center gap-2.5">
+            {/* Status Select */}
+            <div className="flex items-center space-x-1.5 bg-slate-50 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs">
+              <span className="text-slate-400 font-medium">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
+              >
+                <option value="ALL" className="bg-white dark:bg-slate-900">All Statuses</option>
+                <option value="OPEN" className="bg-white dark:bg-slate-900">Open</option>
+                <option value="IN_PROGRESS" className="bg-white dark:bg-slate-900">In Progress</option>
+                <option value="WAITING_FOR_USER" className="bg-white dark:bg-slate-900">Waiting for User</option>
+                <option value="RESOLVED" className="bg-white dark:bg-slate-900">Resolved</option>
+                <option value="CLOSED" className="bg-white dark:bg-slate-900">Closed</option>
+              </select>
+            </div>
+
             {/* Category Filter */}
             <div className="flex items-center space-x-1.5 bg-slate-50 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs">
               <Tag className="w-3.5 h-3.5 text-slate-400" />
@@ -310,34 +388,35 @@ export const AdminSupport = () => {
               title="Toggle Date Order"
             >
               <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-              <span>{dateSort === 'desc' ? 'Newest First' : 'Oldest First'}</span>
+              <span>{dateSort === 'desc' ? 'Newest' : 'Oldest'}</span>
             </button>
 
             {/* Reset Filters */}
-            {(statusFilter !== 'ALL' || categoryFilter !== 'ALL' || searchQuery) && (
+            {(statusFilter !== 'ALL' || roleFilter !== 'ALL' || categoryFilter !== 'ALL' || searchQuery) && (
               <button
                 type="button"
                 onClick={() => {
                   setStatusFilter('ALL');
+                  setRoleFilter('ALL');
                   setCategoryFilter('ALL');
                   setSearchQuery('');
                   setDateSort('desc');
                 }}
                 className="px-2.5 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
               >
-                Clear Filters
+                Clear
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* 4. Support Requests Table / List */}
+      {/* 5. Support Requests Table */}
       <div className="bg-white dark:bg-[#0F273D] border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         {loading ? (
           <div className="p-16 flex flex-col items-center justify-center space-y-3">
             <div className="w-8 h-8 border-3 border-[#087F8C] border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-xs text-slate-400 font-medium">Loading Help & Support Requests...</p>
+            <p className="text-xs text-slate-400 font-medium">Loading Support Desk Requests...</p>
           </div>
         ) : tickets.length === 0 ? (
           <div className="p-16 text-center space-y-3">
@@ -348,9 +427,9 @@ export const AdminSupport = () => {
               No Support Requests Found
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-              {searchQuery || statusFilter !== 'ALL' || categoryFilter !== 'ALL'
-                ? 'No requests match your current filters. Try changing or clearing filters.'
-                : 'There are currently no support inquiries submitted by users.'}
+              {searchQuery || statusFilter !== 'ALL' || roleFilter !== 'ALL' || categoryFilter !== 'ALL'
+                ? 'No inquiries match your selected filters.'
+                : 'There are currently no support inquiries submitted.'}
             </p>
           </div>
         ) : (
@@ -360,7 +439,7 @@ export const AdminSupport = () => {
                 <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/75 dark:bg-[#091B29]/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                   <th className="py-3 px-4">Ticket</th>
                   <th className="py-3 px-4">User Details</th>
-                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">Category & Reference</th>
                   <th className="py-3 px-4">Subject & Message</th>
                   <th className="py-3 px-4">Date Submitted</th>
                   <th className="py-3 px-4">Status</th>
@@ -388,8 +467,8 @@ export const AdminSupport = () => {
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
                     >
                       {/* Ticket ID */}
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-800 dark:text-slate-200">
-                        #{ticket.id}
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                        VN-SUP-{ticket.id.toString().padStart(4, '0')}
                       </td>
 
                       {/* User Info */}
@@ -413,7 +492,7 @@ export const AdminSupport = () => {
                                 className={`text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-sm ${
                                   isHost
                                     ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300'
-                                    : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                                    : 'bg-orange-500/15 text-orange-700 dark:text-orange-400'
                                 }`}
                               >
                                 {isHost ? 'Stay Partner' : 'Traveler'}
@@ -426,11 +505,23 @@ export const AdminSupport = () => {
                         </div>
                       </td>
 
-                      {/* Category */}
+                      {/* Category & Reference */}
                       <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#FFFDF7] dark:bg-[#091B29] text-[#087F8C] dark:text-[#27B7A8] border border-[#087F8C]/20">
-                          {ticket.category}
-                        </span>
+                        <div className="space-y-1">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FFFDF7] dark:bg-[#091B29] text-[#087F8C] dark:text-[#27B7A8] border border-[#087F8C]/20 inline-block">
+                            {ticket.category}
+                          </span>
+                          {ticket.booking_id && (
+                            <div className="text-[10px] text-orange-600 dark:text-orange-400 font-mono font-bold">
+                              Booking #{ticket.booking_id}
+                            </div>
+                          )}
+                          {ticket.property_id && (
+                            <div className="text-[10px] text-teal-600 dark:text-teal-400 font-medium">
+                              Property #{ticket.property_id}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Subject & snippet */}
@@ -469,7 +560,7 @@ export const AdminSupport = () => {
                           }}
                           className="px-3 py-1.5 rounded-xl bg-[#087F8C]/10 hover:bg-[#087F8C] text-[#087F8C] hover:text-white text-xs font-bold transition-all flex items-center space-x-1 ml-auto cursor-pointer"
                         >
-                          <span>Review & Reply</span>
+                          <span>Manage</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       </td>
@@ -482,7 +573,7 @@ export const AdminSupport = () => {
         )}
       </div>
 
-      {/* 5. Interactive Ticket Review & Reply Modal / Drawer */}
+      {/* 6. Interactive Ticket Review & Reply Modal */}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs overflow-y-auto">
           <div className="relative w-full max-w-4xl bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-6 flex flex-col max-h-[92vh]">
@@ -495,7 +586,7 @@ export const AdminSupport = () => {
                 <div>
                   <div className="flex items-center space-x-2">
                     <span className="text-xs font-mono font-bold text-slate-400">
-                      Ticket #{selectedTicket.id}
+                      VN-SUP-{selectedTicket.id.toString().padStart(4, '0')}
                     </span>
                     <StatusBadge status={selectedTicket.status} size="sm" />
                     <span className="text-[10px] font-bold text-[#087F8C] dark:text-[#27B7A8] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#087F8C]/10">
@@ -509,12 +600,12 @@ export const AdminSupport = () => {
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* Status Switcher Buttons */}
+                {/* Status Switcher Action Buttons */}
                 <div className="hidden sm:flex items-center space-x-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold">
                   <button
                     type="button"
                     onClick={() => handleStatusChange('OPEN')}
-                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                    className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
                       selectedTicket.status === 'OPEN'
                         ? 'bg-amber-500 text-white shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -525,7 +616,7 @@ export const AdminSupport = () => {
                   <button
                     type="button"
                     onClick={() => handleStatusChange('IN_PROGRESS')}
-                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                    className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
                       selectedTicket.status === 'IN_PROGRESS'
                         ? 'bg-[#087F8C] text-white shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -535,14 +626,36 @@ export const AdminSupport = () => {
                   </button>
                   <button
                     type="button"
+                    onClick={() => handleStatusChange('WAITING_FOR_USER')}
+                    className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                      selectedTicket.status === 'WAITING_FOR_USER'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Waiting User
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleStatusChange('RESOLVED')}
-                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                    className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
                       selectedTicket.status === 'RESOLVED'
                         ? 'bg-emerald-600 text-white shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                     }`}
                   >
                     Resolved
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusChange('CLOSED')}
+                    className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                      selectedTicket.status === 'CLOSED'
+                        ? 'bg-slate-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    }`}
+                  >
+                    Closed
                   </button>
                 </div>
 
@@ -558,27 +671,27 @@ export const AdminSupport = () => {
 
             {/* Modal Body: Two Columns */}
             <div className="flex-1 overflow-y-auto p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left Column (4 cols): User Profile & Ticket Metadata */}
+              {/* Left Column (4 cols): User Profile & Linked Context */}
               <div className="lg:col-span-4 space-y-4">
                 {/* User Details Card */}
-                <div className="p-4 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200/80 dark:border-slate-800 space-y-3.5">
-                  <div className="flex items-center space-x-2 border-b border-slate-200/60 dark:border-slate-800 pb-2.5">
+                <div className="p-4 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200/80 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center space-x-2 border-b border-slate-200/60 dark:border-slate-800 pb-2">
                     <User className="w-4 h-4 text-[#087F8C]" />
                     <h3 className="text-xs font-bold text-[#091B29] dark:text-white uppercase tracking-wider">
-                      User Profile Details
+                      User Profile
                     </h3>
                   </div>
 
-                  <div className="space-y-2.5 text-xs">
+                  <div className="space-y-2 text-xs">
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Full Name</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Name</span>
                       <p className="font-bold text-[#091B29] dark:text-white">
                         {selectedTicket.user?.name || selectedTicket.user_name || 'N/A'}
                       </p>
                     </div>
 
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Email Address</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Email</span>
                       <p className="font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
                         <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span className="truncate">{selectedTicket.user?.email || selectedTicket.user_email || 'N/A'}</span>
@@ -586,7 +699,7 @@ export const AdminSupport = () => {
                     </div>
 
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Phone Number</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Phone</span>
                       <p className="font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
                         <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span>{selectedTicket.user?.phone || selectedTicket.user_phone || 'Not provided'}</span>
@@ -594,35 +707,62 @@ export const AdminSupport = () => {
                     </div>
 
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Account Role</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Role</span>
                       <div className="mt-0.5">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                          {selectedTicket.user?.role || selectedTicket.user_role || 'CUSTOMER'}
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase ${
+                          (selectedTicket.user?.role || selectedTicket.user_role) === 'PROVIDER'
+                            ? 'bg-teal-500/15 text-teal-700 dark:text-teal-300'
+                            : 'bg-orange-500/15 text-orange-700 dark:text-orange-400'
+                        }`}>
+                          {(selectedTicket.user?.role || selectedTicket.user_role) === 'PROVIDER' ? 'Stay Partner' : 'Traveler'}
                         </span>
                       </div>
                     </div>
+                  </div>
+                </div>
 
-                    {selectedTicket.user?.created_at && (
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Member Since</span>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                          {new Date(selectedTicket.user.created_at).toLocaleDateString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
+                {/* Linked Context (Booking or Property) */}
+                {(selectedTicket.booking || selectedTicket.booking_id || selectedTicket.property || selectedTicket.property_id) && (
+                  <div className="p-4 rounded-2xl bg-white dark:bg-[#091B29] border border-slate-200/80 dark:border-slate-800 space-y-2.5 text-xs">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Home className="w-3.5 h-3.5 text-[#087F8C]" />
+                      Linked Platform Entity
+                    </h4>
+
+                    {selectedTicket.booking && (
+                      <div className="space-y-1 p-2.5 rounded-xl bg-orange-50 dark:bg-orange-500/5 border border-orange-200/60 dark:border-orange-500/20">
+                        <span className="text-[10px] font-bold text-orange-700 dark:text-orange-400 uppercase">Linked Booking</span>
+                        <p className="font-mono font-bold text-[#091B29] dark:text-white">
+                          #{selectedTicket.booking.booking_number || selectedTicket.booking.id}
+                        </p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                          {selectedTicket.booking.property_name}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          {selectedTicket.booking.check_in} → {selectedTicket.booking.check_out}
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedTicket.property && (
+                      <div className="space-y-1 p-2.5 rounded-xl bg-teal-50 dark:bg-teal-500/5 border border-teal-200/60 dark:border-teal-500/20">
+                        <span className="text-[10px] font-bold text-teal-700 dark:text-teal-400 uppercase">Linked Property</span>
+                        <p className="font-bold text-[#091B29] dark:text-white">
+                          {selectedTicket.property.name}
+                        </p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {selectedTicket.property.city}, {selectedTicket.property.state}
                         </p>
                       </div>
                     )}
                   </div>
-                </div>
+                )}
 
-                {/* Ticket Reference Info */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-[#091B29] border border-slate-200/80 dark:border-slate-800 space-y-2.5 text-xs">
+                {/* Ticket Metadata Card */}
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#091B29] border border-slate-200/80 dark:border-slate-800 space-y-2 text-xs">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Ticket Metadata
+                    Ticket Log
                   </h4>
-
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                     <span>Submitted:</span>
                     <span className="font-medium text-[#091B29] dark:text-white">
@@ -636,20 +776,18 @@ export const AdminSupport = () => {
                         : 'N/A'}
                     </span>
                   </div>
-
-                  {selectedTicket.booking_id && (
-                    <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
-                      <span>Booking Ref:</span>
-                      <span className="font-mono font-bold text-orange-600 dark:text-orange-400">
-                        #{selectedTicket.booking_id}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <p className="text-[11px] text-slate-400">
-                      All replies submitted here are immediately saved and displayed in the user’s conversation history.
-                    </p>
+                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                    <span>Last Updated:</span>
+                    <span className="font-medium text-[#091B29] dark:text-white">
+                      {selectedTicket.updated_at
+                        ? new Date(selectedTicket.updated_at).toLocaleString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'N/A'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -660,7 +798,7 @@ export const AdminSupport = () => {
                 <div className="flex-1 bg-slate-50 dark:bg-[#091B29]/60 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4 min-h-[260px] max-h-[380px] overflow-y-auto custom-scrollbar">
                   <div className="text-center">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-900 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-800">
-                      Support Thread Started
+                      Support Thread Initiated
                     </span>
                   </div>
 
@@ -687,7 +825,7 @@ export const AdminSupport = () => {
                               <>
                                 <ShieldCheck className="w-3 h-3 text-emerald-500" />
                                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                  {msg.sender_name || 'Voyara Concierge Admin'}
+                                  {msg.sender_name || 'Voyara Support Concierge'}
                                 </span>
                                 <span>• {timeStr}</span>
                               </>
@@ -731,7 +869,7 @@ export const AdminSupport = () => {
                 )}
 
                 {replyError && (
-                  <div className="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-400 text-xs rounded-xl flex items-center space-x-2 font-bold">
+                  <div className="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:rose-500/30 text-rose-800 dark:text-rose-400 text-xs rounded-xl flex items-center space-x-2 font-bold">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{replyError}</span>
                   </div>
@@ -741,13 +879,13 @@ export const AdminSupport = () => {
                 <form onSubmit={(e) => handleSendAdminReply(e)} className="space-y-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                      Compose Admin Response
+                      Compose Voyara Support Response
                     </label>
                     <textarea
                       rows={3}
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="Type your response to the user. This will be added to the conversation history and visible to the user immediately..."
+                      placeholder="Type your response to the user. This message is dispatched directly to their support thread..."
                       className="w-full p-3 bg-slate-50 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:border-[#087F8C] resize-none"
                     />
                   </div>
@@ -761,7 +899,9 @@ export const AdminSupport = () => {
                         className="bg-slate-100 dark:bg-[#091B29] border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-hidden cursor-pointer"
                       >
                         <option value="IN_PROGRESS">In Progress</option>
+                        <option value="WAITING_FOR_USER">Waiting for User</option>
                         <option value="RESOLVED">Resolved</option>
+                        <option value="CLOSED">Closed</option>
                         <option value="OPEN">Open / Pending</option>
                       </select>
                     </div>
@@ -769,9 +909,19 @@ export const AdminSupport = () => {
                     <div className="flex items-center space-x-2">
                       <button
                         type="button"
+                        onClick={() => handleSendAdminReply(null, 'WAITING_FOR_USER')}
+                        disabled={submittingReply || !replyText.trim()}
+                        className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Send & Wait User</span>
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => handleSendAdminReply(null, 'RESOLVED')}
                         disabled={submittingReply || !replyText.trim()}
-                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center space-x-1.5 cursor-pointer"
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center space-x-1 cursor-pointer"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>Send & Resolve</span>
@@ -780,7 +930,7 @@ export const AdminSupport = () => {
                       <button
                         type="submit"
                         disabled={submittingReply || !replyText.trim()}
-                        className="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-orange-500/20 flex items-center space-x-1.5 cursor-pointer"
+                        className="px-4 py-2 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-orange-500/20 flex items-center space-x-1.5 cursor-pointer"
                       >
                         <Send className="w-3.5 h-3.5" />
                         <span>{submittingReply ? 'Sending...' : 'Send Reply'}</span>

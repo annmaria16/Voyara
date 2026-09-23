@@ -459,10 +459,6 @@ export const LandingPage = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#DDF3E7] dark:bg-emerald-950/50 text-[#087F8C] dark:text-[#27B7A8] text-xs font-extrabold uppercase tracking-wider border border-[#35A66F]/20">
-              <Compass className="w-3.5 h-3.5 text-[#35A66F]" />
-              <span>Curated Stays & Sanctuaries</span>
-            </div>
             <h2 className="text-3xl sm:text-5xl font-black font-serif text-[#17324D] dark:text-white">
               Stay somewhere that feels like yours.
             </h2>
@@ -543,10 +539,6 @@ export const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#DDF3E7] dark:bg-emerald-950/50 text-[#087F8C] dark:text-[#27B7A8] text-xs font-extrabold uppercase tracking-wider border border-[#35A66F]/20">
-              <Flame className="w-3.5 h-3.5 text-[#F97316]" />
-              <span>Authentic Stay Partner Adventures</span>
-            </div>
             <h2 className="text-3xl sm:text-5xl font-black font-serif text-[#17324D] dark:text-white">
               Stay. Explore. Experience.
             </h2>
@@ -690,10 +682,6 @@ export const LandingPage = () => {
           </div>
 
           <div className="relative z-10 p-8 sm:p-16 max-w-2xl text-white space-y-6">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-[#F6C945]">
-              Stay Partners
-            </span>
-
             <h2 className="text-3xl sm:text-5xl font-black font-serif text-white leading-tight">
               Have a place worth sharing?
             </h2>

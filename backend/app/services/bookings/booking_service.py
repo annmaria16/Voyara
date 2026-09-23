@@ -3,7 +3,7 @@ import string
 from datetime import datetime, date, time, timedelta, timezone
 from typing import List, Optional
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from app.models.booking import Booking, BookingStatus, BookingRoom, BookingExperience
 from app.models.property import Property
@@ -484,26 +484,70 @@ class BookingService:
     @staticmethod
     def get_customer_bookings(db: Session, user_id: int) -> List[Booking]:
         BookingService.auto_complete_past_bookings(db)
-        bookings = db.query(Booking).filter(Booking.user_id == user_id).order_by(Booking.created_at.desc()).all()
+        bookings = (
+            db.query(Booking)
+            .options(
+                joinedload(Booking.property).joinedload(Property.images),
+                joinedload(Booking.booking_rooms),
+                joinedload(Booking.booking_experiences),
+                joinedload(Booking.review),
+                joinedload(Booking.refund),
+                joinedload(Booking.payment),
+            )
+            .filter(Booking.user_id == user_id)
+            .order_by(Booking.created_at.desc())
+            .all()
+        )
         return [BookingService.enrich_booking(b) for b in bookings]
 
     @staticmethod
     def get_provider_bookings(db: Session, provider_id: int) -> List[Booking]:
         BookingService.auto_complete_past_bookings(db)
-        bookings = db.query(Booking).join(Property).filter(
-            Property.provider_id == provider_id
-        ).order_by(Booking.created_at.desc()).all()
+        bookings = (
+            db.query(Booking)
+            .options(
+                joinedload(Booking.property).joinedload(Property.images),
+                joinedload(Booking.booking_rooms),
+                joinedload(Booking.booking_experiences),
+                joinedload(Booking.user),
+            )
+            .join(Property)
+            .filter(Property.provider_id == provider_id)
+            .order_by(Booking.created_at.desc())
+            .all()
+        )
         return [BookingService.enrich_booking(b) for b in bookings]
 
     @staticmethod
     def get_all_bookings(db: Session) -> List[Booking]:
         BookingService.auto_complete_past_bookings(db)
-        bookings = db.query(Booking).order_by(Booking.created_at.desc()).all()
+        bookings = (
+            db.query(Booking)
+            .options(
+                joinedload(Booking.property).joinedload(Property.images),
+                joinedload(Booking.booking_rooms),
+                joinedload(Booking.booking_experiences),
+                joinedload(Booking.user),
+            )
+            .order_by(Booking.created_at.desc())
+            .all()
+        )
         return [BookingService.enrich_booking(b) for b in bookings]
 
     @staticmethod
     def get_booking_by_id(db: Session, booking_id: int, user_id: Optional[int] = None, provider_id: Optional[int] = None) -> Booking:
-        query = db.query(Booking).filter(Booking.id == booking_id)
+        query = (
+            db.query(Booking)
+            .options(
+                joinedload(Booking.property).joinedload(Property.images),
+                joinedload(Booking.booking_rooms),
+                joinedload(Booking.booking_experiences),
+                joinedload(Booking.review),
+                joinedload(Booking.refund),
+                joinedload(Booking.payment),
+            )
+            .filter(Booking.id == booking_id)
+        )
         if user_id is not None:
             query = query.filter(Booking.user_id == user_id)
         elif provider_id is not None:

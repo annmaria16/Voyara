@@ -142,10 +142,6 @@ export const AdminUsers = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
-            <Users className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
-            <span>Platform User Directory</span>
-          </div>
           <h1 className="text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
             Users & Stay Partner Safety Center
           </h1>

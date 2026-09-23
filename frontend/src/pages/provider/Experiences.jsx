@@ -174,15 +174,11 @@ export const ProviderExperiences = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <div className="inline-flex items-center space-x-2 px-3 py-0.5 rounded-full bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-bold mb-1.5">
-            <Flame className="w-3.5 h-3.5 text-orange-500" />
-            <span>Stay Partner Experience Studio</span>
-          </div>
           <h1 className="text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
             Experiences at Your Place
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 font-light">
-            Curate and attach multiple local guided treks, cultural food tastings, campfire nights, and outdoor adventures to your stays.
+            Curate and manage experiences offered at your properties.
           </p>
         </div>
 

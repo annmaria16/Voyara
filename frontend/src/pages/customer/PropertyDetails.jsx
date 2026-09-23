@@ -302,10 +302,18 @@ export const PropertyDetails = () => {
           <div className="flex items-center space-x-2 text-xs text-[#607080] dark:text-slate-400">
             <div className="flex items-center text-[#F6C945]">
               <Star className="w-4 h-4 fill-[#F6C945] text-[#F6C945] mr-1" />
-              <strong className="text-[#17324D] dark:text-white">{property.rating?.toFixed(1) || '4.9'}</strong>
+              <strong className="text-[#17324D] dark:text-white">
+                {(reviewsData?.review_count ?? property.review_count) > 0
+                  ? (reviewsData?.average_rating ?? property.rating).toFixed(1)
+                  : 'New'}
+              </strong>
             </div>
             <span>•</span>
-            <span>{property.review_count || 12} Verified Reviews</span>
+            <span>
+              {(reviewsData?.review_count ?? property.review_count) > 0
+                ? `${reviewsData?.review_count ?? property.review_count} Verified Review(s)`
+                : 'No Reviews Yet'}
+            </span>
           </div>
         </div>
 
@@ -519,10 +527,12 @@ export const PropertyDetails = () => {
                 <div className="flex items-center space-x-2">
                   <Star className="w-5 h-5 text-[#F6C945] fill-[#F6C945]" />
                   <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">
-                    {reviewsData?.average_rating || property.rating || 4.8} / 5.0
+                    {(reviewsData?.review_count ?? property.review_count) > 0
+                      ? `${(reviewsData?.average_rating ?? property.rating).toFixed(1)} / 5.0`
+                      : 'New Sanctuary'}
                   </h2>
                   <span className="text-xs text-slate-400">
-                    • {reviewsData?.review_count || property.review_count || 0} Verified Guest Review(s)
+                    • {reviewsData?.review_count ?? property.review_count ?? 0} Verified Guest Review(s)
                   </span>
                 </div>
                 <p className="text-xs text-[#607080] dark:text-slate-400 mt-0.5">
@@ -539,8 +549,8 @@ export const PropertyDetails = () => {
               </div>
             </div>
 
-            {/* Rating Breakdown Bars */}
-            {reviewsData?.rating_breakdown && (
+            {/* Rating Breakdown Bars (only if reviews exist) */}
+            {reviewsData?.review_count > 0 && reviewsData?.rating_breakdown && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
                 <div>
                   <div className="flex justify-between text-[11px] font-semibold text-[#17324D] dark:text-slate-300 mb-1">
@@ -599,39 +609,42 @@ export const PropertyDetails = () => {
             {/* Reviews List */}
             {reviewsData?.reviews && reviewsData.reviews.length > 0 ? (
               <div className="space-y-4 pt-2">
-                {reviewsData.reviews.map((rev) => (
-                  <div
-                    key={rev.id}
-                    className="p-4 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40 space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#087F8C] to-[#0F9D9A] text-white font-bold text-xs flex items-center justify-center">
-                          {rev.user?.full_name ? rev.user.full_name.charAt(0).toUpperCase() : 'G'}
+                {reviewsData.reviews.map((rev) => {
+                  const authorName = rev.user?.name || rev.user?.full_name || 'Verified Traveler';
+                  return (
+                    <div
+                      key={rev.id}
+                      className="p-4 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#087F8C] to-[#0F9D9A] text-white font-bold text-xs flex items-center justify-center">
+                            {authorName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                              {authorName}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block">
+                              Reviewed on {new Date(rev.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                            {rev.user?.full_name || 'Verified Guest'}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block">
-                            Reviewed on {new Date(rev.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+
+                        <div className="flex items-center space-x-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-800/40">
+                          <Star className="w-3.5 h-3.5 text-[#F6C945] fill-[#F6C945]" />
+                          <span className="text-xs font-bold text-[#17324D] dark:text-amber-300">
+                            {rev.rating.toFixed(1)}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-lg border border-amber-200 dark:border-amber-800/40">
-                        <Star className="w-3.5 h-3.5 text-[#F6C945] fill-[#F6C945]" />
-                        <span className="text-xs font-bold text-[#17324D] dark:text-amber-300">
-                          {rev.rating.toFixed(1)}
-                        </span>
-                      </div>
+                      <p className="text-xs text-[#607080] dark:text-slate-300 leading-relaxed font-light whitespace-pre-line">
+                        "{rev.comment}"
+                      </p>
                     </div>
-
-                    <p className="text-xs text-[#607080] dark:text-slate-300 leading-relaxed font-light whitespace-pre-line">
-                      "{rev.comment}"
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="py-6 text-center text-xs text-slate-400 italic">

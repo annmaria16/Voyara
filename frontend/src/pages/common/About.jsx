@@ -28,10 +28,6 @@ export const AboutPage = () => {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
         {/* Hero */}
         <div className="text-center space-y-4">
-          <div className="inline-flex items-center space-x-1.5 px-3.5 py-1 rounded-full bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold border border-[#087F8C]/30">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Find Your Place.</span>
-          </div>
           <h1 className="text-3xl sm:text-5xl font-black font-serif tracking-tight text-[#091B29] dark:text-white">
             Stay. Explore. Experience.
           </h1>

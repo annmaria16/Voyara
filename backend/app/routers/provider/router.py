@@ -11,14 +11,30 @@ from app.models.experience import Experience
 from app.models.booking import Booking, BookingStatus
 from app.schemas.booking import BookingResponse, RefundResponse
 from app.services.bookings.booking_service import BookingService
+from app.services.reviews.review_service import ReviewService
+from app.services.search.provider_search_service import ProviderSearchService
 from app.routers.provider.properties import router as properties_router
 from app.routers.provider.rooms import router as rooms_router
 from app.routers.provider.availability import router as availability_router
 from app.routers.provider.experiences import router as experiences_router
 from app.routers.provider.verinova import router as verinova_router
+from app.routers.provider.legal_documents import router as legal_documents_router
+from fastapi import Query
 
 
 router = APIRouter(prefix="/provider", tags=["Provider"])
+
+@router.get("/search")
+def search_provider_data(
+    q: str = Query("", description="Search term across provider's properties, rooms, experiences, bookings, reviews"),
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """
+    Search strictly within the authenticated Stay Partner's own data and management functions.
+    Cross-provider data leakage is completely prevented at the query level.
+    """
+    return ProviderSearchService.search(db=db, provider_id=provider.id, query=q)
 
 @router.get("/dashboard")
 def get_provider_dashboard(
@@ -63,6 +79,9 @@ def get_provider_dashboard(
         if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.PENDING] and b.commission_status != "FINALIZED"
     )
 
+    # Reviews summary for provider properties
+    reviews_data = ReviewService.get_provider_reviews(db, provider.id)
+
     return {
         "provider": {
             "id": provider.id,
@@ -85,7 +104,10 @@ def get_provider_dashboard(
             "total_revenue": round(total_gross_volume, 2),
             "finalized_earnings": round(finalized_earnings, 2),
             "pending_settlements": round(pending_settlements, 2),
-            "finalized_commission": round(finalized_commission, 2)
+            "finalized_commission": round(finalized_commission, 2),
+            "total_reviews": reviews_data["summary"]["total_reviews"],
+            "average_rating": reviews_data["summary"]["average_rating"],
+            "rating_breakdown": reviews_data["summary"]["rating_breakdown"]
         },
         "recent_bookings": [
             {
@@ -107,8 +129,26 @@ def get_provider_dashboard(
                 "created_at": b.created_at
             }
             for b in bookings[:8]
-        ]
+        ],
+        "recent_reviews": reviews_data["reviews"][:5]
     }
+
+@router.get("/reviews")
+def get_provider_reviews(
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Get all verified customer reviews for properties owned by this Stay Partner."""
+    return ReviewService.get_provider_reviews(db, provider.id)
+
+@router.get("/properties/{property_id}/reviews")
+def get_provider_property_reviews(
+    property_id: int,
+    provider: ProviderProfile = Depends(get_current_provider),
+    db: Session = Depends(get_db)
+):
+    """Get verified customer reviews specifically for one owned property."""
+    return ReviewService.get_provider_property_reviews(db, provider.id, property_id)
 
 @router.get("/bookings", response_model=List[BookingResponse])
 def get_provider_bookings(
@@ -152,4 +192,5 @@ router.include_router(rooms_router)
 router.include_router(availability_router)
 router.include_router(experiences_router)
 router.include_router(verinova_router)
+router.include_router(legal_documents_router)
 

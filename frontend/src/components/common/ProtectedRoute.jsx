@@ -24,7 +24,6 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
         to="/login"
         state={{
           from: location,
-          message: 'Sign in to discover stays, experiences, and places made for your next escape.',
         }}
         replace
       />

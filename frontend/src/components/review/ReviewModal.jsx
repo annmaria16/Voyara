@@ -64,14 +64,10 @@ export const ReviewModal = ({ booking, isOpen, onClose, onSuccess }) => {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-orange-600 dark:text-orange-400">
-              <Sparkles className="w-4 h-4" />
-              <span>Verified Stay Review</span>
-            </div>
-            <h3 className="text-lg font-black font-serif text-slate-900 dark:text-white mt-0.5">
+            <h3 className="text-lg font-black font-serif text-slate-900 dark:text-white">
               Rate Your Experience
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-sm">
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-sm mt-0.5">
               {booking.property_name || 'Sanctuary'} • Booking #{booking.booking_number}
             </p>
           </div>

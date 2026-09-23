@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { customerApi } from '../../api/customer';
+import { VerificationBadge } from '../../components/verification/VerificationBadge';
+import { getBookingStatusTheme } from '../../utils/bookingStatusTheme';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import {
   Search,
   MapPin,
@@ -249,11 +252,6 @@ export const CustomerDashboard = () => {
 
         <div className="relative z-10 p-6 sm:p-10 lg:p-14 space-y-8">
           <div className="space-y-4 max-w-3xl">
-            <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-[#F6C945] text-xs font-bold tracking-wide">
-              <Sparkles className="w-3.5 h-3.5 text-[#27B7A8]" />
-              <span>Traveler Journal • VeriNova Verified Stays</span>
-            </div>
-
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif text-white tracking-tight leading-tight">
               Where will you find yourself next?
             </h1>
@@ -395,6 +393,35 @@ export const CustomerDashboard = () => {
         </div>
       </div>
 
+      {/* Trip Planner Feature Card */}
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-[#087F8C]/15 via-[#0F9D9A]/10 to-[#F97316]/15 border border-[#087F8C]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center space-x-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#087F8C] to-[#0F9D9A] text-white flex items-center justify-center shrink-0 shadow-md">
+            <Compass className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#087F8C]/20 text-[#087F8C] dark:text-teal-300 uppercase tracking-wider font-mono">
+                Custom Itineraries
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-serif font-bold text-slate-900 dark:text-white">
+              Plan Your Next Getaway
+            </h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-light max-w-xl">
+              Build a personalized itinerary around your dates, travel style, favorite experiences, and regional highlights.
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/traveler/trip-planner"
+          className="px-5 py-2.5 bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] hover:from-[#076a75] hover:to-[#0c827f] text-white font-bold text-xs rounded-xl shadow-md shadow-teal-900/20 shrink-0 flex items-center space-x-2 transition-all self-start sm:self-center"
+        >
+          <span>Plan My Trip</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+
       {/* 2. Upcoming Journey Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -417,78 +444,103 @@ export const CustomerDashboard = () => {
 
         {loadingBookings ? (
           <div className="h-48 rounded-3xl skeleton" />
-        ) : upcomingBooking ? (
-          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 border border-slate-100 dark:border-teal-900/40 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-            <div className="md:col-span-4 h-52 rounded-2xl overflow-hidden relative shadow-md">
-              <img
-                src={
-                  upcomingBooking.property_image ||
-                  'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
-                }
-                alt={upcomingBooking.property_name || 'Booked Stay'}
-                className="w-full h-full object-cover"
-              />
-              <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-[#35A66F] text-white text-[10px] font-bold uppercase tracking-wider shadow-xs">
-                {upcomingBooking.status}
-              </span>
-            </div>
+        ) : upcomingBooking ? (() => {
+          const theme = getBookingStatusTheme(upcomingBooking.status);
+          const StatusIcon = theme.icon;
+          return (
+            <div className={`rounded-3xl p-6 sm:p-8 border ${theme.cardBorder} ${theme.cardBg} ${theme.glowClass} shadow-sm hover:shadow-md transition-all grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative overflow-hidden`}>
+              {/* Top Accent Gradient Bar */}
+              <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${theme.cardAccentBar}`} />
 
-            <div className="md:col-span-8 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-[#087F8C] dark:text-[#27B7A8] bg-[#087F8C]/10 px-2.5 py-1 rounded-lg border border-[#087F8C]/20">
-                    VOY-{upcomingBooking.id} • {upcomingBooking.verinova_verification_id || 'VN-TX-VERIFIED'}
-                  </span>
-                  <h3 className="text-2xl font-serif font-bold text-[#17324D] dark:text-white mt-2">
-                    {upcomingBooking.property_name}
-                  </h3>
-                </div>
-                <span className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-[#DDF3E7] text-[#35A66F] dark:bg-[#35A66F]/20 dark:text-[#35A66F] text-xs font-bold border border-[#35A66F]/30">
-                  <ShieldCheck className="w-4 h-4 text-[#35A66F]" />
-                  <span>Verified by VeriNova</span>
+              <div className="md:col-span-4 h-52 rounded-2xl overflow-hidden relative shadow-md">
+                <img
+                  src={
+                    resolveImageUrl(
+                      upcomingBooking.property?.images?.[0]?.image_url ||
+                      (typeof upcomingBooking.property?.images?.[0] === 'string' ? upcomingBooking.property.images[0] : null) ||
+                      upcomingBooking.property?.cover_image ||
+                      upcomingBooking.property_image
+                    ) ||
+                    'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
+                  }
+                  alt={upcomingBooking.property?.name || upcomingBooking.property_name || 'Booked Stay'}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80';
+                  }}
+                  className="w-full h-full object-cover"
+                />
+                <span className={`absolute top-3 left-3 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-xs flex items-center space-x-1 border ${theme.badgeClasses}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${theme.dotClass}`} />
+                  <span>{theme.label}</span>
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-100 dark:border-teal-900/40">
-                  <span className="block text-[10px] font-bold uppercase text-[#607080]">Check In</span>
-                  <span className="font-bold text-[#17324D] dark:text-white text-xs mt-0.5 block">{upcomingBooking.check_in}</span>
+              <div className="md:col-span-8 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border ${theme.verinovaPillClasses}`}>
+                      VOY-{upcomingBooking.id} • {upcomingBooking.verinova_verification_id || 'VN-TX-VERIFIED'}
+                    </span>
+                    <h3 className="text-2xl font-serif font-bold text-[#17324D] dark:text-white mt-2">
+                      {upcomingBooking.property?.name || upcomingBooking.property_name || 'Sanctuary Stay'}
+                    </h3>
+                    <p className="text-xs text-[#607080] dark:text-slate-300 flex items-center space-x-1 mt-1">
+                      <MapPin className="w-3.5 h-3.5 text-[#F97316]" />
+                      <span>{upcomingBooking.property?.city ? `${upcomingBooking.property.city}, ${upcomingBooking.property.state || ''}` : 'Verified Sanctuary'}</span>
+                    </p>
+                  </div>
+                  <VerificationBadge
+                    status={
+                      upcomingBooking.verinova_status ||
+                      (upcomingBooking.status === 'FAILED' ? 'FAILED' : upcomingBooking.status === 'CANCELLED' ? 'NEEDS_REVIEW' : 'VERIFIED')
+                    }
+                    size="sm"
+                  />
                 </div>
-                <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-100 dark:border-teal-900/40">
-                  <span className="block text-[10px] font-bold uppercase text-[#607080]">Check Out</span>
-                  <span className="font-bold text-[#17324D] dark:text-white text-xs mt-0.5 block">{upcomingBooking.check_out}</span>
-                </div>
-                <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-100 dark:border-teal-900/40">
-                  <span className="block text-[10px] font-bold uppercase text-[#607080]">Guests</span>
-                  <span className="font-bold text-[#17324D] dark:text-white text-xs mt-0.5 block">{upcomingBooking.guests_count || 2} Guests</span>
-                </div>
-                <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-100 dark:border-teal-900/40">
-                  <span className="block text-[10px] font-bold uppercase text-[#607080]">Total Paid</span>
-                  <span className="font-serif font-black text-[#F97316] text-sm mt-0.5 block">
-                    ₹{Number(upcomingBooking.total_price || upcomingBooking.total_amount || 0).toLocaleString('en-IN')}
-                  </span>
-                </div>
-              </div>
 
-              <div className="pt-1 flex items-center space-x-3">
-                <Link
-                  to="/customer/bookings"
-                  className="px-5 py-2.5 bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white text-xs font-bold rounded-2xl shadow-md shadow-[#F97316]/20 hover:scale-[1.02] transition-all"
-                >
-                  View Digital Itinerary
-                </Link>
-                {upcomingBooking.property_id && (
+                {/* 4 Detail Columns - with matching state color */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className={`p-3 rounded-xl border ${theme.columnBg} ${theme.columnBorder} transition-all`}>
+                    <span className={`block text-[10px] font-bold uppercase ${theme.columnHeaderClass}`}>Check In</span>
+                    <span className={`font-bold text-xs mt-0.5 block ${theme.columnValueClass}`}>{upcomingBooking.check_in}</span>
+                  </div>
+                  <div className={`p-3 rounded-xl border ${theme.columnBg} ${theme.columnBorder} transition-all`}>
+                    <span className={`block text-[10px] font-bold uppercase ${theme.columnHeaderClass}`}>Check Out</span>
+                    <span className={`font-bold text-xs mt-0.5 block ${theme.columnValueClass}`}>{upcomingBooking.check_out}</span>
+                  </div>
+                  <div className={`p-3 rounded-xl border ${theme.columnBg} ${theme.columnBorder} transition-all`}>
+                    <span className={`block text-[10px] font-bold uppercase ${theme.columnHeaderClass}`}>Guests</span>
+                    <span className={`font-bold text-xs mt-0.5 block ${theme.columnValueClass}`}>{upcomingBooking.guests_count || 2} Guests</span>
+                  </div>
+                  <div className={`p-3 rounded-xl border ${theme.columnBg} ${theme.columnBorder} transition-all`}>
+                    <span className={`block text-[10px] font-bold uppercase ${theme.columnHeaderClass}`}>Total Paid</span>
+                    <span className={`font-serif font-black text-sm mt-0.5 block ${theme.priceClass}`}>
+                      ₹{Number(upcomingBooking.total_price || upcomingBooking.total_amount || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-1 flex items-center space-x-3">
                   <Link
-                    to={`/properties/${upcomingBooking.property_id}`}
-                    className="px-5 py-2.5 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-teal-900/40 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-2xl hover:bg-slate-50 dark:hover:bg-[#091B29] transition-all"
+                    to="/customer/bookings"
+                    className="px-5 py-2.5 bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white text-xs font-bold rounded-2xl shadow-md shadow-[#F97316]/20 hover:scale-[1.02] transition-all"
                   >
-                    Sanctuary Details
+                    View Digital Itinerary
                   </Link>
-                )}
+                  {upcomingBooking.property_id && (
+                    <Link
+                      to={`/properties/${upcomingBooking.property_id}`}
+                      className="px-5 py-2.5 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-teal-900/40 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-2xl hover:bg-slate-50 dark:hover:bg-[#091B29] transition-all"
+                    >
+                      Sanctuary Details
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
+          );
+        })() : (
           /* Empty Travel State with Magazine Photo CTA */
           <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-8 sm:p-12 border border-slate-100 dark:border-teal-900/40 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
             <div className="md:col-span-5 h-48 sm:h-56 rounded-2xl overflow-hidden relative shadow-md">

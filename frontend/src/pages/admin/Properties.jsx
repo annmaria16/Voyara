@@ -258,6 +258,17 @@ export const AdminProperties = () => {
                           Trust {p.trust_score}/100
                         </span>
                       )}
+                      {p.legal_document_status && (
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${
+                          p.legal_document_status === 'APPROVED' || p.legal_document_status === 'ACTIVE'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                            : p.legal_document_status === 'EXPIRED' || p.legal_document_status === 'REJECTED'
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                            : 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20'
+                        }`}>
+                          Legal: {p.legal_document_status.replace(/_/g, ' ')}
+                        </span>
+                      )}
                     </div>
 
                     {/* Host Details */}

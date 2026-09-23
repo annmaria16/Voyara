@@ -576,10 +576,6 @@ export const PropertyHomeRules = ({ rules, roomRules, propertyName, inline = fal
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1 border border-[#087F8C]/20">
-              <Sparkles className="w-3.5 h-3.5 text-[#F97316]" />
-              <span>Stay Guidelines & House Rules</span>
-            </div>
             <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">
               Property Home Rules {propertyName ? `• ${propertyName}` : ''}
             </h2>
@@ -601,10 +597,6 @@ export const PropertyHomeRules = ({ rules, roomRules, propertyName, inline = fal
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5 flex-1">
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold border border-[#087F8C]/20">
-              <Sparkles className="w-3.5 h-3.5 text-[#F97316]" />
-              <span>Stay Guidelines & House Rules</span>
-            </div>
             <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">
               Property Home Rules {propertyName ? `• ${propertyName}` : ''}
             </h2>
@@ -697,14 +689,10 @@ export const PropertyHomeRules = ({ rules, roomRules, propertyName, inline = fal
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50 via-white to-teal-50/20 dark:from-[#091B29] dark:via-[#0F273D] dark:to-[#091B29]">
               <div>
-                <div className="inline-flex items-center space-x-1.5 px-3 py-0.5 rounded-full bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1 border border-[#087F8C]/20">
-                  <Sparkles className="w-3.5 h-3.5 text-[#F97316]" />
-                  <span>Stay Guidelines & House Rules</span>
-                </div>
                 <h3 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">
                   Property Home Rules {propertyName ? `• ${propertyName}` : ''}
                 </h3>
-                <p className="text-xs text-[#607080] dark:text-slate-400">
+                <p className="text-xs text-[#607080] dark:text-slate-400 mt-0.5">
                   Authoritative policies verified and set by the Stay Partner.
                 </p>
               </div>

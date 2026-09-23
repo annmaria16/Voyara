@@ -73,3 +73,4 @@ class User(Base):
     provider_profile = relationship("ProviderProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     bookings = relationship("Booking", back_populates="user", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="user", cascade="all, delete-orphan")
+    saved_trips = relationship("SavedTrip", back_populates="user", cascade="all, delete-orphan")

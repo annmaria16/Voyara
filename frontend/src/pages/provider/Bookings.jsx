@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { providerApi } from '../../api/provider';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
 import { VerificationModal } from '../../components/verification/VerificationModal';
 import { InvoiceModal } from '../../components/payment/InvoiceModal';
+import { StayInformationModal } from '../../components/booking/StayInformationModal';
+import { BookingMessageModal } from '../../components/booking/BookingMessageModal';
+import { resolveImageUrl } from '../../utils/imageUrl';
 import {
   BookOpen,
   Calendar,
@@ -27,6 +31,8 @@ import {
   Sparkles,
   Check,
   ChevronRight,
+  MessageSquare,
+  Info,
 } from 'lucide-react';
 
 export const ProviderBookings = () => {
@@ -37,6 +43,8 @@ export const ProviderBookings = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [stayInfoBookingId, setStayInfoBookingId] = useState(null);
+  const [messagingBooking, setMessagingBooking] = useState(null);
   const [invoiceBooking, setInvoiceBooking] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState('');
@@ -140,10 +148,6 @@ export const ProviderBookings = () => {
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#087F8C]/10 border border-[#087F8C]/30 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8]" />
-            <span>Stay Partner Operations</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#091B29] dark:text-white tracking-tight">
             Arrivals & Guest Reservations
           </h1>
@@ -185,33 +189,30 @@ export const ProviderBookings = () => {
           <button
             type="button"
             onClick={() => setActiveTab('ALL')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'ALL'
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'ALL'
                 ? 'bg-[#091B29] text-white shadow-sm dark:bg-[#087F8C]'
                 : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
-            }`}
+              }`}
           >
             All Reservations ({propertyFilteredBookings.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('UPCOMING')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'UPCOMING'
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'UPCOMING'
                 ? 'bg-[#087F8C] text-white shadow-sm'
                 : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
-            }`}
+              }`}
           >
             Upcoming Guests ({upcomingCount})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('CHECKED_IN')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
-              activeTab === 'CHECKED_IN'
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${activeTab === 'CHECKED_IN'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
-            }`}
+              }`}
           >
             <UserCheck className="w-3.5 h-3.5" />
             <span>Checked-In ({checkedInCount})</span>
@@ -219,22 +220,20 @@ export const ProviderBookings = () => {
           <button
             type="button"
             onClick={() => setActiveTab('COMPLETED')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'COMPLETED'
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'COMPLETED'
                 ? 'bg-[#35A66F] text-white shadow-sm'
                 : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
-            }`}
+              }`}
           >
             Completed Stays ({completedCount})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('CANCELLED')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'CANCELLED'
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${activeTab === 'CANCELLED'
                 ? 'bg-rose-600 text-white shadow-sm'
                 : 'bg-white dark:bg-[#0F273D] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
-            }`}
+              }`}
           >
             Cancelled ({cancelledCount})
           </button>
@@ -295,13 +294,13 @@ export const ProviderBookings = () => {
             const partnerSettlement = b.provider_settlement_amount !== undefined && b.provider_settlement_amount !== null
               ? b.provider_settlement_amount
               : isConfirmed
-              ? Math.round(originalGross * 0.90)
-              : 0;
+                ? Math.round(originalGross * 0.90)
+                : 0;
             const voyaraCommission = b.commission_amount !== undefined && b.commission_amount !== null
               ? b.commission_amount
               : isConfirmed
-              ? Math.round(originalGross * 0.10)
-              : 0;
+                ? Math.round(originalGross * 0.10)
+                : 0;
             const isCommissionFinalized = b.commission_status === 'FINALIZED';
 
             return (
@@ -321,15 +320,14 @@ export const ProviderBookings = () => {
                     {/* Booking Status Pill */}
                     <span
                       data-testid="provider-booking-status"
-                      className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
-                        isCancelled
+                      className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${isCancelled
                           ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
                           : isCheckedIn
-                          ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30'
-                          : isCompleted
-                          ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
-                          : 'bg-[#35A66F]/15 text-[#236C48] dark:text-emerald-300 border border-[#35A66F]/30'
-                      }`}
+                            ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30'
+                            : isCompleted
+                              ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
+                              : 'bg-[#35A66F]/15 text-[#236C48] dark:text-emerald-300 border border-[#35A66F]/30'
+                        }`}
                     >
                       {b.status === 'CHECKED_IN' ? 'CHECKED IN' : b.status}
                     </span>
@@ -337,11 +335,10 @@ export const ProviderBookings = () => {
                     {/* Commission Status Badge */}
                     <span
                       data-testid="provider-commission-status"
-                      className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                        isCommissionFinalized
+                      className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${isCommissionFinalized
                           ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
                           : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30'
-                      }`}
+                        }`}
                     >
                       <span>{isCommissionFinalized ? '✓ Commission Finalized' : '⏳ Commission Pending Check-In'}</span>
                     </span>
@@ -399,24 +396,45 @@ export const ProviderBookings = () => {
                     </div>
                   </div>
 
-                  {/* Column 2: Accommodation Details (xl:col-span-3) */}
-                  <div className="xl:col-span-3 space-y-1 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800/80 pt-4 md:pt-0 md:pl-6 min-w-0">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                      Property & Room Stay
-                    </span>
-                    <strong className="text-xs font-bold text-[#091B29] dark:text-white block truncate">
-                      {propertyName}
-                    </strong>
-                    <div className="flex items-center space-x-1 text-[11px] text-slate-600 dark:text-slate-300">
-                      <Bed className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8] shrink-0" />
-                      <span className="truncate">{roomName}</span>
+                  {/* Column 2: Accommodation Details with Photo (xl:col-span-3) */}
+                  <div className="xl:col-span-3 flex items-start space-x-3 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800/80 pt-4 md:pt-0 md:pl-6 min-w-0">
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 shadow-xs relative">
+                      <img
+                        src={
+                          resolveImageUrl(
+                            b.property?.images?.[0]?.image_url ||
+                            (typeof b.property?.images?.[0] === 'string' ? b.property.images[0] : null) ||
+                            b.property?.cover_image ||
+                            b.property_image
+                          ) ||
+                          'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
+                        }
+                        alt={propertyName}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80';
+                        }}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                    {experience && (
-                      <span className="inline-flex items-center space-x-1 text-[11px] text-orange-600 dark:text-orange-400 font-semibold bg-orange-50 dark:bg-orange-950/30 px-2 py-0.5 rounded-md border border-orange-200 dark:border-orange-900/40">
-                        <Flame className="w-3 h-3 text-orange-500 shrink-0" />
-                        <span className="truncate">{experience.experience_title}</span>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                        Property & Room Stay
                       </span>
-                    )}
+                      <strong className="text-xs font-bold text-[#091B29] dark:text-white block truncate">
+                        {propertyName}
+                      </strong>
+                      <div className="flex items-center space-x-1 text-[11px] text-slate-600 dark:text-slate-300">
+                        <Bed className="w-3.5 h-3.5 text-[#087F8C] dark:text-[#27B7A8] shrink-0" />
+                        <span className="truncate">{roomName}</span>
+                      </div>
+                      {experience && (
+                        <span className="inline-flex items-center space-x-1 text-[11px] text-orange-600 dark:text-orange-400 font-semibold bg-orange-50 dark:bg-orange-950/30 px-2 py-0.5 rounded-md border border-orange-200 dark:border-orange-900/40">
+                          <Flame className="w-3 h-3 text-orange-500 shrink-0" />
+                          <span className="truncate">{experience.experience_title}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Column 3: Dates & Occupancy (xl:col-span-3) */}
@@ -513,6 +531,27 @@ export const ProviderBookings = () => {
                         </button>
                       )}
 
+                      {/* Message Traveler Action Button */}
+                      <Link
+                        to={`/provider/messages?booking_id=${b.id}`}
+                        data-testid={`provider-message-btn-${b.id}`}
+                        className="px-3 py-2 bg-gradient-to-r from-[#F97316] to-[#EA580C] hover:from-[#EA580C] hover:to-[#C2410C] text-white rounded-xl text-xs font-bold shadow-xs transition-all inline-flex items-center space-x-1 cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Message Guest</span>
+                      </Link>
+
+                      {/* Stay Info Button */}
+                      <button
+                        type="button"
+                        onClick={() => setStayInfoBookingId(b.id)}
+                        data-testid={`provider-stay-info-btn-${b.id}`}
+                        className="px-3 py-2 bg-[#087F8C]/10 hover:bg-[#087F8C]/20 text-[#087F8C] dark:text-[#27B7A8] border border-[#087F8C]/30 rounded-xl text-xs font-bold transition-all inline-flex items-center space-x-1 cursor-pointer shadow-2xs"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Stay Info</span>
+                      </button>
+
                       {/* Tax Invoice Modal Button */}
                       <button
                         type="button"
@@ -545,6 +584,31 @@ export const ProviderBookings = () => {
           booking={invoiceBooking}
           isOpen={!!invoiceBooking}
           onClose={() => setInvoiceBooking(null)}
+        />
+      )}
+
+      {stayInfoBookingId && (
+        <StayInformationModal
+          bookingId={stayInfoBookingId}
+          isOpen={!!stayInfoBookingId}
+          onClose={() => setStayInfoBookingId(null)}
+          onOpenMessaging={(b) => {
+            setStayInfoBookingId(null);
+            setMessagingBooking(b);
+          }}
+        />
+      )}
+
+      {messagingBooking && (
+        <BookingMessageModal
+          bookingId={messagingBooking.id || messagingBooking.booking_id}
+          isOpen={!!messagingBooking}
+          onClose={() => setMessagingBooking(null)}
+          initialData={{
+            property_name: messagingBooking.property?.name,
+            booking_number: messagingBooking.booking_number,
+            stay_dates: `${messagingBooking.check_in} → ${messagingBooking.check_out}`,
+          }}
         />
       )}
     </div>

@@ -97,4 +97,10 @@ export const adminApi = {
     const response = await api.get(`/admin/verification/${bookingId}`);
     return response.data;
   },
+
+  // Control Center Platform Search
+  search: async (query) => {
+    const response = await api.get('/admin/search', { params: { q: query } });
+    return response.data;
+  },
 };

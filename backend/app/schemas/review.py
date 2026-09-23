@@ -14,7 +14,8 @@ class ReviewCreate(BaseModel):
 
 class ReviewUserSchema(BaseModel):
     id: int
-    full_name: str
+    name: Optional[str] = None
+    full_name: Optional[str] = None
     avatar_url: Optional[str] = None
 
     class Config:

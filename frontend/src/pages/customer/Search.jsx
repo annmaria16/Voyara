@@ -162,10 +162,6 @@ export const SearchPage = () => {
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center space-x-1.5 px-3.5 py-1 rounded-full bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] text-xs font-bold mb-2 border border-[#087F8C]/20">
-            <ShieldCheck className="w-4 h-4 text-[#35A66F]" />
-            <span>VeriNova Verified Sanctuaries • India</span>
-          </div>
           <h1 className="text-3xl sm:text-4xl font-black font-serif text-[#17324D] dark:text-white tracking-tight">
             Find Your Place
           </h1>

@@ -230,10 +230,10 @@ export const Login = () => {
                 />
               </Link>
               <h1 className="text-2xl sm:text-3xl font-black font-serif text-[#17324D] dark:text-white pt-1">
-                Welcome back to Voyara
+                Login to Voyara
               </h1>
               <p className="text-xs sm:text-sm text-[#607080] dark:text-slate-400 font-light">
-                Your next place is waiting.
+                Find your place. Stay. Explore. Experience.
               </p>
             </div>
 
@@ -250,10 +250,9 @@ export const Login = () => {
 
             {/* Context Notice */}
             {!registeredSuccess && redirectNotice && (
-              <div className="p-3.5 bg-[#DDF3E7]/80 dark:bg-emerald-950/40 border border-[#35A66F]/30 rounded-2xl flex items-center space-x-2.5 text-[#087F8C] dark:text-emerald-300 text-xs font-medium">
-                <Sparkles className="w-4 h-4 text-[#F97316] shrink-0" />
-                <span>{redirectNotice}</span>
-              </div>
+              <p className="text-xs text-center text-[#087F8C] dark:text-[#27B7A8] font-medium">
+                {redirectNotice}
+              </p>
             )}
 
             {/* Error Banner */}

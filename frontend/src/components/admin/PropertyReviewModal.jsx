@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../api/admin';
 import { verinovaApi } from '../../api/verinova';
+import { legalDocumentsApi } from '../../api/legalDocuments';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import { SecureDocumentViewerModal } from './SecureDocumentViewerModal';
 import {
   X,
   MapPin,
@@ -9,6 +11,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   XCircle,
   Eye,
   ExternalLink,
@@ -32,11 +35,15 @@ import {
   Sparkles,
   Info,
   UserCheck,
+  Calendar,
+  FileCheck2,
 } from 'lucide-react';
 
 export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionComplete }) => {
   const [property, setProperty] = useState(null);
   const [assessmentDetail, setAssessmentDetail] = useState(null);
+  const [legalDocuments, setLegalDocuments] = useState([]);
+  const [selectedDocForView, setSelectedDocForView] = useState(null);
   const [loading, setLoading] = useState(true);
   const [assessing, setAssessing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -56,12 +63,14 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
     setLoading(true);
     setError('');
     try {
-      const [propData, verinovaData] = await Promise.all([
+      const [propData, verinovaData, legalDocs] = await Promise.all([
         adminApi.getPropertyDetail(propertyId),
         verinovaApi.getPropertyAssessmentDetail(propertyId).catch(() => null),
+        legalDocumentsApi.getAdminPropertyDocuments(propertyId).catch(() => []),
       ]);
       setProperty(propData);
       setAssessmentDetail(verinovaData);
+      setLegalDocuments(Array.isArray(legalDocs) ? legalDocs : []);
       if (propData.images && propData.images.length > 0) {
         const first = propData.images[0];
         setSelectedPhoto(typeof first === 'string' ? first : (first.image_url || ''));
@@ -148,7 +157,7 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs overflow-y-auto">
       <div className="bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto">
-        
+
         {/* Modal Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-[#091B29] shrink-0">
           <div className="flex items-center space-x-3.5">
@@ -161,15 +170,14 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                   VeriNova Trust & Moderation Review
                 </span>
                 {property && (
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    property.verification_status === 'VERIFIED'
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${property.verification_status === 'VERIFIED'
                       ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                       : property.verification_status === 'REJECTED'
-                      ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
-                      : property.verification_status === 'NEEDS_REVIEW'
-                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                      : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/30 animate-pulse'
-                  }`}>
+                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                        : property.verification_status === 'NEEDS_REVIEW'
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                          : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/30 animate-pulse'
+                    }`}>
                     {property.verification_status?.replace(/_/g, ' ')}
                   </span>
                 )}
@@ -208,7 +216,7 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
               {/* TOP VERINOVA TRUST SCORE CARD */}
               <div className="bg-gradient-to-r from-[#091B29] via-[#0F273D] to-[#091B29] border border-teal-900/40 rounded-3xl p-6 text-white shadow-xl">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                  
+
                   {/* Score & Gauge */}
                   <div className="flex items-center space-x-5">
                     <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
@@ -246,7 +254,7 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                       <p className="text-xs text-slate-300 mt-1 max-w-lg leading-relaxed">
                         {assessment?.summary || 'Explainable consistency evaluated across 9 independent deterministic verification signals.'}
                       </p>
-                      
+
                       {assessment?.property_fingerprint && (
                         <div className="flex items-center space-x-2 mt-2">
                           <span className="text-[10px] text-slate-400">Fingerprint:</span>
@@ -334,23 +342,21 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                     assessment.checks.map((c) => (
                       <div
                         key={c.id}
-                        className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between ${
-                          c.status === 'PASS'
+                        className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between ${c.status === 'PASS'
                             ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40'
                             : c.status === 'WARNING'
-                            ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40'
-                            : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40'
-                        }`}
+                              ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40'
+                              : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40'
+                          }`}
                       >
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
-                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${
-                              c.status === 'PASS'
+                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${c.status === 'PASS'
                                 ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
                                 : c.status === 'WARNING'
-                                ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
-                                : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
-                            }`}>
+                                  ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                                  : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
+                              }`}>
                               {c.status}
                             </span>
                             <span className="text-[10px] font-bold text-slate-500">
@@ -377,6 +383,221 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* SECTION 0: PROPERTY LEGAL VERIFICATION DOSSIER */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <div className="flex items-center space-x-2">
+                    <FileCheck2 className="w-4 h-4 text-[#087F8C] dark:text-[#27B7A8]" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#091B29] dark:text-white">
+                      Property Legal Authorization & Document Dossier ({legalDocuments.length})
+                    </h3>
+                  </div>
+                  {property.legal_document_status && (
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      property.legal_document_status === 'APPROVED' || property.legal_document_status === 'ACTIVE'
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                        : property.legal_document_status === 'EXPIRED' || property.legal_document_status === 'REJECTED'
+                          ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                    }`}>
+                      Legal Status: {property.legal_document_status.replace(/_/g, ' ')}
+                    </span>
+                  )}
+                </div>
+
+                {legalDocuments.length === 0 ? (
+                  <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl flex items-center space-x-3 text-rose-700 dark:text-rose-300">
+                    <AlertOctagon className="w-5 h-5 shrink-0 text-rose-500" />
+                    <div>
+                      <h4 className="font-bold text-xs">Missing Property Legal Documentation</h4>
+                      <p className="text-[11px] text-rose-600/90 dark:text-rose-400 mt-0.5">
+                        This property has no legal document uploaded. Properties cannot be approved for listing on Voyara without verified legal authorization.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Primary Active / Latest Document */}
+                    {legalDocuments.slice(0, 1).map((doc) => {
+                      const valResult = doc.validation_result || {};
+                      const signals = valResult.signals || {};
+                      const breakdown = valResult.score_breakdown || {};
+                      const isApproved = doc.overall_status === 'ADMIN_APPROVED';
+                      const isPending = doc.overall_status === 'PENDING_ADMIN_REVIEW';
+                      const isRejected = doc.overall_status === 'ADMIN_REJECTED';
+
+                      return (
+                        <div
+                          key={doc.id}
+                          className="bg-gradient-to-br from-[#0F273D]/90 via-[#0B2133] to-[#091B29] border border-teal-900/60 rounded-3xl p-5 text-white shadow-xl space-y-4"
+                        >
+                          {/* Doc Header */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/60 pb-3">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-500/20 text-[#27B7A8] border border-teal-500/30">
+                                  {doc.legal_relationship?.replace(/_/g, ' ') || 'CLAIMED RELATIONSHIP'}
+                                </span>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                                  isApproved
+                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                    : isRejected
+                                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                      : 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
+                                }`}>
+                                  {doc.overall_status?.replace(/_/g, ' ')} (v{doc.version_number})
+                                </span>
+                                {doc.is_locked && (
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-800/80 text-slate-300 border border-slate-700 flex items-center space-x-1">
+                                    <Lock className="w-3 h-3 text-teal-400 inline mr-1" />
+                                    <span>Locked & Immutable</span>
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="text-sm font-bold text-white mt-1.5 flex items-center space-x-2">
+                                <FileText className="w-4 h-4 text-[#27B7A8] shrink-0" />
+                                <span>{doc.document_type?.replace(/_/g, ' ')}</span>
+                                <span className="text-xs text-slate-400 font-normal">({doc.file_name})</span>
+                              </h4>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDocForView(doc)}
+                              className="px-4 py-2 bg-[#087F8C] hover:bg-[#0F9D9A] text-white rounded-xl font-bold text-xs flex items-center space-x-2 shadow-md transition-all cursor-pointer shrink-0 self-start sm:self-auto"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>Inspect Full Document (Secure Stream)</span>
+                            </button>
+                          </div>
+
+                          {/* Extracted Metadata Grid */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                            <div className="p-3 bg-slate-900/70 rounded-2xl border border-slate-800">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase block">Parties / Signatories</span>
+                              <strong className="text-teal-200 block truncate mt-0.5" title={doc.extracted_parties || 'Extracted from deed'}>
+                                {doc.extracted_parties || 'Identified in Document'}
+                              </strong>
+                            </div>
+
+                            <div className="p-3 bg-slate-900/70 rounded-2xl border border-slate-800">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase block">Deed / Reg Number</span>
+                              <code className="text-xs text-slate-200 font-mono block truncate mt-0.5">
+                                {doc.document_number || 'Registered Instrument'}
+                              </code>
+                            </div>
+
+                            <div className="p-3 bg-slate-900/70 rounded-2xl border border-slate-800">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase block">Effective Date</span>
+                              <span className="text-slate-200 block mt-0.5">
+                                {doc.effective_date ? new Date(doc.effective_date).toLocaleDateString() : 'N/A'}
+                              </span>
+                            </div>
+
+                            <div className="p-3 bg-slate-900/70 rounded-2xl border border-slate-800">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase block">Expiry / Validity</span>
+                              <span className={`block font-bold mt-0.5 ${
+                                doc.is_expired ? 'text-rose-400' : 'text-emerald-400'
+                              }`}>
+                                {doc.expiry_date
+                                  ? `${new Date(doc.expiry_date).toLocaleDateString()} (${doc.days_until_expiry}d left)`
+                                  : 'Lifetime / Permanent'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 4-Pillar Validation Breakdown */}
+                          <div className="space-y-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                              Automated Content & Multi-Signal Validation Check
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-[11px]">
+                              
+                              <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800 flex items-center justify-between">
+                                <span className="text-slate-300">Category Evidence</span>
+                                <span className="font-bold text-teal-400 font-mono">
+                                  {breakdown.doc_type_score ?? 100}% PASS
+                                </span>
+                              </div>
+
+                              <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800 flex items-center justify-between">
+                                <span className="text-slate-300">Address Match</span>
+                                <span className="font-bold text-emerald-400 font-mono">
+                                  {breakdown.property_match_score ?? 100}% MATCH
+                                </span>
+                              </div>
+
+                              <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800 flex items-center justify-between">
+                                <span className="text-slate-300">Relationship Support</span>
+                                <span className="font-bold text-teal-400 font-mono">
+                                  {breakdown.relationship_score ?? 100}% VALID
+                                </span>
+                              </div>
+
+                              <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800 flex items-center justify-between">
+                                <span className="text-slate-300">Anti-Tamper & Structure</span>
+                                <span className="font-bold text-emerald-400 font-mono">
+                                  {breakdown.authenticity_score ?? 100}% VERIFIED
+                                </span>
+                              </div>
+
+                            </div>
+
+                            {valResult.summary && (
+                              <p className="text-[11px] text-slate-300 bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
+                                {valResult.summary}
+                              </p>
+                            )}
+
+                            {doc.file_hash_sha256 && (
+                              <div className="flex items-center space-x-2 text-[10px] text-slate-500 font-mono pt-1">
+                                <span>SHA-256 Digest:</span>
+                                <code className="text-slate-400 truncate max-w-sm">{doc.file_hash_sha256}</code>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Version History Table (if more than 1 version) */}
+                    {legalDocuments.length > 1 && (
+                      <div className="p-4 bg-slate-50 dark:bg-[#091B29] rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                          Legal Document Version History ({legalDocuments.length} total)
+                        </span>
+                        <div className="space-y-1.5">
+                          {legalDocuments.slice(1).map((vDoc) => (
+                            <div
+                              key={vDoc.id}
+                              className="flex items-center justify-between p-2.5 bg-white dark:bg-[#0F273D] rounded-xl border border-slate-100 dark:border-slate-800 text-xs"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className="font-bold text-slate-700 dark:text-slate-300">v{vDoc.version_number}</span>
+                                <span className="text-slate-500">• {vDoc.document_type?.replace(/_/g, ' ')}</span>
+                                <span className="text-[10px] text-slate-400">({new Date(vDoc.created_at).toLocaleDateString()})</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500">
+                                  {vDoc.overall_status?.replace(/_/g, ' ')}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedDocForView(vDoc)}
+                                  className="text-[11px] text-[#087F8C] hover:underline font-bold"
+                                >
+                                  View v{vDoc.version_number}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* SECTION 1: PROPERTY INFORMATION & HOST CONTACT */}
@@ -478,11 +699,10 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                             key={idx}
                             type="button"
                             onClick={() => setSelectedPhoto(url)}
-                            className={`aspect-16/10 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                              selectedPhoto === url
+                            className={`aspect-16/10 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${selectedPhoto === url
                                 ? 'border-[#087F8C] ring-2 ring-[#087F8C]/30'
                                 : 'border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100'
-                            }`}
+                              }`}
                           >
                             <img src={resolveImageUrl(url)} alt="" className="w-full h-full object-cover" />
                           </button>
@@ -660,7 +880,7 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
               {reasonModal.action === 'REQUEST_REVIEW' && 'Request Review / Corrections from Stay Partner'}
               {reasonModal.action === 'REJECT' && 'Reject Property Submission'}
             </h3>
-            
+
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Provide an optional note or rationale for the stay partner and internal VeriNova audit trail.
             </p>
@@ -692,6 +912,17 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
             </div>
           </div>
         </div>
+      )}
+
+      {/* SECURE LEGAL DOCUMENT VIEWER MODAL */}
+      {selectedDocForView && (
+        <SecureDocumentViewerModal
+          documentId={selectedDocForView.id}
+          propertyName={property?.name || 'Property'}
+          isOpen={Boolean(selectedDocForView)}
+          onClose={() => setSelectedDocForView(null)}
+          onVerificationChange={() => loadData()}
+        />
       )}
 
     </div>

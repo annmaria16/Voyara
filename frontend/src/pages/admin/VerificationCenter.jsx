@@ -223,11 +223,10 @@ export const VerificationCenter = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-2 ${
-                isActive
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-2 ${isActive
                   ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-md shadow-teal-900/20'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-[#FFFDF7] dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
               <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
               <span>{tab.label}</span>
@@ -318,7 +317,7 @@ export const VerificationCenter = () => {
                 VeriNova Dual Architecture Positioning
               </h3>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-600 dark:text-slate-300">
               <div className="p-5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
                 <div className="flex items-center space-x-2 text-[#087F8C] dark:text-[#27B7A8]">
@@ -364,11 +363,10 @@ export const VerificationCenter = () => {
                 <button
                   key={st}
                   onClick={() => setStatusFilter(st)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                    statusFilter === st
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${statusFilter === st
                       ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-xs'
                       : 'bg-[#FFFDF7] dark:bg-[#091B29] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700'
-                  }`}
+                    }`}
                 >
                   {st === 'ALL' ? 'All Assessments' : st.replace(/_/g, ' ')}
                 </button>
@@ -438,13 +436,12 @@ export const VerificationCenter = () => {
                         </td>
 
                         <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                            p.evidence_status === 'ACCEPTED_AS_SUPPORTING_EVIDENCE'
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${p.evidence_status === 'ACCEPTED_AS_SUPPORTING_EVIDENCE'
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                               : p.evidence_status === 'REVIEW_REQUIRED'
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                          }`}>
+                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                            }`}>
                             {p.evidence_status.replace(/_/g, ' ')}
                           </span>
                         </td>
@@ -570,9 +567,8 @@ export const VerificationCenter = () => {
                           <strong className="font-mono font-black text-orange-500 block text-sm">
                             ₹{tx.total_price.toLocaleString('en-IN')}
                           </strong>
-                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${
-                            tx.payment_status === 'PAID' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${tx.payment_status === 'PAID' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
+                            }`}>
                             {tx.payment_status}
                           </span>
                         </td>
@@ -748,11 +744,10 @@ export const VerificationCenter = () => {
                   <div key={log.id} className="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${
-                          log.actor_role === 'ADMIN'
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${log.actor_role === 'ADMIN'
                             ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
                             : 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20'
-                        }`}>
+                          }`}>
                           {log.actor_role}
                         </span>
                         <span className="font-bold text-[#091B29] dark:text-white">

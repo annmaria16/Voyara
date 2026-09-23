@@ -12,7 +12,7 @@ import {
   MessageSquare,
   Settings,
   Compass,
-  Sparkles,
+  Map,
   Flame,
   Heart,
   User,
@@ -31,7 +31,7 @@ import {
   Moon,
 } from 'lucide-react';
 
-export const DashboardSidebar = ({ role, isOpen = false, onClose = () => {} }) => {
+export const DashboardSidebar = ({ role, isOpen = false, onClose = () => { } }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -48,9 +48,11 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => {} }) =
       activeBg: 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-md shadow-teal-900/20 font-bold',
       items: [
         { name: 'Travel Journal', path: '/customer', icon: LayoutDashboard },
+        { name: 'Trip Planner', path: '/traveler/trip-planner', icon: Map, highlight: true },
         { name: 'Explore Stays', path: '/search', icon: Compass },
         { name: 'Experiences', path: '/experiences', icon: Flame },
         { name: 'My Journeys', path: '/customer/bookings', icon: BookOpen },
+        { name: 'Messages', path: '/customer/messages', icon: MessageSquare },
         { name: 'Traveler Profile', path: '/customer/profile', icon: User },
         { name: 'Help & Support', path: '/customer/support', icon: HelpCircle },
       ],
@@ -66,8 +68,10 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => {} }) =
         { name: 'Manage Availability', path: '/provider/availability', icon: Calendar },
         { name: 'Experiences', path: '/provider/experiences', icon: Flame },
         { name: 'Guest Reservations', path: '/provider/bookings', icon: BookOpen },
+        { name: 'Messages', path: '/provider/messages', icon: MessageSquare },
+        { name: 'Guest Reviews', path: '/provider/reviews', icon: Star },
         { name: 'Stay Partner Profile', path: '/provider/profile', icon: User },
-        { name: 'Support Desk', path: '/provider/support', icon: MessageSquare },
+        { name: 'Support Desk', path: '/provider/support', icon: HelpCircle },
       ],
     },
     ADMIN: {
@@ -129,22 +133,20 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => {} }) =
               key={item.name}
               to={item.path}
               onClick={onClose}
-              className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-200 ${
-                isActive
+              className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-200 ${isActive
                   ? config.activeBg
                   : item.highlight
-                  ? 'text-[#087F8C] dark:text-[#27B7A8] hover:text-[#0F9D9A] dark:hover:text-white hover:bg-[#DDF3E7]/60 dark:hover:bg-white/5 font-bold'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-[#17324D] dark:hover:text-white hover:bg-[#EAF3F5]/70 dark:hover:bg-white/5'
-              }`}
+                    ? 'text-[#087F8C] dark:text-[#27B7A8] hover:text-[#0F9D9A] dark:hover:text-white hover:bg-[#DDF3E7]/60 dark:hover:bg-white/5 font-bold'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-[#17324D] dark:hover:text-white hover:bg-[#EAF3F5]/70 dark:hover:bg-white/5'
+                }`}
             >
               <Icon
-                className={`w-4 h-4 shrink-0 ${
-                  isActive
+                className={`w-4 h-4 shrink-0 ${isActive
                     ? 'text-white'
                     : item.highlight
-                    ? 'text-[#087F8C] dark:text-[#27B7A8]'
-                    : 'text-slate-400 dark:text-slate-400'
-                }`}
+                      ? 'text-[#087F8C] dark:text-[#27B7A8]'
+                      : 'text-slate-400 dark:text-slate-400'
+                  }`}
               />
               <span className="truncate">{item.name}</span>
             </Link>
@@ -159,11 +161,10 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => {} }) =
           <button
             type="button"
             onClick={() => setTheme('light')}
-            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
-              theme === 'light'
+            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${theme === 'light'
                 ? 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-xs font-black'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-            }`}
+              }`}
             title="Switch to Light Theme"
           >
             <Sun className="w-3.5 h-3.5" />
@@ -172,11 +173,10 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => {} }) =
           <button
             type="button"
             onClick={() => setTheme('dark')}
-            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
-              theme === 'dark'
+            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${theme === 'dark'
                 ? 'bg-gradient-to-r from-[#087F8C] to-[#17324D] text-white shadow-xs font-black'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-            }`}
+              }`}
             title="Switch to Dark Theme"
           >
             <Moon className="w-3.5 h-3.5" />
