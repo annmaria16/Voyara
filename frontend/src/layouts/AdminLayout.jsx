@@ -12,7 +12,7 @@ export const AdminLayout = () => {
     if (pathname.startsWith('/admin/users')) return 'USER DIRECTORY';
     if (pathname.startsWith('/admin/properties')) return 'PROPERTY REVIEW DESK';
     if (pathname.startsWith('/admin/rooms')) return 'ROOM INVENTORY';
-    if (pathname.startsWith('/admin/experiences')) return 'EXPERIENCES & TOURS';
+    if (pathname.startsWith('/admin/adventures') || pathname.startsWith('/admin/experiences')) return 'ADVENTURES & TOURS';
     if (pathname.startsWith('/admin/bookings')) return 'BOOKINGS MONITOR';
     if (pathname.startsWith('/admin/verification')) return 'VERINOVA COMMAND CENTER';
     if (pathname.startsWith('/admin/support')) return 'SUPPORT DESK';

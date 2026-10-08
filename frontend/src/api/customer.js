@@ -19,13 +19,27 @@ export const customerApi = {
     return response.data;
   },
 
+  // Adventures
+  getAdventures: async (params) => {
+    const response = await api.get('/customer/adventures', { params });
+    return response.data;
+  },
+
+  getAdventureDetails: async (adventureId, date) => {
+    const response = await api.get(`/customer/adventures/${adventureId}`, {
+      params: date ? { target_date: date } : {},
+    });
+    return response.data;
+  },
+
+  // Backward compatibility aliases
   getExperiences: async (params) => {
-    const response = await api.get('/customer/experiences', { params });
+    const response = await api.get('/customer/adventures', { params });
     return response.data;
   },
 
   getExperienceDetails: async (experienceId, date) => {
-    const response = await api.get(`/customer/experiences/${experienceId}`, {
+    const response = await api.get(`/customer/adventures/${experienceId}`, {
       params: date ? { target_date: date } : {},
     });
     return response.data;

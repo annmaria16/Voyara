@@ -12,6 +12,12 @@ import { BookingMessageModal } from '../../components/booking/BookingMessageModa
 import { getBookingStatusTheme } from '../../utils/bookingStatusTheme';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import {
+  formatPropertyName,
+  formatRoomName,
+  formatAdventureName,
+  formatLocationName,
+} from '../../utils/formatters';
+import {
   Calendar,
   MapPin,
   ShieldCheck,
@@ -63,12 +69,29 @@ export const MyBookings = () => {
     fetchBookings();
   }, []);
 
+  const isBookingUpcoming = (b) => {
+    if (b.status === 'NO_SHOW' || b.is_missed || b.display_status === 'NO_SHOW') return false;
+    if (['CANCELLED', 'FAILED', 'COMPLETED', 'CHECKED_OUT', 'CHECKED_IN'].includes(b.status)) return false;
+    return ['CONFIRMED', 'VERIFIED', 'PENDING', 'PAYMENT_PENDING'].includes(b.status);
+  };
+
+  const isBookingMissed = (b) => {
+    return b.status === 'NO_SHOW' || b.is_missed || b.display_status === 'NO_SHOW';
+  };
+
+  const upcomingBookings = bookings.filter(isBookingUpcoming);
+  const checkedInBookings = bookings.filter(b => b.status === 'CHECKED_IN');
+  const completedBookings = bookings.filter(b => (b.status === 'COMPLETED' || b.status === 'CHECKED_OUT') && !isBookingMissed(b));
+  const missedBookings = bookings.filter(isBookingMissed);
+  const cancelledBookings = bookings.filter(b => b.status === 'CANCELLED' || b.status === 'FAILED');
+
   const filteredBookings = bookings.filter((b) => {
     if (activeTab === 'ALL') return true;
     if (activeTab === 'CANCELLED') return b.status === 'CANCELLED' || b.status === 'FAILED';
     if (activeTab === 'CHECKED_IN') return b.status === 'CHECKED_IN';
-    if (activeTab === 'COMPLETED') return b.status === 'COMPLETED' || b.status === 'CHECKED_OUT';
-    if (activeTab === 'UPCOMING') return ['CONFIRMED', 'VERIFIED', 'PENDING', 'PAYMENT_PENDING'].includes(b.status);
+    if (activeTab === 'COMPLETED') return (b.status === 'COMPLETED' || b.status === 'CHECKED_OUT') && !isBookingMissed(b);
+    if (activeTab === 'MISSED') return isBookingMissed(b);
+    if (activeTab === 'UPCOMING') return isBookingUpcoming(b);
     return true;
   });
 
@@ -95,20 +118,23 @@ export const MyBookings = () => {
       </div>
 
       {/* Tabs Filter */}
-      <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
+      <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto custom-scrollbar">
         {[
           { key: 'ALL', label: `All Journeys (${bookings.length})` },
-          { key: 'UPCOMING', label: `Upcoming (${bookings.filter(b => ['CONFIRMED', 'VERIFIED', 'PENDING', 'PAYMENT_PENDING'].includes(b.status)).length})` },
-          { key: 'CHECKED_IN', label: `Checked-In (${bookings.filter(b => b.status === 'CHECKED_IN').length})` },
-          { key: 'COMPLETED', label: `Completed (${bookings.filter(b => ['COMPLETED', 'CHECKED_OUT'].includes(b.status)).length})` },
-          { key: 'CANCELLED', label: `Cancelled / Failed (${bookings.filter(b => ['CANCELLED', 'FAILED'].includes(b.status)).length})` },
+          { key: 'UPCOMING', label: `Upcoming (${upcomingBookings.length})` },
+          { key: 'CHECKED_IN', label: `Checked-In (${checkedInBookings.length})` },
+          { key: 'COMPLETED', label: `Completed (${completedBookings.length})` },
+          { key: 'MISSED', label: `Missed / No-Show (${missedBookings.length})` },
+          { key: 'CANCELLED', label: `Cancelled / Failed (${cancelledBookings.length})` },
         ].map((tab) => (
           <button
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${activeTab === tab.key
-              ? 'bg-[#087F8C] text-white shadow-xs'
+              ? tab.key === 'MISSED'
+                ? 'bg-red-600 text-white shadow-xs'
+                : 'bg-[#087F8C] text-white shadow-xs'
               : 'text-[#607080] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
           >
@@ -141,14 +167,18 @@ export const MyBookings = () => {
                 ? 'No Currently Checked-In Stays'
                 : activeTab === 'COMPLETED'
                   ? 'No Completed Journeys'
-                  : activeTab === 'CANCELLED'
-                    ? 'No Cancelled or Failed Bookings'
-                    : 'No Bookings Found'}
+                  : activeTab === 'MISSED'
+                    ? 'No Missed Bookings'
+                    : activeTab === 'CANCELLED'
+                      ? 'No Cancelled or Failed Bookings'
+                      : 'No Bookings Found'}
           </h3>
           <p className="text-xs sm:text-sm text-[#607080] dark:text-slate-300 max-w-md mx-auto leading-relaxed">
             {activeTab === 'UPCOMING'
               ? 'You have no active trips booked right now. Find your next tranquil escape.'
-              : 'Explore our handpicked hill-station stays and seaside retreats across India.'}
+              : activeTab === 'MISSED'
+                ? 'Great! You have no missed check-ins or expired reservations.'
+                : 'Explore our handpicked hill-station stays and seaside retreats across India.'}
           </p>
           <Link
             to="/search"
@@ -161,17 +191,20 @@ export const MyBookings = () => {
       ) : (
         <div className="space-y-6">
           {filteredBookings.map((b) => {
-            const theme = getBookingStatusTheme(b.status);
+            const isMissed = isBookingMissed(b);
+            const isCheckinToday = b.is_checkin_today || b.display_status === 'CHECKIN_TODAY';
+            const isCheckinMissed = b.is_checkin_missed || b.display_status === 'CHECKIN_MISSED';
+            const theme = getBookingStatusTheme(b.display_status || b.status, b);
             const StatusIcon = theme.icon;
             const isCancelled = b.status === 'CANCELLED';
             const isFailed = b.status === 'FAILED';
             const isCheckedIn = b.status === 'CHECKED_IN';
-            const isCompleted = b.status === 'COMPLETED' || b.status === 'CHECKED_OUT';
-            const isConfirmed = ['CONFIRMED', 'VERIFIED', 'PENDING', 'PAYMENT_PENDING'].includes(b.status);
-            const canCancel = ['CONFIRMED', 'VERIFIED', 'PENDING'].includes(b.status) && b.is_cancellable !== false;
-            const isDeadlinePassed = ['CONFIRMED', 'VERIFIED', 'PENDING'].includes(b.status) && b.is_cancellable === false;
-            const roomName = b.booking_rooms?.[0]?.room_name || 'Room Stay';
-            const expTitle = b.booking_experiences?.[0]?.experience_title;
+            const isCompleted = (b.status === 'COMPLETED' || b.status === 'CHECKED_OUT') && !isMissed;
+            const isConfirmed = ['CONFIRMED', 'VERIFIED', 'PENDING', 'PAYMENT_PENDING'].includes(b.status) && !isMissed;
+            const canCancel = isConfirmed && b.is_cancellable !== false && !isMissed;
+            const isDeadlinePassed = isConfirmed && b.is_cancellable === false && !isMissed;
+            const roomName = formatRoomName(b.booking_rooms?.[0]?.room_name) || 'Room Stay';
+            const advTitle = formatAdventureName(b.booking_adventures?.[0]?.adventure_title || b.booking_experiences?.[0]?.experience_title);
             const propImage = resolveImageUrl(
               b.property?.images?.[0]?.image_url ||
               (typeof b.property?.images?.[0] === 'string' ? b.property.images[0] : null) ||
@@ -215,6 +248,16 @@ export const MyBookings = () => {
                       <CreditCard className="w-3 h-3" />
                       <span>{isFailed ? 'Payment Unsuccessful' : 'Razorpay Verified'}</span>
                     </span>
+                    {b.booking_source === 'ai' ? (
+                      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-teal-500/15 text-teal-800 dark:text-teal-300 text-[10px] font-extrabold border border-teal-500/30">
+                        <Sparkles className="w-3 h-3 text-[#087F8C]" />
+                        <span>Booked with Voyara AI</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-slate-500/10 text-slate-700 dark:text-slate-300 text-[10px] font-semibold border border-slate-500/20">
+                        <span>Self-Booked</span>
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center space-x-2 flex-wrap gap-y-2">
@@ -257,7 +300,7 @@ export const MyBookings = () => {
                     )}
 
                     {/* Message Stay Partner Button */}
-                    {!isCancelled && !isFailed && (
+                    {!isCancelled && !isFailed && !isMissed && (
                       <Link
                         to={`/customer/messages?booking_id=${b.id}`}
                         data-testid={`message-host-btn-${b.id}`}
@@ -287,14 +330,14 @@ export const MyBookings = () => {
                     >
                       <span className={`w-2 h-2 rounded-full ${theme.dotClass}`} />
                       <StatusIcon className="w-3.5 h-3.5" />
-                      <span>{theme.label}</span>
+                      <span>{b.checkin_warning?.badge_label || theme.label}</span>
                     </span>
 
                     {/* Verification Status Badge */}
                     <VerificationBadge
                       status={
                         b.verinova_status ||
-                        (isFailed ? 'FAILED' : isCancelled ? 'NEEDS_REVIEW' : 'VERIFIED')
+                        (isFailed ? 'FAILED' : isCancelled ? 'NEEDS_REVIEW' : isMissed ? 'FAILED' : 'VERIFIED')
                       }
                       onClick={() => setSelectedBookingId(b.id)}
                       showDetailsHint={true}
@@ -302,11 +345,39 @@ export const MyBookings = () => {
                   </div>
                 </div>
 
-                {/* Status Notice / Banner (if applicable) */}
-                {theme.banner && (
-                  <div className={`p-3.5 rounded-2xl border flex items-center space-x-3 text-xs font-semibold ${theme.banner.bg}`}>
-                    <theme.banner.icon className="w-4 h-4 shrink-0" />
-                    <span>{theme.banner.text}</span>
+                {/* Status Notice / Warning Banner */}
+                {(b.checkin_warning || theme.banner) && (
+                  <div
+                    data-testid={`booking-warning-banner-${b.id}`}
+                    className={`p-4 rounded-2xl border flex items-start sm:items-center space-x-3 text-xs font-semibold ${
+                      isMissed
+                        ? 'bg-red-50/90 dark:bg-red-950/50 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800/80 shadow-xs'
+                        : isCheckinToday
+                          ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-800/80 shadow-xs'
+                          : isCheckinMissed
+                            ? 'bg-orange-50 dark:bg-orange-950/50 text-orange-900 dark:text-orange-200 border-orange-300 dark:border-orange-800/80 shadow-xs'
+                            : theme.banner.bg
+                    }`}
+                  >
+                    <div className="shrink-0 mt-0.5 sm:mt-0">
+                      {isMissed ? (
+                        <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                      ) : isCheckinToday ? (
+                        <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      ) : isCheckinMissed ? (
+                        <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                      ) : (
+                        <theme.banner.icon className="w-5 h-5 shrink-0" />
+                      )}
+                    </div>
+                    <div className="space-y-0.5 flex-1">
+                      <strong className="block font-bold">
+                        {b.checkin_warning?.title || theme.banner?.title || 'Notice'}
+                      </strong>
+                      <p className="text-[11px] opacity-90 leading-relaxed font-normal">
+                        {b.checkin_warning?.message || theme.banner?.text}
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -317,7 +388,7 @@ export const MyBookings = () => {
                     <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 shadow-xs relative group">
                       <img
                         src={propImage}
-                        alt={b.property?.name || 'Stay Property'}
+                        alt={formatPropertyName(b.property?.name || 'Stay Property')}
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.src = 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80';
@@ -333,17 +404,17 @@ export const MyBookings = () => {
                         <Link
                           to={`/properties/${b.property_id}`}
                           className={`text-sm block font-sans font-bold truncate hover:underline ${theme.columnValueClass}`}
-                          title={b.property?.name || 'Sanctuary'}
+                          title={formatPropertyName(b.property?.name || 'Sanctuary')}
                         >
-                          {b.property?.name || 'Sanctuary'}
+                          {formatPropertyName(b.property?.name || 'Sanctuary')}
                         </Link>
                       ) : (
                         <strong className={`text-sm block font-sans truncate ${theme.columnValueClass}`}>
-                          {b.property?.name || 'Sanctuary'}
+                          {formatPropertyName(b.property?.name || 'Sanctuary')}
                         </strong>
                       )}
                       <span className={`block truncate ${theme.columnSubtextClass}`}>
-                        {b.property?.city ? `${b.property.city}, ${b.property.state || ''} • ` : ''}{roomName}
+                        {b.property?.city ? `${formatLocationName(b.property.city)}, ${formatLocationName(b.property.state) || ''} • ` : ''}{roomName}
                       </span>
                     </div>
                   </div>
@@ -361,18 +432,18 @@ export const MyBookings = () => {
                     </span>
                   </div>
 
-                  {/* Column 3: Stay Partner Experience */}
+                  {/* Column 3: Stay Partner Adventure */}
                   <div className={`p-4 rounded-2xl border ${theme.columnBg} ${theme.columnBorder} space-y-1.5 transition-all`}>
                     <span className={`font-bold block uppercase tracking-wider text-[10px] ${theme.columnHeaderClass}`}>
-                      Stay Partner Experience
+                      Stay Partner Adventure
                     </span>
-                    {expTitle ? (
+                    {advTitle ? (
                       <>
                         <strong className={`text-sm block font-sans ${theme.priceClass}`}>
-                          {expTitle}
+                          {advTitle}
                         </strong>
                         <span className={`block ${theme.columnSubtextClass}`}>
-                          {b.booking_experiences[0]?.participants || 1} Participant(s)
+                          {(b.booking_adventures?.[0] || b.booking_experiences?.[0])?.participants || 1} Participant(s)
                         </span>
                       </>
                     ) : (
@@ -384,7 +455,7 @@ export const MyBookings = () => {
                   <div className={`p-4 rounded-2xl border ${theme.columnBg} ${theme.columnBorder} space-y-1.5 flex flex-col justify-between transition-all`}>
                     <div>
                       <span className={`font-bold block uppercase tracking-wider text-[10px] ${theme.columnHeaderClass}`}>
-                        {isFailed ? 'Payment Status' : 'Total Amount Paid'}
+                        {isFailed ? 'Payment Status' : isMissed ? 'Booking Settlement' : 'Total Amount Paid'}
                       </span>
                       <strong className={`text-lg font-serif block font-bold ${theme.priceClass}`}>
                         ₹{(b.original_total_amount || b.total_amount)?.toLocaleString('en-IN')}
@@ -415,6 +486,13 @@ export const MyBookings = () => {
                       </span>
                     )}
 
+                    {isMissed && (
+                      <span data-testid={`missed-badge-${b.id}`} className="text-[11px] font-bold text-red-600 dark:text-red-400 flex items-center space-x-1 mt-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>Non-refundable (No-Show)</span>
+                      </span>
+                    )}
+
                     {isFailed && (
                       <Link
                         to={`/properties/${b.property_id || ''}`}
@@ -426,6 +504,47 @@ export const MyBookings = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Missed / No-Show Breakdown Card */}
+                {isMissed && (
+                  <div data-testid={`missed-booking-card-${b.id}`} className="p-5 rounded-2xl bg-red-50/70 dark:bg-red-950/30 border border-red-200/80 dark:border-red-900/50 space-y-3">
+                    <div className="flex items-center justify-between border-b border-red-200/60 dark:border-red-900/40 pb-2">
+                      <div className="flex items-center space-x-2 text-red-700 dark:text-red-300 font-bold text-xs">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Voyara No-Show & Forfeiture Policy Details</span>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-red-700 dark:text-red-300">
+                        Status: MISSED / NO-SHOW
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div>
+                        <span className="text-red-700/80 dark:text-red-400/80 block text-[10px] uppercase font-bold">Refund Amount</span>
+                        <strong data-testid={`refund-amount-${b.id}`} className="text-base font-serif font-bold text-red-600 dark:text-red-400">
+                          ₹0
+                        </strong>
+                        <span className="text-[10px] text-slate-500 block">
+                          (Non-refundable under No-Show Policy)
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-red-700/80 dark:text-red-400/80 block text-[10px] uppercase font-bold">No-Show Reason</span>
+                        <span className="text-slate-700 dark:text-slate-300 font-semibold">
+                          {b.cancellation_reason || 'Guest missed check-in (No-Show)'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-red-700/80 dark:text-red-400/80 block text-[10px] uppercase font-bold">Stay Resolution</span>
+                        <span className="text-red-600 dark:text-red-400 font-semibold">
+                          Stay Closed • Partner Retained Settlement
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Cancelled Refund Card */}
                 {isCancelled && (
@@ -481,7 +600,7 @@ export const MyBookings = () => {
                         </h4>
                       </div>
                       <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                        {b.property?.name || 'Sanctuary'}
+                        {formatPropertyName(b.property?.name || 'Sanctuary')}
                       </span>
                     </div>
 

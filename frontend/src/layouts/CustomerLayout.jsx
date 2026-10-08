@@ -7,14 +7,20 @@ export const CustomerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
-  const isPlannerPage = location.pathname.includes('trip-planner') || location.pathname.includes('saved-trips');
+  const isPlannerPage =
+    location.pathname.includes('trip-planner') ||
+    location.pathname.includes('saved-trips');
+  const isAIBookingPage =
+    location.pathname.includes('ai-booking') ||
+    location.pathname.includes('book-with-ai');
 
   const getPageTitle = (pathname) => {
     if (pathname === '/customer') return 'TRAVELER DASHBOARD';
+    if (pathname.includes('ai-booking') || pathname.includes('book-with-ai')) return 'ASK VOYARA AI — AUTONOMOUS BOOKING';
     if (pathname.includes('trip-planner') || pathname.includes('saved-trips')) return 'PLAN YOUR JOURNEY';
     if (pathname.startsWith('/search')) return 'EXPLORE STAYS';
     if (pathname.startsWith('/properties')) return 'STAY DETAILS';
-    if (pathname.startsWith('/experiences')) return 'EXPERIENCES & ADVENTURES';
+    if (pathname.startsWith('/adventures') || pathname.startsWith('/experiences')) return 'ADVENTURES & ACTIVITIES';
     if (pathname.startsWith('/booking/confirmation')) return 'JOURNEY CONFIRMATION';
     if (pathname.startsWith('/booking')) return 'SECURE CHECKOUT';
     if (pathname.startsWith('/customer/bookings')) return 'MY JOURNEYS';
@@ -45,10 +51,16 @@ export const CustomerLayout = () => {
         <DashboardHeader
           title={getPageTitle(location.pathname)}
           onMenuClick={() => setSidebarOpen(true)}
-          placeholder="Search destinations, stays, experiences..."
+          placeholder="Search destinations, stays, adventures..."
         />
 
-        <main className={`flex-1 ${isPlannerPage ? 'p-2 sm:p-3 lg:p-4 max-w-full w-full mx-auto flex flex-col min-h-0 overflow-hidden' : 'p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-8'}`}>
+        <main className={`flex-1 ${
+          isPlannerPage
+            ? 'p-2 sm:p-3 lg:p-4 max-w-full w-full mx-auto flex flex-col min-h-0 overflow-hidden'
+            : isAIBookingPage
+            ? 'p-0 w-full'
+            : 'p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-8'
+        }`}>
           <Outlet />
         </main>
       </div>

@@ -4,6 +4,7 @@ from app.schemas.trip_planner import (
     ItineraryDayResponse,
     ItineraryItemResponse,
     TripPlannerStayCandidate,
+    TripPlannerAdventureCandidate,
     TripPlannerExperienceCandidate,
     ExternalPlaceCandidate
 )
@@ -17,8 +18,9 @@ class ItineraryOptimizerService:
         start_date: date,
         end_date: date,
         stay: Optional[TripPlannerStayCandidate],
-        experiences: List[TripPlannerExperienceCandidate],
-        external_places: List[ExternalPlaceCandidate],
+        adventures: Optional[List[Any]] = None,
+        experiences: Optional[List[Any]] = None,
+        external_places: Optional[List[ExternalPlaceCandidate]] = None,
         travel_style: str = "BALANCED",
         interests: Optional[List[str]] = None
     ) -> List[ItineraryDayResponse]:
@@ -58,13 +60,14 @@ class ItineraryOptimizerService:
                 setattr(p, '_dist_from_stay', p_dist)
             remaining_places.sort(key=lambda x: getattr(x, '_dist_from_stay', 999.0))
 
-        # Map experiences by day number (if already assigned) or distribute them
-        exp_by_day: Dict[int, List[TripPlannerExperienceCandidate]] = {}
-        for exp in experiences:
-            d_num = getattr(exp, 'day_number', 2)
+        # Map adventures by day number (if already assigned) or distribute them
+        adv_list = adventures if adventures is not None else (experiences or [])
+        adv_by_day: Dict[int, List[Any]] = {}
+        for adv in adv_list:
+            d_num = getattr(adv, 'day_number', 2)
             if d_num > num_days:
                 d_num = min(2, num_days)
-            exp_by_day.setdefault(d_num, []).append(exp)
+            adv_by_day.setdefault(d_num, []).append(adv)
 
         # Build each day
         place_idx = 0
@@ -114,23 +117,25 @@ class ItineraryOptimizerService:
                         action_type="BOOK_STAY"
                     ))
 
-                # Day 1 Experience if any
-                day_exps = exp_by_day.get(1, [])
-                for exp in day_exps:
+                # Day 1 Adventure if any
+                day_advs = adv_by_day.get(1, [])
+                for adv in day_advs:
+                    adv_id = getattr(adv, 'adventure_id', None) or getattr(adv, 'experience_id', None)
+                    adv_cost = getattr(adv, 'total_adventure_cost', None) or getattr(adv, 'total_experience_cost', 0.0)
                     day_items.append(ItineraryItemResponse(
-                        item_id=f"day1_exp_{exp.experience_id}",
+                        item_id=f"day1_adv_{adv_id}",
                         time_slot="Evening",
-                        start_time=exp.start_time,
-                        end_time=exp.end_time,
-                        title=f"Voyara Experience: {exp.title}",
-                        item_type="VOYARA_EXPERIENCE",
-                        description=f"{exp.description} (Duration: {exp.duration})",
-                        internal_id=exp.experience_id,
-                        photo_url=exp.image_url,
-                        location_name=f"{exp.property_name}, {destination}",
-                        cost=exp.total_experience_cost,
-                        pricing_note=f"₹{exp.price:,.0f} ({exp.pricing_model.replace('_', ' ')})",
-                        action_type="VIEW_EXPERIENCE"
+                        start_time=adv.start_time,
+                        end_time=adv.end_time,
+                        title=f"Voyara Adventure: {adv.title}",
+                        item_type="VOYARA_ADVENTURE",
+                        description=f"{adv.description} (Duration: {adv.duration})",
+                        internal_id=adv_id,
+                        photo_url=adv.image_url,
+                        location_name=f"{adv.property_name}, {destination}",
+                        cost=adv_cost,
+                        pricing_note=f"₹{adv.price:,.0f} ({adv.pricing_model.replace('_', ' ')})",
+                        action_type="VIEW_ADVENTURE"
                     ))
 
                 # 3. Afternoon / Evening Nearby Attraction
@@ -295,24 +300,27 @@ class ItineraryOptimizerService:
                     cost=0.0
                 ))
 
-                # 3. Voyara Experience (if booked/scheduled for this day)
-                if day_exps:
-                    for exp in day_exps:
-                        theme = f"Day {day_num} — {exp.title} & Local Highlights"
+                # 3. Voyara Adventure (if booked/scheduled for this day)
+                day_advs = adv_by_day.get(day_num, [])
+                if day_advs:
+                    for adv in day_advs:
+                        adv_id = getattr(adv, 'adventure_id', None) or getattr(adv, 'experience_id', None)
+                        adv_cost = getattr(adv, 'total_adventure_cost', None) or getattr(adv, 'total_experience_cost', 0.0)
+                        theme = f"Day {day_num} — {adv.title} & Local Highlights"
                         day_items.append(ItineraryItemResponse(
-                            item_id=f"day{day_num}_exp_{exp.experience_id}",
-                            time_slot="Afternoon" if "12:" in exp.start_time or "13:" in exp.start_time or "14:" in exp.start_time or "15:" in exp.start_time or "16:" in exp.start_time else ("Morning" if "0" in exp.start_time or "10:" in exp.start_time or "11:" in exp.start_time else "Evening"),
-                            start_time=exp.start_time,
-                            end_time=exp.end_time,
-                            title=f"Voyara Experience: {exp.title}",
-                            item_type="VOYARA_EXPERIENCE",
-                            description=f"{exp.description} (Duration: {exp.duration})",
-                            internal_id=exp.experience_id,
-                            photo_url=exp.image_url,
-                            location_name=f"{exp.property_name}, {destination}",
-                            cost=exp.total_experience_cost,
-                            pricing_note=f"₹{exp.price:,.0f} ({exp.pricing_model.replace('_', ' ')})",
-                            action_type="VIEW_EXPERIENCE"
+                            item_id=f"day{day_num}_adv_{adv_id}",
+                            time_slot="Afternoon" if "12:" in adv.start_time or "13:" in adv.start_time or "14:" in adv.start_time or "15:" in adv.start_time or "16:" in adv.start_time else ("Morning" if "0" in adv.start_time or "10:" in adv.start_time or "11:" in adv.start_time else "Evening"),
+                            start_time=adv.start_time,
+                            end_time=adv.end_time,
+                            title=f"Voyara Adventure: {adv.title}",
+                            item_type="VOYARA_ADVENTURE",
+                            description=f"{adv.description} (Duration: {adv.duration})",
+                            internal_id=adv_id,
+                            photo_url=adv.image_url,
+                            location_name=f"{adv.property_name}, {destination}",
+                            cost=adv_cost,
+                            pricing_note=f"₹{adv.price:,.0f} ({adv.pricing_model.replace('_', ' ')})",
+                            action_type="VIEW_ADVENTURE"
                         ))
                 elif place_idx < len(remaining_places) and max_attractions_per_day >= 2:
                     # Alternative Afternoon Attraction

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from app.models.property import Property
 from app.models.room import Room
-from app.models.experience import Experience
+from app.models.adventure import Adventure
 from app.models.booking import Booking
 from app.models.review import Review
 from app.models.user import User
@@ -18,7 +18,7 @@ class ProviderSearchService:
         Searches across:
           1. Properties (Name, City, State, Type)
           2. Rooms (Name, Room Type)
-          3. Experiences (Title, Experience Type)
+          3. Adventures (Title, Adventure Type)
           4. Bookings / Reservations (Booking Number, Guest Name)
           5. Reviews (Comment text, Property name)
           6. Availability / Quick Management shortcuts
@@ -36,7 +36,7 @@ class ProviderSearchService:
         owned_properties = (
             db.query(Property)
             .filter(Property.provider_id == provider_id)
-            .options(joinedload(Property.images), joinedload(Property.rooms), joinedload(Property.experiences))
+            .options(joinedload(Property.images), joinedload(Property.rooms), joinedload(Property.adventures))
             .all()
         )
         owned_property_ids = [p.id for p in owned_properties]
@@ -95,7 +95,7 @@ class ProviderSearchService:
             if match_name or match_city or match_state or match_type or match_address:
                 img_url = prop.images[0].image_url if prop.images else None
                 room_count = len(prop.rooms)
-                exp_count = len(prop.experiences)
+                adv_count = len(prop.adventures)
                 
                 results.append({
                     "id": prop.id,
@@ -110,7 +110,8 @@ class ProviderSearchService:
                     "property_name": prop.name,
                     "details": {
                         "rooms_count": room_count,
-                        "experiences_count": exp_count,
+                        "adventures_count": adv_count,
+                        "experiences_count": adv_count,
                         "rating": prop.rating,
                         "review_count": prop.review_count,
                         "verification_status": prop.verification_status,
@@ -119,7 +120,7 @@ class ProviderSearchService:
                         {"label": "Manage Property", "route": "/provider/properties"},
                         {"label": "View Rooms", "route": "/provider/rooms"},
                         {"label": "View Availability", "route": "/provider/availability"},
-                        {"label": "View Experiences", "route": "/provider/experiences"},
+                        {"label": "View Adventures", "route": "/provider/adventures"},
                         {"label": "View Reservations", "route": "/provider/bookings"},
                         {"label": "View Reviews", "route": "/provider/reviews"}
                     ]
@@ -157,34 +158,34 @@ class ProviderSearchService:
                 "property_name": prop_name
             })
 
-        # 5. Match Experiences in owned properties
-        matching_experiences = (
-            db.query(Experience)
+        # 5. Match Adventures in owned properties
+        matching_adventures = (
+            db.query(Adventure)
             .filter(
-                Experience.property_id.in_(owned_property_ids),
+                Adventure.property_id.in_(owned_property_ids),
                 or_(
-                    Experience.title.ilike(search_pattern),
-                    Experience.experience_type.ilike(search_pattern),
-                    Experience.description.ilike(search_pattern)
+                    Adventure.title.ilike(search_pattern),
+                    Adventure.adventure_type.ilike(search_pattern),
+                    Adventure.description.ilike(search_pattern)
                 )
             )
-            .options(joinedload(Experience.property))
+            .options(joinedload(Adventure.property))
             .limit(10)
             .all()
         )
 
-        for exp in matching_experiences:
-            prop_name = exp.property.name if exp.property else "Your Stay"
+        for adv in matching_adventures:
+            prop_name = adv.property.name if adv.property else "Your Stay"
             results.append({
-                "id": exp.id,
-                "type": "EXPERIENCE",
-                "badge": "EXPERIENCE",
-                "title": exp.title,
-                "subtitle": f"{exp.experience_type} • {prop_name} • ₹{int(exp.price)} ({exp.pricing_model})",
-                "image_url": exp.image_url,
-                "route": "/provider/experiences",
-                "action_label": "Manage Experience",
-                "property_id": exp.property_id,
+                "id": adv.id,
+                "type": "ADVENTURE",
+                "badge": "ADVENTURE",
+                "title": adv.title,
+                "subtitle": f"{adv.adventure_type} • {prop_name} • ₹{int(adv.price)} ({adv.pricing_model})",
+                "image_url": adv.image_url,
+                "route": "/provider/adventures",
+                "action_label": "Manage Adventure",
+                "property_id": adv.property_id,
                 "property_name": prop_name
             })
 

@@ -25,6 +25,7 @@ import {
 import { PhoneInput } from '../../components/common/PhoneInput';
 import { GoogleAuthButton } from '../../components/common/GoogleAuthButton';
 import { GoogleOnboardingModal } from '../../components/auth/GoogleOnboardingModal';
+import { formatEmail, formatDisplayName } from '../../utils/formatters';
 
 export const Register = () => {
   const [searchParams] = useSearchParams();
@@ -401,54 +402,56 @@ export const Register = () => {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#091B29] via-[#091B29]/70 to-[#091B29]/45" />
 
-          {/* Top Brand Logo & Slogan */}
-          <div className="relative z-10 space-y-2">
-            <Link to="/" className="inline-block group">
-              <img
-                src="/logo.png"
-                alt="VOYARA"
-                className="h-14 w-auto object-contain rounded-2xl shadow-lg border border-white/20 transition-transform duration-300 group-hover:scale-105"
-              />
-            </Link>
-            <div>
-              <span className="text-[#F6C945] text-xs font-black uppercase tracking-widest block">
-                Find Your Place.
-              </span>
-              <p className="text-white/80 text-sm font-medium pt-0.5">
-                Stay. Explore. Experience.
-              </p>
-            </div>
-          </div>
-
-          {/* Host Trust Badges */}
-          <div className="relative z-10 space-y-3 my-auto pt-10">
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-start space-x-3.5 shadow-lg text-white">
-              <div className="p-2 bg-[#087F8C]/40 rounded-xl text-[#F6C945] shrink-0 mt-0.5">
-                <ShieldCheck className="w-4 h-4 text-[#F6C945]" />
-              </div>
+          {/* Top Group: Brand Logo, Slogan & Trust Cards */}
+          <div className="relative z-10 space-y-5">
+            <div className="space-y-2">
+              <Link to="/" className="inline-block group">
+                <img
+                  src="/logo.png"
+                  alt="VOYARA"
+                  className="h-14 w-auto object-contain rounded-2xl shadow-lg border border-white/20 transition-transform duration-300 group-hover:scale-105"
+                />
+              </Link>
               <div>
-                <h4 className="text-xs font-bold tracking-wide">Multi-Signal Trust</h4>
-                <p className="text-[11px] text-white/70 leading-snug">Evaluates stay partner & property signals with zero legal document uploads.</p>
+                <span className="text-[#F6C945] text-xs font-black uppercase tracking-widest block">
+                  Find Your Place.
+                </span>
+                <p className="text-white/80 text-sm font-medium pt-0.5">
+                  Stay. Explore. Adventure.
+                </p>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-start space-x-3.5 shadow-lg text-white">
-              <div className="p-2 bg-[#F97316]/30 rounded-xl text-[#F97316] shrink-0 mt-0.5">
-                <Phone className="w-4 h-4 text-[#F97316]" />
+            {/* Host Trust Badges - positioned directly underneath logo and slogan */}
+            <div className="space-y-3 pt-1">
+              <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-start space-x-3.5 shadow-lg text-white">
+                <div className="p-2 bg-[#087F8C]/40 rounded-xl text-[#F6C945] shrink-0 mt-0.5">
+                  <ShieldCheck className="w-4 h-4 text-[#F6C945]" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold tracking-wide">Multi-Signal Trust</h4>
+                  <p className="text-[11px] text-white/70 leading-snug">Evaluates stay partner & property signals with zero legal document uploads.</p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-xs font-bold tracking-wide">Verified Stay Partner Identity</h4>
-                <p className="text-[11px] text-white/70 leading-snug">Secure phone & email validation prior to property listing.</p>
-              </div>
-            </div>
 
-            <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-start space-x-3.5 shadow-lg text-white">
-              <div className="p-2 bg-[#35A66F]/30 rounded-xl text-[#DDF3E7] shrink-0 mt-0.5">
-                <CalendarCheck className="w-4 h-4 text-[#35A66F]" />
+              <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-start space-x-3.5 shadow-lg text-white">
+                <div className="p-2 bg-[#F97316]/30 rounded-xl text-[#F97316] shrink-0 mt-0.5">
+                  <Phone className="w-4 h-4 text-[#F97316]" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold tracking-wide">Verified Stay Partner Identity</h4>
+                  <p className="text-[11px] text-white/70 leading-snug">Secure phone & email validation prior to property listing.</p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-xs font-bold tracking-wide">VeriNova Integrity</h4>
-                <p className="text-[11px] text-white/70 leading-snug">Real-time database checks protect every booking transaction.</p>
+
+              <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 flex items-start space-x-3.5 shadow-lg text-white">
+                <div className="p-2 bg-[#35A66F]/30 rounded-xl text-[#DDF3E7] shrink-0 mt-0.5">
+                  <CalendarCheck className="w-4 h-4 text-[#35A66F]" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold tracking-wide">VeriNova Integrity</h4>
+                  <p className="text-[11px] text-white/70 leading-snug">Real-time database checks protect every booking transaction.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -475,7 +478,7 @@ export const Register = () => {
                     Account Created Successfully
                   </h2>
                   <p className="text-sm text-[#607080] dark:text-slate-300 max-w-sm mx-auto">
-                    Account registered for <strong className="text-[#17324D] dark:text-white">{successData.email}</strong> as{' '}
+                    Account registered for <strong className="text-[#17324D] dark:text-white">{formatEmail(successData.email)}</strong> as{' '}
                     <span className="font-semibold text-[#087F8C] dark:text-[#27B7A8]">
                       Traveler
                     </span>.
@@ -621,7 +624,7 @@ export const Register = () => {
                     VERIFY YOUR EMAIL
                   </h2>
                   <p className="text-xs text-[#607080] dark:text-slate-400">
-                    Check your email at <strong className="text-slate-700 dark:text-slate-200">{email}</strong> for the 6-digit code.
+                    Check your email at <strong className="text-slate-700 dark:text-slate-200">{formatEmail(email)}</strong> for the 6-digit code.
                   </p>
                 </div>
 
@@ -716,7 +719,7 @@ export const Register = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-1 border-b border-slate-200/40 dark:border-slate-800">
-                    <span className="text-slate-500">Email ({email})</span>
+                    <span className="text-slate-500">Email ({formatEmail(email)})</span>
                     <span className="text-[#35A66F] font-bold flex items-center space-x-1">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>Verified</span>
@@ -776,7 +779,7 @@ export const Register = () => {
                       <div>
                         <span className="block text-xs font-bold uppercase tracking-wide">TRAVELER</span>
                         <span className={`block text-[10px] mt-0.5 leading-tight ${selectedRole === 'CUSTOMER' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'}`}>
-                          Book verified stays & experiences.
+                          Book verified stays & adventures.
                         </span>
                       </div>
                     </button>

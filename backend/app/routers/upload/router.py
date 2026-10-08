@@ -37,7 +37,7 @@ ALLOWED_DOC_MIME_TYPES = {
 @router.post("/image")
 async def upload_image(file: UploadFile = File(...)):
     """
-    Safely upload a property, room, or experience image and return its local URL.
+    Safely upload a property, room, or adventure image and return its local URL.
     Supports JPG, JPEG, PNG, WebP, and GIF.
     """
     raw_content_type = (file.content_type or "").split(";")[0].strip().lower()

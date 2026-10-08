@@ -6,8 +6,8 @@ from sqlalchemy import func, and_, or_
 
 from app.models.property import Property, PropertyVerificationStatus, PropertyImage, PropertyAmenity
 from app.models.room import Room, RoomImage, RoomAmenity, RoomRule
-from app.models.booking import Booking, BookingStatus, BookingRoom, BookingExperience
-from app.models.experience import Experience, ExperienceAvailability, ExperienceSchedule
+from app.models.booking import Booking, BookingStatus, BookingRoom, BookingAdventure, BookingExperience
+from app.models.adventure import Adventure, AdventureAvailability, AdventureSchedule, Experience, ExperienceAvailability, ExperienceSchedule
 from app.models.review import Review
 from app.services.ai.trip_planner_validation import TripPlannerValidationService
 from app.services.ai.destination_places import DestinationPlacesService
@@ -323,9 +323,20 @@ class TripPlannerToolsService:
         total_guests = adults + children
         valid_configurations = []
 
+        from app.services.ai.booking_agent_tools import BookingAgentToolsService
         for r in rooms:
-            room_cap = r.capacity or 2
-            needed_quantity = max(1, (total_guests + room_cap - 1) // room_cap)
+            config_eval = BookingAgentToolsService.calculate_room_configuration(
+                db=db,
+                property_id=property_id,
+                room_id=r.id,
+                adults=adults,
+                children=children,
+                child_ages=child_ages
+            )
+            if not config_eval.get("valid"):
+                continue
+
+            needed_quantity = config_eval.get("quantity", 1)
 
             # Check inventory
             avail_quantity = r.quantity or 1
@@ -340,35 +351,32 @@ class TripPlannerToolsService:
             if remaining_inventory < needed_quantity:
                 continue
 
-            # Child policy check
-            is_suitable, reason = TripPlannerValidationService.check_room_suitability(
-                room=r, adults=adults, children=children, child_ages=child_ages
+            pricing_eval = BookingAgentToolsService.calculate_booking_price(
+                db=db,
+                property_id=property_id,
+                room_id=r.id,
+                check_in=start_d,
+                check_out=end_d,
+                room_quantity=needed_quantity,
+                adults=adults,
+                children=children,
+                child_ages=child_ages
             )
-
-            child_fee_night = 0.0
-            if children > 0 and r.rules:
-                if r.rules.child_charge_enabled and r.rules.child_charge_amount:
-                    child_fee_night = float(r.rules.child_charge_amount * children)
-                elif r.rules.child_price:
-                    child_fee_night = float(r.rules.child_price * children)
-
-            room_subtotal = float(r.base_price * needed_quantity * nights)
-            child_subtotal = float(child_fee_night * nights)
-            total_cost = room_subtotal + child_subtotal
 
             valid_configurations.append({
                 "room_id": r.id,
                 "room_name": r.name,
                 "room_type": r.room_type or "Room",
-                "capacity_per_room": room_cap,
+                "capacity_per_room": r.capacity or 2,
                 "quantity_required": needed_quantity,
                 "price_per_night": float(r.base_price),
                 "total_nights": nights,
-                "total_accommodation_cost": total_cost,
+                "total_accommodation_cost": pricing_eval["total_price"],
                 "capacity_ok": True,
-                "child_policy_ok": is_suitable,
-                "unsuitability_reason": reason if not is_suitable else None,
-                "availability_ok": True
+                "child_policy_ok": True,
+                "unsuitability_reason": None,
+                "availability_ok": True,
+                "room_config": config_eval
             })
 
         return {
@@ -382,6 +390,72 @@ class TripPlannerToolsService:
         }
 
     @classmethod
+    def search_adventures_for_trip(
+        cls,
+        db: Session,
+        destination: str,
+        date_str: Optional[str] = None,
+        travelers: int = 2,
+        preferences: Optional[List[str]] = None,
+        budget: Optional[float] = None,
+        property_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Searches PostgreSQL for verified, active adventures in the destination.
+        """
+        query = db.query(Adventure).join(Property, Property.id == Adventure.property_id).filter(
+            Adventure.is_active == True,
+            Property.is_active == True,
+            Property.verification_status == PropertyVerificationStatus.VERIFIED.value
+        )
+        if property_id:
+            query = query.filter(Adventure.property_id == property_id)
+        else:
+            query = query.filter(
+                or_(
+                    func.lower(Property.city).contains(destination.lower()),
+                    func.lower(Property.state).contains(destination.lower()),
+                    func.lower(Adventure.title).contains(destination.lower()),
+                    func.lower(Adventure.adventure_type).contains(destination.lower())
+                )
+            )
+        adventures = query.limit(6).all()
+        results = []
+
+        for adv in adventures:
+            # Check capacity if travelers specified
+            max_p = adv.capacity or 10
+            if travelers > max_p:
+                continue
+
+            price = float(adv.price) if adv.price else 1000.0
+            pricing_model = getattr(adv, "pricing_model", "per_person") or "per_person"
+            total_adv_cost = price * travelers if pricing_model.lower() == "per_person" else price
+
+            prop_img = db.query(PropertyImage).filter(PropertyImage.property_id == adv.property_id).order_by(PropertyImage.is_primary.desc()).first()
+            adv_image = adv.image_url or (prop_img.image_url if prop_img else None)
+
+            results.append({
+                "adventure_id": adv.id,
+                "experience_id": adv.id,
+                "title": adv.title,
+                "category": adv.adventure_type or "Outdoor & Nature",
+                "adventure_type": adv.adventure_type or "Outdoor & Nature",
+                "description": adv.description or f"Authentic adventure in {adv.property.city if adv.property else destination}.",
+                "city": adv.property.city if adv.property else destination,
+                "state": adv.property.state if adv.property else "India",
+                "price": price,
+                "pricing_model": pricing_model,
+                "participants": travelers,
+                "total_cost": total_adv_cost,
+                "duration": adv.duration or "2 Hours",
+                "max_participants": max_p,
+                "image_url": adv_image
+            })
+
+        return results
+
+    @classmethod
     def search_experiences_for_trip(
         cls,
         db: Session,
@@ -389,67 +463,32 @@ class TripPlannerToolsService:
         date_str: Optional[str] = None,
         travelers: int = 2,
         preferences: Optional[List[str]] = None,
-        budget: Optional[float] = None
+        budget: Optional[float] = None,
+        property_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Searches PostgreSQL for verified, active experiences in the destination.
-        """
-        query = db.query(Experience).join(Property, Property.id == Experience.property_id).filter(
-            Experience.is_active == True,
-            Property.is_active == True,
-            Property.verification_status == PropertyVerificationStatus.VERIFIED.value,
-            or_(
-                func.lower(Property.city).contains(destination.lower()),
-                func.lower(Property.state).contains(destination.lower()),
-                func.lower(Experience.title).contains(destination.lower()),
-                func.lower(Experience.experience_type).contains(destination.lower())
-            )
+        return cls.search_adventures_for_trip(
+            db=db,
+            destination=destination,
+            date_str=date_str,
+            travelers=travelers,
+            preferences=preferences,
+            budget=budget,
+            property_id=property_id
         )
-        experiences = query.limit(6).all()
-        results = []
-
-        for exp in experiences:
-            # Check capacity if travelers specified
-            max_p = exp.capacity or 10
-            if travelers > max_p:
-                continue
-
-            price = float(exp.price) if exp.price else 1000.0
-            pricing_model = getattr(exp, "pricing_model", "per_person") or "per_person"
-            total_exp_cost = price * travelers if pricing_model.lower() == "per_person" else price
-
-            prop_img = db.query(PropertyImage).filter(PropertyImage.property_id == exp.property_id).order_by(PropertyImage.is_primary.desc()).first()
-            exp_image = exp.image_url or (prop_img.image_url if prop_img else None)
-
-            results.append({
-                "experience_id": exp.id,
-                "title": exp.title,
-                "category": exp.experience_type or "Outdoor & Nature",
-                "description": exp.description or f"Authentic experience in {exp.property.city if exp.property else destination}.",
-                "city": exp.property.city if exp.property else destination,
-                "state": exp.property.state if exp.property else "India",
-                "price": price,
-                "pricing_model": pricing_model,
-                "participants": travelers,
-                "total_cost": total_exp_cost,
-                "duration": exp.duration or "2 Hours",
-                "max_participants": max_p,
-                "image_url": exp_image
-            })
-
-        return results
 
     @classmethod
     def calculate_trip_estimate(
         cls,
         accommodation_total: float,
-        experience_total: float,
+        adventures_total: Optional[float] = None,
+        experience_total: Optional[float] = None,
         budget: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Calculates known VOYARA costs vs target budget and distinguishes unknown personal costs.
         """
-        known_total = accommodation_total + experience_total
+        adv_total = adventures_total if adventures_total is not None else (experience_total or 0.0)
+        known_total = accommodation_total + adv_total
         budget_status = "NO_BUDGET"
         diff = 0.0
 
@@ -464,7 +503,8 @@ class TripPlannerToolsService:
 
         return {
             "accommodation_total": round(accommodation_total, 2),
-            "experience_total": round(experience_total, 2),
+            "adventures_total": round(adv_total, 2),
+            "experience_total": round(adv_total, 2),
             "known_total": round(known_total, 2),
             "budget_target": round(budget, 2) if budget else None,
             "budget_difference": round(diff, 2) if budget else 0.0,
@@ -474,7 +514,7 @@ class TripPlannerToolsService:
                 "Local taxi & intercity transport",
                 "Personal shopping & museum entry tickets"
             ],
-            "disclaimer": "This estimate covers your verified Voyara stay and booked experiences. Meals and local transit are paid on-site."
+            "disclaimer": "This estimate covers your verified Voyara stay and booked adventures. Meals and local transit are paid on-site."
         }
 
     @classmethod

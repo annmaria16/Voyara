@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supportApi } from '../../api/support';
 import { StatusBadge } from '../../components/dashboard/StatusBadge';
+import { formatDisplayName, formatEmail } from '../../utils/formatters';
 import {
   MessageSquare,
   Search,
@@ -53,7 +54,7 @@ export const AdminSupport = () => {
   const categories = [
     'ALL',
     'Booking Inquiry',
-    'Stay Experience',
+    'Stay & Adventure',
     'Payment / Verification',
     'Stay Partner Listing Help',
     'Property Management',
@@ -486,7 +487,7 @@ export const AdminSupport = () => {
                           <div className="min-w-0">
                             <div className="flex items-center space-x-1.5">
                               <span className="font-bold text-[#091B29] dark:text-white truncate max-w-[140px]">
-                                {ticket.user?.name || ticket.user_name || 'Registered User'}
+                                {formatDisplayName(ticket.user?.name || ticket.user_name || 'Registered User')}
                               </span>
                               <span
                                 className={`text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-sm ${
@@ -499,7 +500,7 @@ export const AdminSupport = () => {
                               </span>
                             </div>
                             <p className="text-[11px] text-slate-400 truncate max-w-[160px]">
-                              {ticket.user?.email || ticket.user_email}
+                              {formatEmail(ticket.user?.email || ticket.user_email || '')}
                             </p>
                           </div>
                         </div>
@@ -686,7 +687,7 @@ export const AdminSupport = () => {
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Name</span>
                       <p className="font-bold text-[#091B29] dark:text-white">
-                        {selectedTicket.user?.name || selectedTicket.user_name || 'N/A'}
+                        {formatDisplayName(selectedTicket.user?.name || selectedTicket.user_name || 'N/A')}
                       </p>
                     </div>
 
@@ -694,7 +695,7 @@ export const AdminSupport = () => {
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Email</span>
                       <p className="font-medium text-slate-700 dark:text-slate-300 flex items-center space-x-1">
                         <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{selectedTicket.user?.email || selectedTicket.user_email || 'N/A'}</span>
+                        <span className="truncate">{formatEmail(selectedTicket.user?.email || selectedTicket.user_email || '') || 'N/A'}</span>
                       </p>
                     </div>
 

@@ -546,18 +546,30 @@ def get_verified_transactions(
             {"name": "Host & Property Status", "status": "PASS", "detail": "Property is active and verified for customer booking"}
         ]
 
-        if b.booking_experiences and len(b.booking_experiences) > 0:
-            first_exp = b.booking_experiences[0]
+        booked_advs = getattr(b, 'booking_adventures', None) or getattr(b, 'booking_experiences', [])
+        if booked_advs and len(booked_advs) > 0:
+            first_adv = booked_advs[0]
+            adv_t = getattr(first_adv, 'adventure_title', None) or getattr(first_adv, 'experience_title', '')
             integrity_checks.append({
-                "name": "Experience Schedule Alignment",
+                "name": "Adventure Schedule Alignment",
                 "status": "PASS",
-                "detail": f"Experience '{first_exp.experience_title}' scheduled on {first_exp.scheduled_date}"
+                "detail": f"Adventure '{adv_t}' scheduled on {first_adv.scheduled_date}"
             })
 
         room_name = b.booking_rooms[0].room_name if b.booking_rooms else None
         room_id = b.booking_rooms[0].room_id if b.booking_rooms else None
-        exp_name = b.booking_experiences[0].experience_title if b.booking_experiences else None
-        exp_id = b.booking_experiences[0].experience_id if b.booking_experiences else None
+        adv_name = (
+            getattr(booked_advs[0], 'adventure_title', None)
+            or getattr(booked_advs[0], 'experience_title', None)
+            if booked_advs
+            else None
+        )
+        adv_id = (
+            getattr(booked_advs[0], 'adventure_id', None)
+            or getattr(booked_advs[0], 'experience_id', None)
+            if booked_advs
+            else None
+        )
 
         results.append({
             "booking_id": b.id,
@@ -569,8 +581,10 @@ def get_verified_transactions(
             "property_name": b.property.name if b.property else "Property",
             "room_id": room_id,
             "room_name": room_name,
-            "experience_id": exp_id,
-            "experience_name": exp_name,
+            "adventure_id": adv_id,
+            "adventure_name": adv_name,
+            "experience_id": adv_id,
+            "experience_name": adv_name,
             "check_in_date": str(b.check_in),
             "check_out_date": str(b.check_out),
             "total_price": float(b.total_amount),

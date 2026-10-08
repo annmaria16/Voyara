@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Luggage, Home, Building, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { PhoneInput } from '../common/PhoneInput';
+import { formatDisplayName, formatEmail } from '../../utils/formatters';
 
 export const GoogleOnboardingModal = ({
   isOpen,
@@ -74,10 +75,10 @@ export const GoogleOnboardingModal = ({
 
           <div>
             <h2 className="text-xl sm:text-2xl font-bold font-serif text-[#102A43] dark:text-white">
-              Welcome to Voyara, {googleData.name?.split(' ')[0] || 'Traveler'}!
+              Welcome to Voyara, {formatDisplayName(googleData.name?.split(' ')[0] || 'Traveler')}!
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Verified Google account: <span className="font-semibold text-slate-800 dark:text-slate-200">{googleData.email}</span>
+              Verified Google account: <span className="font-semibold text-slate-800 dark:text-slate-200">{formatEmail(googleData.email)}</span>
             </p>
           </div>
         </div>
@@ -122,7 +123,7 @@ export const GoogleOnboardingModal = ({
                       selectedRole === 'CUSTOMER' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'
                     }`}
                   >
-                    Find stays and experiences for your trips
+                    Find stays and adventures for your trips
                   </span>
                 </div>
               </button>
@@ -150,7 +151,7 @@ export const GoogleOnboardingModal = ({
                       selectedRole === 'PROVIDER' ? 'text-white/90' : 'text-slate-500 dark:text-slate-400'
                     }`}
                   >
-                    List stays and host experiences
+                    List stays and host adventures
                   </span>
                 </div>
               </button>

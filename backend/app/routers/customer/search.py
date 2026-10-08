@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.properties.property_service import PropertyService
-from app.services.experiences.experience_service import ExperienceService
+from app.services.adventures.adventure_service import AdventureService, ExperienceService
 from app.services.availability.availability_service import AvailabilityService
 from app.schemas.availability import RoomAvailabilityCheckResponse
 
@@ -40,12 +40,14 @@ def search_listings(
     amenities: Optional[List[str]] = Query(None, description="Amenities required"),
     host: Optional[str] = Query(None, description="Host / brand name filter"),
     property_name: Optional[str] = Query(None, description="Property name filter"),
-    experience: Optional[str] = Query(None, description="Experience keyword filter"),
-    experience_date: Optional[date] = Query(None, description="Experience date filter"),
+    adventure: Optional[str] = Query(None, description="Adventure keyword filter"),
+    adventure_date: Optional[date] = Query(None, description="Adventure date filter"),
+    experience: Optional[str] = Query(None, description="Experience keyword filter (compatibility)"),
+    experience_date: Optional[date] = Query(None, description="Experience date filter (compatibility)"),
     db: Session = Depends(get_db)
 ):
     """
-    Real-time database-driven search for Voyara accommodation and experiences.
+    Real-time database-driven search for Voyara accommodation and adventures.
     Queries PostgreSQL/database records with availability, closure, host brand, and pricing constraints.
     """
     return PropertyService.search_properties(
@@ -60,29 +62,50 @@ def search_listings(
         amenities=amenities,
         host=host,
         property_name=property_name,
+        adventure=adventure,
+        adventure_date=adventure_date,
         experience=experience,
         experience_date=experience_date
     )
 
 @router.get("/properties/{property_id}")
 def get_property_details(property_id: int, db: Session = Depends(get_db)):
-    """Get full details of a specific property including active rooms, amenities, and experiences."""
+    """Get full details of a specific property including active rooms, amenities, and adventures."""
     return PropertyService.get_public_property_details(db, property_id)
 
-@router.get("/experiences")
-def get_experiences(
+@router.get("/adventures")
+def get_adventures(
+    adventure_type: Optional[str] = Query(None),
     experience_type: Optional[str] = Query(None),
     destination: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Browse experiences and activities across Voyara destinations."""
-    return ExperienceService.list_all_experiences(db, experience_type, destination)
+    """Browse adventures and activities across Voyara destinations."""
+    adv_type = adventure_type or experience_type
+    return AdventureService.list_all_adventures(db, adv_type, destination)
+
+@router.get("/adventures/{adventure_id}")
+def get_adventure_details(
+    adventure_id: int,
+    target_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get full details and live remaining capacity of an adventure."""
+    return AdventureService.get_adventure_by_id(db, adventure_id, target_date)
+
+# Backward compatibility routes
+@router.get("/experiences")
+def get_experiences_compat(
+    experience_type: Optional[str] = Query(None),
+    destination: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    return AdventureService.list_all_adventures(db, experience_type, destination)
 
 @router.get("/experiences/{experience_id}")
-def get_experience_details(
+def get_experience_details_compat(
     experience_id: int,
     target_date: Optional[date] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Get full details and live remaining capacity of an experience."""
-    return ExperienceService.get_experience_by_id(db, experience_id, target_date)
+    return AdventureService.get_adventure_by_id(db, experience_id, target_date)

@@ -10,18 +10,81 @@ from app.database import engine, Base, SessionLocal
 from app.routers import api_router
 from app.services.reminders.reminder_service import ReminderService
 
-# Ensure all database tables are created
-Base.metadata.create_all(bind=engine)
-
-# Auto-migrate required columns if not present
+# Auto-migrate required columns and tables if not present
 def ensure_db_schema():
     try:
         with engine.connect() as conn:
+            # 1. Rename tables from Experience to Adventure if they exist
+            table_renames = [
+                ("experiences", "adventures"),
+                ("experience_schedules", "adventure_schedules"),
+                ("experience_availabilities", "adventure_availabilities"),
+                ("booking_experiences", "booking_adventures"),
+            ]
+            for old_tbl, new_tbl in table_renames:
+                try:
+                    conn.execute(text(f"""
+                        DO $$
+                        BEGIN
+                            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{old_tbl}')
+                               AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{new_tbl}') THEN
+                                ALTER TABLE {old_tbl} RENAME TO {new_tbl};
+                            END IF;
+                        END $$;
+                    """))
+                except Exception as ex:
+                    pass
+
+            # 2. Rename columns from experience_* to adventure_*
+            column_renames = [
+                ("adventures", "experience_type", "adventure_type"),
+                ("adventure_schedules", "experience_id", "adventure_id"),
+                ("adventure_availabilities", "experience_id", "adventure_id"),
+                ("booking_adventures", "experience_id", "adventure_id"),
+                ("booking_adventures", "experience_title", "adventure_title"),
+                ("bookings", "experience_total", "adventure_total"),
+                ("ai_booking_sessions", "selected_experience_ids", "selected_adventure_ids"),
+                ("ai_booking_previews", "experience_id", "adventure_id"),
+                ("ai_booking_previews", "experience_participants", "adventure_participants"),
+                ("ai_booking_previews", "experience_date", "adventure_date"),
+                ("ai_booking_previews", "experience_total", "adventure_total"),
+                ("saved_trips", "experience_preferences", "adventure_preferences"),
+            ]
+            for tbl, old_col, new_col in column_renames:
+                try:
+                    conn.execute(text(f"""
+                        DO $$
+                        BEGIN
+                            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = '{tbl}' AND column_name = '{old_col}')
+                               AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = '{tbl}' AND column_name = '{new_col}') THEN
+                                ALTER TABLE {tbl} RENAME COLUMN {old_col} TO {new_col};
+                            END IF;
+                        END $$;
+                    """))
+                except Exception as ex:
+                    pass
+
+            # 3. Update data rows in saved_trip_items and verification_checks
+            try:
+                conn.execute(text("UPDATE saved_trip_items SET item_type = 'VOYARA_ADVENTURE' WHERE item_type = 'VOYARA_EXPERIENCE';"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("UPDATE verification_checks SET check_category = 'ADVENTURE' WHERE check_category = 'EXPERIENCE';"))
+            except Exception:
+                pass
+
             conn.execute(text("ALTER TABLE properties ADD COLUMN IF NOT EXISTS guest_information_message TEXT;"))
             conn.execute(text("ALTER TABLE properties ADD COLUMN IF NOT EXISTS cancellation_refund_percentage INTEGER DEFAULT 50;"))
             conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_information_message_snapshot TEXT;"))
             conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_reminder_sent BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_today_notified BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS no_show_notified BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS booking_id INTEGER;"))
+            try:
+                conn.execute(text("ALTER TYPE bookingstatus ADD VALUE IF NOT EXISTS 'NO_SHOW';"))
+            except Exception:
+                pass
 
             # Financial snapshot and settlement status columns for Bookings
             conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS original_total_amount FLOAT DEFAULT 0.0;"))
@@ -35,6 +98,7 @@ def ensure_db_schema():
             conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50) DEFAULT 'NOT_APPLICABLE';"))
             conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payout_status VARCHAR(50) DEFAULT 'NOT_READY';"))
             conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS cancellation_processed_at TIMESTAMP NULL;"))
+            conn.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booking_source VARCHAR(20) DEFAULT 'self';"))
 
             # Backfill original_total_amount for existing bookings if 0
             conn.execute(text("UPDATE bookings SET original_total_amount = total_amount WHERE original_total_amount = 0.0 AND total_amount > 0;"))
@@ -101,16 +165,21 @@ def ensure_db_schema():
 
 ensure_db_schema()
 
-# Background task for check-in reminders (runs every 15 minutes)
+# Ensure all database tables are created
+Base.metadata.create_all(bind=engine)
+
+# Background task for check-in reminders & booking lifecycle (runs every 15 minutes)
 async def periodic_checkin_reminders_task():
     while True:
         try:
+            from app.services.bookings.booking_service import BookingService
             db = SessionLocal()
             ReminderService.process_checkin_reminders(db)
+            BookingService.auto_evaluate_past_and_expired_bookings(db)
             db.close()
         except Exception as e:
-            print("Background reminder check exception:", e)
-        await asyncio.sleep(900)  # Check every 15 minutes
+            print("Background reminder & lifecycle check exception:", e)
+        await asyncio.sleep(300)  # Check every 5 minutes
 
 # Background task for daily legal document expiry checks
 async def periodic_legal_document_expiry_task():
@@ -149,7 +218,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="Voyara - Smart Accommodation & Experience Marketplace with VeriNova Transaction Verification Layer.",
+    description="Voyara - Smart Accommodation & Adventure Marketplace with VeriNova Transaction Verification Layer.",
     version="1.0.0",
     lifespan=lifespan
 )

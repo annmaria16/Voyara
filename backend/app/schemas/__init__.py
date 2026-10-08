@@ -33,7 +33,11 @@ from app.schemas.availability import (
     RoomBlockResponse,
     AvailabilityCalendarResponse,
 )
-from app.schemas.experience import (
+from app.schemas.adventure import (
+    AdventureCreate,
+    AdventureUpdate,
+    AdventureResponse,
+    AdventureScheduleSchema,
     ExperienceCreate,
     ExperienceUpdate,
     ExperienceResponse,
@@ -43,6 +47,7 @@ from app.schemas.booking import (
     BookingCreate,
     BookingResponse,
     BookingRoomItemResponse,
+    BookingAdventureItemResponse,
     BookingExperienceItemResponse,
 )
 from app.schemas.verification import (
@@ -77,6 +82,10 @@ __all__ = [
     "RoomBlockCreate",
     "RoomBlockResponse",
     "AvailabilityCalendarResponse",
+    "AdventureCreate",
+    "AdventureUpdate",
+    "AdventureResponse",
+    "AdventureScheduleSchema",
     "ExperienceCreate",
     "ExperienceUpdate",
     "ExperienceResponse",
@@ -84,6 +93,7 @@ __all__ = [
     "BookingCreate",
     "BookingResponse",
     "BookingRoomItemResponse",
+    "BookingAdventureItemResponse",
     "BookingExperienceItemResponse",
     "VerificationCheckResponse",
     "VerificationResultResponse",

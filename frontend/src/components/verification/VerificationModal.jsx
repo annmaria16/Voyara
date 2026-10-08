@@ -31,7 +31,7 @@ export const VerificationModal = ({ bookingId, isOpen, onClose }) => {
     { label: 'Property verified & approved by platform moderation', done: true },
     { label: 'Room availability confirmed with zero double-booking conflicts', done: true },
     { label: 'Check-in and check-out dates validated against calendar', done: true },
-    { label: 'Experience schedule & capacity constraints validated', done: true },
+    { label: 'Adventure schedule & capacity constraints validated', done: true },
     { label: 'Authoritative server rate validated with zero hidden charges', done: true },
     { label: 'Cryptographic transaction integrity fingerprint generated', done: true },
   ];

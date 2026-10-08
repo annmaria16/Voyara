@@ -29,7 +29,9 @@ import {
   HelpCircle,
   Sun,
   Moon,
+  Sparkles,
 } from 'lucide-react';
+import { formatDisplayName, formatEmail } from '../../utils/formatters';
 
 export const DashboardSidebar = ({ role, isOpen = false, onClose = () => { } }) => {
   const location = useLocation();
@@ -48,9 +50,10 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => { } }) 
       activeBg: 'bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white shadow-md shadow-teal-900/20 font-bold',
       items: [
         { name: 'Travel Journal', path: '/customer', icon: LayoutDashboard },
-        { name: 'Trip Planner', path: '/traveler/trip-planner', icon: Map, highlight: true },
+        { name: 'Book with AI', path: '/traveler/ai-booking', icon: Sparkles, highlight: true },
+        { name: 'Trip Planner', path: '/traveler/trip-planner', icon: Map },
         { name: 'Explore Stays', path: '/search', icon: Compass },
-        { name: 'Experiences', path: '/experiences', icon: Flame },
+        { name: 'Adventures', path: '/adventures', icon: Flame },
         { name: 'My Journeys', path: '/customer/bookings', icon: BookOpen },
         { name: 'Messages', path: '/customer/messages', icon: MessageSquare },
         { name: 'Traveler Profile', path: '/customer/profile', icon: User },
@@ -66,7 +69,7 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => { } }) 
         { name: 'Add Property', path: '/provider/properties/new', icon: PlusCircle, highlight: true },
         { name: 'Manage Rooms', path: '/provider/rooms', icon: Bed },
         { name: 'Manage Availability', path: '/provider/availability', icon: Calendar },
-        { name: 'Experiences', path: '/provider/experiences', icon: Flame },
+        { name: 'Adventures', path: '/provider/adventures', icon: Flame },
         { name: 'Guest Reservations', path: '/provider/bookings', icon: BookOpen },
         { name: 'Messages', path: '/provider/messages', icon: MessageSquare },
         { name: 'Guest Reviews', path: '/provider/reviews', icon: Star },
@@ -195,15 +198,15 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => { } }) 
               />
             ) : (
               <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#087F8C] to-[#0F9D9A] flex items-center justify-center text-white font-bold text-xs uppercase shrink-0 shadow-xs">
-                {user?.name?.charAt(0) || 'U'}
+                {formatDisplayName(user?.name || 'U').charAt(0).toUpperCase()}
               </div>
             )}
             <div className="min-w-0">
               <p className="text-xs font-bold text-[#17324D] dark:text-white truncate font-sans">
-                {user?.name || 'Voyara User'}
+                {formatDisplayName(user?.name) || 'Voyara User'}
               </p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate capitalize font-medium">
-                {user?.email || config.roleBadge}
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate font-medium">
+                {user?.email ? formatEmail(user.email) : config.roleBadge}
               </p>
             </div>
           </div>

@@ -4,7 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel, field_validator
 from app.models.property import PropertyType, PropertyVerificationStatus
 from app.schemas.room import RoomCreate, RoomResponse
-from app.schemas.experience import ExperienceCreate
+from app.schemas.adventure import AdventureCreate, ExperienceCreate
 from app.schemas.stayguide import PropertyRuleResponse, PropertyRuleCreate
 
 def clean_indian_phone(v: Optional[str]) -> Optional[str]:
@@ -56,8 +56,13 @@ class PropertyCreate(BaseModel):
     images: List[str] = []  # List of image URLs
     ownership_proof_url: Optional[str] = None
     rooms: List[RoomCreate] = []  # Embedded room units created with the property
-    experiences: List[ExperienceCreate] = []  # Embedded experiences created with the property
+    adventures: List[AdventureCreate] = []  # Embedded adventures created with the property
+    experiences: List[AdventureCreate] = []  # Compatibility alias
     home_rules: Optional[PropertyRuleCreate] = None
+
+    def model_post_init(self, __context):
+        if self.experiences and not self.adventures:
+            self.adventures = self.experiences
 
     @field_validator("contact_phone")
     @classmethod
@@ -252,6 +257,7 @@ class AdminPropertyResponse(BaseModel):
     reviewed_at: Optional[datetime] = None
     rating: float
     rooms_count: int = 0
+    adventures_count: int = 0
     experiences_count: int = 0
     created_at: datetime
     images: List[PropertyImageSchema] = []

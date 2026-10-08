@@ -27,6 +27,7 @@ import {
   Activity,
   Compass,
 } from 'lucide-react';
+import { formatDisplayName, formatEmail, formatLocationName } from '../../utils/formatters';
 
 export const ProfilePage = () => {
   const { user, roleLabel, updateUserProfile } = useAuth();
@@ -306,7 +307,7 @@ export const ProfilePage = () => {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <span>{name ? name.charAt(0) : user?.name?.charAt(0) || 'U'}</span>
+                <span>{formatDisplayName(name || user?.name || 'U').charAt(0).toUpperCase()}</span>
               )}
 
               {/* Uploading Overlay Spinner */}
@@ -341,7 +342,7 @@ export const ProfilePage = () => {
           <div className="flex-1 text-center sm:text-left space-y-3">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
               <h1 className="text-2xl sm:text-3xl font-black font-serif text-[#091B29] dark:text-white">
-                {name || user?.name || 'Voyara User'}
+                {formatDisplayName(name || user?.name || 'Voyara User')}
               </h1>
               <span className="px-3 py-1 rounded-xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] text-xs font-black uppercase tracking-wider border border-[#087F8C]/20">
                 {displayRoleBadge}
@@ -356,7 +357,7 @@ export const ProfilePage = () => {
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 max-w-xl leading-relaxed font-light">
                 {bio || (isProvider
                   ? 'Stay Partner hosting authentic retreats and verified boutique stays on Voyara.'
-                  : 'Voyara Traveler exploring curated stays, unique retreats, and local experiences.')}
+                  : 'Voyara Traveler exploring curated stays, unique retreats, and local adventures.')}
               </p>
             )}
 
@@ -471,7 +472,7 @@ export const ProfilePage = () => {
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
-                  value={user?.email || ''}
+                  value={formatEmail(user?.email || '')}
                   readOnly
                   disabled
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed select-all"

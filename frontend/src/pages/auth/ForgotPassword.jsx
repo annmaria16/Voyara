@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../api/auth';
+import { formatEmail } from '../../utils/formatters';
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle, RefreshCw, Send, Sparkles } from 'lucide-react';
 
 export const ForgotPassword = () => {
@@ -32,7 +33,7 @@ export const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      await authApi.forgotPassword(trimmed);
+      await authApi.forgotPassword(trimmed.toLowerCase());
       setSubmitted(true);
     } catch (err) {
       setError(err.message || 'Failed to request password reset. Please try again.');
@@ -80,7 +81,7 @@ export const ForgotPassword = () => {
                   Check your email
                 </h3>
                 <p className="text-xs sm:text-sm text-[#607080] dark:text-slate-300 leading-relaxed max-w-sm mx-auto">
-                  If an account exists for <strong className="text-[#17324D] dark:text-white font-semibold">{email}</strong>, we've sent you a password reset link.
+                  If an account exists for <strong className="text-[#17324D] dark:text-white font-semibold">{formatEmail(email)}</strong>, we've sent you a password reset link.
                 </p>
               </div>
 

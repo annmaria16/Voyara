@@ -67,8 +67,12 @@ class Property(Base):
     images = relationship("PropertyImage", back_populates="property", cascade="all, delete-orphan", order_by="desc(PropertyImage.is_primary), PropertyImage.id")
     amenities = relationship("PropertyAmenity", back_populates="property", cascade="all, delete-orphan")
     rooms = relationship("Room", back_populates="property", cascade="all, delete-orphan")
-    experiences = relationship("Experience", back_populates="property", cascade="all, delete-orphan")
+    adventures = relationship("Adventure", back_populates="property", cascade="all, delete-orphan")
     availability_blocks = relationship("PropertyAvailability", back_populates="property", cascade="all, delete-orphan")
+
+    @property
+    def experiences(self):
+        return self.adventures
     bookings = relationship("Booking", back_populates="property", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="property", cascade="all, delete-orphan", order_by="desc(Review.created_at)")
     verinova_assessments = relationship("VeriNovaPropertyAssessment", foreign_keys="[VeriNovaPropertyAssessment.property_id]", back_populates="property", cascade="all, delete-orphan", order_by="desc(VeriNovaPropertyAssessment.created_at)")

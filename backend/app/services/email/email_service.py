@@ -102,7 +102,7 @@ This code will expire in {expire_minutes} minutes.
 
 If you did not request this verification code, please ignore this email.
 
-Stay. Explore. Experience.
+Stay. Explore. Adventure.
 Voyara
 """
 
@@ -168,7 +168,7 @@ Voyara
           <tr>
             <td style="padding: 20px 32px; background-color: #F8FAFC; text-align: center; border-top: 1px solid #F1F5F9;">
               <p style="margin: 0 0 4px; font-size: 12px; font-weight: 600; color: #64748B; letter-spacing: 1px;">
-                Stay. Explore. Experience.
+                Stay. Explore. Adventure.
               </p>
               <p style="margin: 0; font-size: 11px; color: #94A3B8;">
                 © {current_year} Voyara Platform. All rights reserved.
@@ -273,7 +273,7 @@ This link will expire after 1 hour.
 
 If you did not request a password reset, you can safely ignore this email.
 
-Stay. Explore. Experience.
+Stay. Explore. Adventure.
 Voyara
 """
 
@@ -345,7 +345,7 @@ Voyara
           <tr>
             <td style="padding: 24px 32px; background-color: #F8FAFC; text-align: center; border-top: 1px solid #EDF2F7;">
               <p style="margin: 0 0 4px; font-size: 12px; font-weight: 600; color: #486581; letter-spacing: 1px;">
-                Stay. Explore. Experience.
+                Stay. Explore. Adventure.
               </p>
               <p style="margin: 0; font-size: 11px; color: #94A3B8;">
                 © {current_year} Voyara. All rights reserved.

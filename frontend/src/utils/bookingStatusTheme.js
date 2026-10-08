@@ -18,19 +18,134 @@ import {
  *
  * Distinct Color Palette:
  * - CONFIRMED / VERIFIED: Vibrant Emerald Green 🟢
+ * - CHECKIN_TODAY: Warm Amber / Golden Warning 🟡
+ * - CHECKIN_MISSED: Burnt Orange / Tangerine Warning 🟠
+ * - NO_SHOW / MISSED: Deep Crimson / Ruby Alert Red 🔴
  * - COMPLETED: Royal Purple / Deep Violet 🟣
- * - PENDING / PAYMENT_PENDING: Golden Amber / Warm Yellow 🟡
+ * - PENDING / PAYMENT_PENDING: Golden Amber 🟡
  * - CHECKED_IN: Electric Sky Blue / Azure 🔵
  * - CHECKED_OUT: Deep Indigo / Slate 🔷
  * - CANCELLED: Coral / Rose Pink-Red 🌸
  * - FAILED: Deep Crimson Alert Red 🔴
  */
-export const getBookingStatusTheme = (rawStatus) => {
-  const status = (rawStatus || 'PENDING').toUpperCase();
+export const getBookingStatusTheme = (rawStatus, booking = null) => {
+  let status = (rawStatus || 'PENDING').toUpperCase();
+
+  // If a booking object is passed, check display_status, is_missed, checkin_warning
+  if (booking) {
+    if (booking.display_status) {
+      status = booking.display_status.toUpperCase();
+    } else if (booking.status === 'NO_SHOW' || booking.is_missed) {
+      status = 'NO_SHOW';
+    } else if (booking.is_checkin_today) {
+      status = 'CHECKIN_TODAY';
+    } else if (booking.is_checkin_missed) {
+      status = 'CHECKIN_MISSED';
+    }
+  }
 
   switch (status) {
+    case 'NO_SHOW':
+    case 'MISSED':
+      return {
+        key: 'NO_SHOW',
+        label: 'MISSED / NO-SHOW',
+        icon: AlertCircle,
+        // Overall card theme (Deep Crimson / Ruby Red Missed Alert)
+        cardBorder: 'border-red-500/60 dark:border-red-500/50 hover:border-red-500/80',
+        cardBg: 'bg-red-50/30 dark:bg-[#280a0e]',
+        cardAccentBar: 'from-red-600 via-rose-600 to-amber-700',
+        glowClass: 'shadow-red-500/15 hover:shadow-red-500/25 ring-1 ring-red-500/30',
+        badgeClasses: 'bg-red-500/20 text-red-800 dark:text-red-300 border-red-500/40 shadow-xs font-black',
+        dotClass: 'bg-red-600 animate-pulse',
+        bookingPillClasses: 'bg-gradient-to-r from-red-700 to-rose-900 text-white shadow-xs',
+        verinovaPillClasses: 'text-red-800 dark:text-red-300 bg-red-500/15 border-red-500/35',
+        // Full Column Details Grid Theme (Ruby Red / Maroon)
+        columnBg: 'bg-red-100/75 dark:bg-red-950/60',
+        columnBorder: 'border-red-300/90 dark:border-red-800/60',
+        columnHeaderClass: 'text-red-900 dark:text-red-300 font-extrabold',
+        columnValueClass: 'text-[#17324D] dark:text-white',
+        columnSubtextClass: 'text-red-950/80 dark:text-red-200/90',
+        priceClass: 'text-red-700 dark:text-red-400 font-black',
+        milestoneActiveBar: 'bg-red-500 dark:bg-red-500',
+        milestoneActiveText: 'text-red-700 dark:text-rose-400 font-bold',
+        milestoneTrack: 'bg-red-200/60 dark:bg-red-950/40',
+        milestoneProgress: 3,
+        banner: {
+          icon: AlertCircle,
+          title: 'You missed your booking',
+          text: 'Your check-in date has passed and no check-in was recorded. No refund is applicable under Voyara No-Show Policy.',
+          bg: 'bg-red-50/90 dark:bg-red-950/50 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800/80',
+        },
+      };
+
+    case 'CHECKIN_TODAY':
+      return {
+        key: 'CHECKIN_TODAY',
+        label: 'CHECK-IN TODAY',
+        icon: Clock,
+        // Overall card theme (Warm Amber / Golden Warning)
+        cardBorder: 'border-amber-500/60 dark:border-amber-500/50 hover:border-amber-500/80',
+        cardBg: 'bg-amber-50/30 dark:bg-[#261805]',
+        cardAccentBar: 'from-amber-500 via-yellow-500 to-orange-500',
+        glowClass: 'shadow-amber-500/15 hover:shadow-amber-500/25 ring-1 ring-amber-500/30',
+        badgeClasses: 'bg-amber-500/25 text-amber-900 dark:text-amber-200 border-amber-500/50 shadow-xs font-black',
+        dotClass: 'bg-amber-500 animate-ping',
+        bookingPillClasses: 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-xs',
+        verinovaPillClasses: 'text-amber-900 dark:text-amber-300 bg-amber-500/15 border-amber-500/35',
+        columnBg: 'bg-amber-100/75 dark:bg-amber-950/60',
+        columnBorder: 'border-amber-300/90 dark:border-amber-700/60',
+        columnHeaderClass: 'text-amber-900 dark:text-amber-300 font-extrabold',
+        columnValueClass: 'text-[#17324D] dark:text-white',
+        columnSubtextClass: 'text-amber-950/80 dark:text-amber-200/90',
+        priceClass: 'text-amber-700 dark:text-amber-400 font-black',
+        milestoneActiveBar: 'bg-amber-500 dark:bg-amber-400 shadow-xs shadow-amber-500/30',
+        milestoneActiveText: 'text-amber-800 dark:text-amber-300 font-bold',
+        milestoneTrack: 'bg-amber-200/60 dark:bg-amber-950/40',
+        milestoneProgress: 3,
+        banner: {
+          icon: AlertTriangle,
+          title: 'Check-in Today',
+          text: "You haven't checked in yet. Your stay starts today.",
+          bg: 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-800/70',
+        },
+      };
+
+    case 'CHECKIN_MISSED':
+      return {
+        key: 'CHECKIN_MISSED',
+        label: 'CHECK-IN MISSED',
+        icon: AlertTriangle,
+        // Overall card theme (Burnt Orange / Tangerine Warning)
+        cardBorder: 'border-orange-500/60 dark:border-orange-500/50 hover:border-orange-500/80',
+        cardBg: 'bg-orange-50/30 dark:bg-[#2b1208]',
+        cardAccentBar: 'from-orange-500 via-amber-600 to-red-600',
+        glowClass: 'shadow-orange-500/15 hover:shadow-orange-500/25 ring-1 ring-orange-500/30',
+        badgeClasses: 'bg-orange-500/25 text-orange-900 dark:text-orange-200 border-orange-500/50 shadow-xs font-black',
+        dotClass: 'bg-orange-600 animate-pulse',
+        bookingPillClasses: 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-xs',
+        verinovaPillClasses: 'text-orange-900 dark:text-orange-300 bg-orange-500/15 border-orange-500/35',
+        columnBg: 'bg-orange-100/75 dark:bg-orange-950/60',
+        columnBorder: 'border-orange-300/90 dark:border-orange-700/60',
+        columnHeaderClass: 'text-orange-900 dark:text-orange-300 font-extrabold',
+        columnValueClass: 'text-[#17324D] dark:text-white',
+        columnSubtextClass: 'text-orange-950/80 dark:text-orange-200/90',
+        priceClass: 'text-orange-700 dark:text-orange-400 font-black',
+        milestoneActiveBar: 'bg-orange-500 dark:bg-orange-400 shadow-xs shadow-orange-500/30',
+        milestoneActiveText: 'text-orange-800 dark:text-orange-300 font-bold',
+        milestoneTrack: 'bg-orange-200/60 dark:bg-orange-950/40',
+        milestoneProgress: 3,
+        banner: {
+          icon: AlertTriangle,
+          title: 'Check-in Missed',
+          text: 'You have not checked in for this booking. Please check your booking details.',
+          bg: 'bg-orange-50 dark:bg-orange-950/40 text-orange-900 dark:text-orange-200 border-orange-300 dark:border-orange-800/70',
+        },
+      };
+
     case 'CONFIRMED':
     case 'VERIFIED':
+    case 'UPCOMING':
       return {
         key: 'CONFIRMED',
         label: status === 'VERIFIED' ? 'VERIFIED STAY' : 'CONFIRMED',
@@ -88,6 +203,7 @@ export const getBookingStatusTheme = (rawStatus) => {
         milestoneProgress: 7, // 100% completed all 7 milestones
         banner: {
           icon: Sparkles,
+          title: 'Journey Complete',
           text: 'Journey complete! Thank you for travelling with Voyara. Share your review to inspire others.',
           bg: 'bg-purple-50 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-800/60',
         },
@@ -121,6 +237,7 @@ export const getBookingStatusTheme = (rawStatus) => {
         milestoneProgress: 2, // Booked, Pending Verification
         banner: {
           icon: Clock,
+          title: 'Awaiting Confirmation',
           text: 'This reservation is awaiting final confirmation from the Stay Partner. Your dates are provisionally held.',
           bg: 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800/60',
         },
@@ -153,6 +270,7 @@ export const getBookingStatusTheme = (rawStatus) => {
         milestoneProgress: 5, // Booked, Verified, Confirmed, Checked-In, Stay
         banner: {
           icon: UserCheck,
+          title: 'Currently Checked In',
           text: 'You are currently checked in! Enjoy your sanctuary stay. If you need any assistance, message your stay partner.',
           bg: 'bg-blue-50 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-800/60',
         },
@@ -185,6 +303,7 @@ export const getBookingStatusTheme = (rawStatus) => {
         milestoneProgress: 6, // Booked, Verified, Confirmed, Checked-In, Stay, Checkout
         banner: {
           icon: Sparkles,
+          title: 'Stay Concluded',
           text: 'Your stay has concluded! How was your journey? Share a verified review to help fellow travellers.',
           bg: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800/60',
         },
@@ -217,6 +336,7 @@ export const getBookingStatusTheme = (rawStatus) => {
         milestoneProgress: 0,
         banner: {
           icon: AlertCircle,
+          title: 'Booking Cancelled',
           text: 'This reservation has been cancelled. Internal refund and settlement terms apply.',
           bg: 'bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 border-rose-200 dark:border-rose-800/60',
         },
@@ -250,6 +370,7 @@ export const getBookingStatusTheme = (rawStatus) => {
         milestoneProgress: 1, // Only initial step
         banner: {
           icon: AlertTriangle,
+          title: 'Payment Failed',
           text: 'Payment or verification failed during booking creation. No charges were captured, or a refund is queued.',
           bg: 'bg-red-50 dark:bg-red-950/50 text-red-900 dark:text-red-200 border-red-300 dark:border-red-800/70',
         },

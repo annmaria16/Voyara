@@ -13,7 +13,7 @@ export const LoadingScreen = ({ message = 'Find Your Place.' }) => {
             {message}
           </p>
           <p className="text-[11px] text-slate-400 font-normal">
-            Stay. Explore. Experience.
+            Stay. Explore. Adventure.
           </p>
         </div>
       </div>

@@ -13,7 +13,7 @@ export const ProviderLayout = () => {
     if (pathname.startsWith('/provider/properties')) return 'MY PLACES';
     if (pathname.startsWith('/provider/rooms')) return 'MANAGE ROOMS';
     if (pathname.startsWith('/provider/availability')) return 'MANAGE AVAILABILITY';
-    if (pathname.startsWith('/provider/experiences')) return 'EXPERIENCES & TOURS';
+    if (pathname.startsWith('/provider/adventures') || pathname.startsWith('/provider/experiences')) return 'ADVENTURES & TOURS';
     if (pathname.startsWith('/provider/bookings')) return 'GUEST RESERVATIONS';
     if (pathname.startsWith('/provider/messages')) return 'GUEST MESSAGES';
     if (pathname.startsWith('/provider/reviews')) return 'GUEST REVIEWS & RATINGS';
@@ -43,7 +43,7 @@ export const ProviderLayout = () => {
         <DashboardHeader
           title={getPageTitle(location.pathname)}
           onMenuClick={() => setSidebarOpen(true)}
-          placeholder="Search your properties, rooms, bookings..."
+          placeholder="Search your properties, rooms, adventures, bookings..."
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-8">

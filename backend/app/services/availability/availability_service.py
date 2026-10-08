@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -623,36 +623,58 @@ class AvailabilityService:
                 "message": "Check-out date must be strictly after Check-in date."
             }
 
-        # 1. Check Property Closures
-        closure = db.query(PropertyAvailability).filter(
-            PropertyAvailability.property_id == room.property_id,
-            PropertyAvailability.is_closed == True,
-            PropertyAvailability.start_date <= check_out,
-            PropertyAvailability.end_date >= check_in
-        ).first()
+        # 1. Check Night-by-Night Availability for every night in the requested stay
+        nights_count = (check_out - check_in).days
+        min_available_units = room.quantity
+        max_booked_units = 0
+        is_closed = False
+        is_blocked = False
+        closure_reason = None
+        block_reason = None
 
-        # 2. Check Room Date Blocks
-        room_block = db.query(RoomAvailability).filter(
-            RoomAvailability.room_id == room.id,
-            RoomAvailability.is_blocked == True,
-            RoomAvailability.start_date <= check_out,
-            RoomAvailability.end_date >= check_in
-        ).first()
+        for n in range(nights_count):
+            night_date = check_in + timedelta(days=n)
 
-        # 3. Sum Confirmed/Verified/Checked-In Overlapping Booked Quantities
-        booked_qty = db.query(
-            func.coalesce(func.sum(BookingRoom.quantity), 0)
-        ).join(Booking).filter(
-            BookingRoom.room_id == room.id,
-            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.CHECKED_IN]),
-            Booking.check_in < check_out,
-            Booking.check_out > check_in
-        ).scalar() or 0
+            # Check Property Closures on this night
+            closure = db.query(PropertyAvailability).filter(
+                PropertyAvailability.property_id == room.property_id,
+                PropertyAvailability.is_closed == True,
+                PropertyAvailability.start_date <= night_date,
+                PropertyAvailability.end_date >= night_date
+            ).first()
+            if closure:
+                is_closed = True
+                closure_reason = closure.reason
+                min_available_units = 0
+                break
 
-        # Determine Availability
-        is_closed = bool(closure)
-        is_blocked = bool(room_block)
-        blocked_qty = room.quantity if is_blocked else 0
+            # Check Room Date Blocks on this night
+            room_block = db.query(RoomAvailability).filter(
+                RoomAvailability.room_id == room.id,
+                RoomAvailability.is_blocked == True,
+                RoomAvailability.start_date <= night_date,
+                RoomAvailability.end_date >= night_date
+            ).first()
+            if room_block:
+                is_blocked = True
+                block_reason = room_block.reason
+                min_available_units = 0
+                break
+
+            # Sum Booked Units specifically on this night
+            night_booked_qty = db.query(
+                func.coalesce(func.sum(BookingRoom.quantity), 0)
+            ).join(Booking).filter(
+                BookingRoom.room_id == room.id,
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.CHECKED_IN]),
+                Booking.check_in <= night_date,
+                Booking.check_out > night_date
+            ).scalar() or 0
+
+            max_booked_units = max(max_booked_units, int(night_booked_qty))
+            night_avail = max(0, room.quantity - int(night_booked_qty))
+            if night_avail < min_available_units:
+                min_available_units = night_avail
 
         if not room.is_active:
             available_qty = 0
@@ -661,22 +683,24 @@ class AvailabilityService:
         elif is_closed:
             available_qty = 0
             is_avail = False
-            msg = f"Property is closed for the selected dates ({closure.reason})."
+            msg = f"Property is closed for the selected dates ({closure_reason or 'Closure'})."
         elif is_blocked:
             available_qty = 0
             is_avail = False
-            msg = f"Room is blocked for the selected dates ({room_block.reason})."
+            msg = f"Room is blocked for the selected dates ({block_reason or 'Maintenance'})."
         else:
-            available_qty = max(0, room.quantity - booked_qty)
+            available_qty = min_available_units
             is_avail = available_qty > 0
             msg = None if is_avail else "Sold out for these dates."
+
+        blocked_qty = room.quantity if is_blocked else 0
 
         return {
             "room_id": room.id,
             "property_id": room.property_id,
             "room_name": room.name,
             "total_quantity": room.quantity,
-            "booked_quantity": int(booked_qty),
+            "booked_quantity": int(max_booked_units),
             "blocked_quantity": int(blocked_qty),
             "available_quantity": int(available_qty),
             "max_guests": room.capacity,

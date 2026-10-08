@@ -25,6 +25,7 @@ import {
   Image as ImageIcon,
   BookOpen,
 } from 'lucide-react';
+import { formatPropertyName, formatCity, formatState, formatLocationName } from '../../utils/formatters';
 
 export const ProviderProperties = () => {
   const [properties, setProperties] = useState([]);
@@ -210,13 +211,13 @@ export const ProviderProperties = () => {
                     <div>
                       <Link to={`/provider/properties/${p.id}/edit`} className="block">
                         <h3 className="text-xl font-serif font-bold text-[#091B29] dark:text-white line-clamp-1 group-hover:text-[#087F8C] transition-colors">
-                          {p.name}
+                          {formatPropertyName(p.name)}
                         </h3>
                       </Link>
                       <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-1 space-x-1.5 font-light">
                         <MapPin className="w-3.5 h-3.5 text-orange-500 shrink-0" />
                         <span className="truncate">
-                          {p.city ? `${p.city}${p.state ? ', ' + p.state : ''}` : p.address || 'Location details'}
+                          {p.city ? `${formatCity(p.city)}${p.state ? ', ' + formatState(p.state) : ''}` : formatLocationName(p.address) || 'Location details'}
                         </span>
                       </div>
                     </div>
@@ -323,12 +324,12 @@ export const ProviderProperties = () => {
                             <span>Availability Calendar</span>
                           </Link>
                           <Link
-                            to="/provider/experiences"
+                            to="/provider/adventures"
                             className="flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                             onClick={() => setManageMenuPropertyId(null)}
                           >
                             <Flame className="w-3.5 h-3.5 text-[#F97316]" />
-                            <span>Experiences</span>
+                            <span>Adventures</span>
                           </Link>
                           <Link
                             to="/provider/bookings"

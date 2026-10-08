@@ -3,10 +3,10 @@ from datetime import datetime, date, timezone
 from typing import List, Dict, Any, Tuple, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app.models.booking import Booking, BookingStatus, BookingRoom, BookingExperience
+from app.models.booking import Booking, BookingStatus, BookingRoom, BookingAdventure, BookingExperience
 from app.models.property import Property
 from app.models.room import Room
-from app.models.experience import Experience
+from app.models.adventure import Adventure, Experience
 from app.models.availability import PropertyAvailability, RoomAvailability
 from app.models.user import User, UserRole
 from app.models.verification import VerificationResult, VerificationCheck, VerificationStatus, CheckStatus
@@ -287,119 +287,119 @@ class VeriNovaService:
                     awarded_score += 5
 
         # =========================================================================
-        # 3. EXPERIENCE & CAPACITY CHECKS (Weight: 15 pts)
+        # 3. ADVENTURE & CAPACITY CHECKS (Weight: 15 pts)
         # =========================================================================
-        booking_experiences = booking.booking_experiences
-        if booking_experiences:
-            for be in booking_experiences:
-                exp = db.query(Experience).filter(Experience.id == be.experience_id).first()
-                if not exp:
+        booking_adventures = booking.booking_adventures
+        if booking_adventures:
+            for be in booking_adventures:
+                adv = db.query(Adventure).filter(Adventure.id == be.adventure_id).first()
+                if not adv:
                     checks.append({
-                        "category": "EXPERIENCE",
-                        "name": f"Experience #{be.experience_id} Integrity Check",
+                        "category": "ADVENTURE",
+                        "name": f"Adventure #{be.adventure_id} Integrity Check",
                         "weight": 5,
                         "score": 0,
                         "status": CheckStatus.FAIL,
-                        "message": f"Experience ID #{be.experience_id} not found in database.",
-                        "details": "Experience record missing."
+                        "message": f"Adventure ID #{be.adventure_id} not found in database.",
+                        "details": "Adventure record missing."
                     })
                     is_failed = True
-                    failure_messages.append("Experience not found.")
+                    failure_messages.append("Adventure not found.")
                     continue
 
-                # Experience belongs to property
-                if exp.property_id != booking.property_id:
+                # Adventure belongs to property
+                if adv.property_id != booking.property_id:
                     checks.append({
-                        "category": "EXPERIENCE",
-                        "name": f"Experience Property Link: '{exp.title}'",
+                        "category": "ADVENTURE",
+                        "name": f"Adventure Property Link: '{adv.title}'",
                         "weight": 5,
                         "score": 0,
                         "status": CheckStatus.FAIL,
-                        "message": f"Experience '{exp.title}' does not belong to booked property.",
-                        "details": "Mismatch between experience property and stay property."
+                        "message": f"Adventure '{adv.title}' does not belong to booked property.",
+                        "details": "Mismatch between adventure property and stay property."
                     })
                     is_failed = True
-                    failure_messages.append("Experience property mismatch.")
+                    failure_messages.append("Adventure property mismatch.")
                 else:
                     checks.append({
-                        "category": "EXPERIENCE",
-                        "name": f"Experience Property Link: '{exp.title}'",
+                        "category": "ADVENTURE",
+                        "name": f"Adventure Property Link: '{adv.title}'",
                         "weight": 5,
                         "score": 5,
                         "status": CheckStatus.PASS,
-                        "message": f"Experience correctly hosted at '{prop.name if prop else 'Property'}'.",
-                        "details": f"Type: {exp.experience_type}, Duration: {exp.duration}"
+                        "message": f"Adventure correctly hosted at '{prop.name if prop else 'Property'}'.",
+                        "details": f"Type: {adv.adventure_type}, Duration: {adv.duration}"
                     })
                     awarded_score += 5
 
-                # Stay + Experience Date Alignment Check
+                # Stay + Adventure Date Alignment Check
                 if be.scheduled_date:
                     if be.scheduled_date < booking.check_in or be.scheduled_date > booking.check_out:
                         checks.append({
-                            "category": "EXPERIENCE",
-                            "name": f"Stay + Experience Schedule Alignment: '{exp.title}'",
+                            "category": "ADVENTURE",
+                            "name": f"Stay + Adventure Schedule Alignment: '{adv.title}'",
                             "weight": 5,
                             "score": 0,
                             "status": CheckStatus.FAIL,
-                            "message": f"Experience date ({be.scheduled_date}) occurs outside the stay period ({booking.check_in} to {booking.check_out}).",
-                            "details": "Experience outside stay date boundary."
+                            "message": f"Adventure date ({be.scheduled_date}) occurs outside the stay period ({booking.check_in} to {booking.check_out}).",
+                            "details": "Adventure outside stay date boundary."
                         })
                         is_failed = True
-                        failure_messages.append("Experience date outside stay.")
+                        failure_messages.append("Adventure date outside stay.")
                     else:
                         checks.append({
-                            "category": "EXPERIENCE",
-                            "name": f"Stay + Experience Schedule Alignment: '{exp.title}'",
+                            "category": "ADVENTURE",
+                            "name": f"Stay + Adventure Schedule Alignment: '{adv.title}'",
                             "weight": 5,
                             "score": 5,
                             "status": CheckStatus.PASS,
-                            "message": f"Experience date ({be.scheduled_date}) perfectly aligns within stay window ({booking.check_in} to {booking.check_out}).",
+                            "message": f"Adventure date ({be.scheduled_date}) perfectly aligns within stay window ({booking.check_in} to {booking.check_out}).",
                             "details": "Schedule timeline verified."
                         })
                         awarded_score += 5
 
                 # Capacity Check
                 check_date = be.scheduled_date or booking.check_in
-                booked_participants = db.query(func.coalesce(func.sum(BookingExperience.participants), 0)).join(Booking).filter(
-                    BookingExperience.experience_id == exp.id,
-                    BookingExperience.scheduled_date == check_date,
+                booked_participants = db.query(func.coalesce(func.sum(BookingAdventure.participants), 0)).join(Booking).filter(
+                    BookingAdventure.adventure_id == adv.id,
+                    BookingAdventure.scheduled_date == check_date,
                     Booking.id != booking.id,
                     Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED])
                 ).scalar() or 0
 
                 total_projected = booked_participants + be.participants
-                if total_projected > exp.capacity:
+                if total_projected > adv.capacity:
                     checks.append({
-                        "category": "EXPERIENCE",
-                        "name": f"Experience Capacity Check: '{exp.title}'",
+                        "category": "ADVENTURE",
+                        "name": f"Adventure Capacity Check: '{adv.title}'",
                         "weight": 5,
                         "score": 0,
                         "status": CheckStatus.FAIL,
-                        "message": f"Capacity overflow! Requested {be.participants} seats, but only {max(0, exp.capacity - booked_participants)} remaining (Capacity: {exp.capacity}, Already Booked: {booked_participants}).",
-                        "details": f"Projected {total_projected} > Max {exp.capacity}"
+                        "message": f"Capacity overflow! Requested {be.participants} seats, but only {max(0, adv.capacity - booked_participants)} remaining (Capacity: {adv.capacity}, Already Booked: {booked_participants}).",
+                        "details": f"Projected {total_projected} > Max {adv.capacity}"
                     })
                     is_failed = True
-                    failure_messages.append(f"Insufficient capacity for '{exp.title}'.")
+                    failure_messages.append(f"Insufficient capacity for '{adv.title}'.")
                 else:
                     checks.append({
-                        "category": "EXPERIENCE",
-                        "name": f"Experience Capacity Check: '{exp.title}'",
+                        "category": "ADVENTURE",
+                        "name": f"Adventure Capacity Check: '{adv.title}'",
                         "weight": 5,
                         "score": 5,
                         "status": CheckStatus.PASS,
-                        "message": f"Capacity verified for {check_date}. {be.participants} seats reserved ({max(0, exp.capacity - total_projected)} remaining).",
+                        "message": f"Capacity verified for {check_date}. {be.participants} seats reserved ({max(0, adv.capacity - total_projected)} remaining).",
                         "details": "Capacity within limits."
                     })
                     awarded_score += 5
         else:
             checks.append({
-                "category": "EXPERIENCE",
-                "name": "Experience Add-on Validation",
+                "category": "ADVENTURE",
+                "name": "Adventure Add-on Validation",
                 "weight": 15,
                 "score": 15,
                 "status": CheckStatus.PASS,
-                "message": "Accommodation-only stay reservation (no optional experience added).",
-                "details": "No add-on experiences."
+                "message": "Accommodation-only stay reservation (no optional adventure added).",
+                "details": "No add-on adventures."
             })
             awarded_score += 15
 
@@ -417,14 +417,14 @@ class VeriNovaService:
                 br_qty = getattr(br, 'quantity', 1) or 1
                 expected_room_total += round(room.base_price * nights * br_qty, 2)
         
-        expected_exp_total = 0.0
-        for be in booking_experiences:
-            exp = db.query(Experience).filter(Experience.id == be.experience_id).first()
-            if exp:
-                if exp.pricing_model == "per_person":
-                    expected_exp_total += round(exp.price * be.participants, 2)
+        expected_adv_total = 0.0
+        for be in booking_adventures:
+            adv = db.query(Adventure).filter(Adventure.id == be.adventure_id).first()
+            if adv:
+                if adv.pricing_model == "per_person":
+                    expected_adv_total += round(adv.price * be.participants, 2)
                 else:
-                    expected_exp_total += round(exp.price, 2)
+                    expected_adv_total += round(adv.price, 2)
 
         expected_supplements = 0.0
         if booking.rule_snapshot:
@@ -451,7 +451,7 @@ class VeriNovaService:
             if chg_enabled and chg_amt > 0:
                 expected_supplements += round(chg_amt * (nights if chg_unit == "Per night" else 1) * chargeable_children, 2)
 
-        expected_total = round(expected_room_total + expected_exp_total + expected_supplements, 2)
+        expected_total = round(expected_room_total + expected_adv_total + expected_supplements, 2)
         actual_total = round(booking.total_amount, 2)
 
         price_diff = abs(actual_total - expected_total)
@@ -463,7 +463,7 @@ class VeriNovaService:
                 "score": 0,
                 "status": CheckStatus.FAIL,
                 "message": f"Price discrepancy detected. Computed server total: ₹{expected_total:,.2f} vs Booking recorded total: ₹{actual_total:,.2f}.",
-                "details": f"Room Total: ₹{expected_room_total:,.2f}, Experience Total: ₹{expected_exp_total:,.2f}"
+                "details": f"Room Total: ₹{expected_room_total:,.2f}, Adventure Total: ₹{expected_adv_total:,.2f}"
             })
             is_failed = True
             failure_messages.append("Price calculation mismatch.")
@@ -474,7 +474,7 @@ class VeriNovaService:
                 "weight": 15,
                 "score": 15,
                 "status": CheckStatus.PASS,
-                "message": f"Total price ₹{actual_total:,.2f} verified precisely (Room: ₹{expected_room_total:,.2f} for {nights} night(s) + Experiences: ₹{expected_exp_total:,.2f}).",
+                "message": f"Total price ₹{actual_total:,.2f} verified precisely (Room: ₹{expected_room_total:,.2f} for {nights} night(s) + Adventures: ₹{expected_adv_total:,.2f}).",
                 "details": "Zero discrepancy in pricing arithmetic."
             })
             awarded_score += 15
@@ -634,7 +634,11 @@ class VeriNovaService:
             result = VeriNovaService.verify_booking_transaction(db, booking)
 
         room_name = booking.booking_rooms[0].room_name if booking.booking_rooms else "N/A"
-        exp_title = booking.booking_experiences[0].experience_title if booking.booking_experiences else None
+        adv_title = (
+            booking.booking_adventures[0].adventure_title
+            if booking.booking_adventures
+            else None
+        )
 
         return {
             "booking_id": booking.id,
@@ -649,7 +653,8 @@ class VeriNovaService:
             "room_name": room_name,
             "check_in": str(booking.check_in),
             "check_out": str(booking.check_out),
-            "experience_title": exp_title,
+            "adventure_title": adv_title,
+            "experience_title": adv_title,
             "total_amount": booking.total_amount,
             "verification_status": result.status.value,
             "summary": result.summary,
@@ -953,19 +958,19 @@ class VeriNovaService:
             "message": f"Room inventory ({qty} unit(s)) verified for release back into active booking availability."
         })
 
-        # Signal 11: Experience Capacity Release Verification
-        if booking.booking_experiences:
-            exp_participants = booking.booking_experiences[0].participants
+        # Signal 11: Adventure Capacity Release Verification
+        if booking.booking_adventures:
+            adv_participants = booking.booking_adventures[0].participants
             checks.append({
-                "name": "Experience Capacity Release Verification",
+                "name": "Adventure Capacity Release Verification",
                 "status": "PASS",
-                "message": f"Experience capacity ({exp_participants} participant(s)) verified for release."
+                "message": f"Adventure capacity ({adv_participants} participant(s)) verified for release."
             })
         else:
             checks.append({
-                "name": "Experience Capacity Release Verification",
+                "name": "Adventure Capacity Release Verification",
                 "status": "PASS",
-                "message": "No experience items attached; capacity release not required."
+                "message": "No adventure items attached; capacity release not required."
             })
 
         # Signal 12: Duplicate Cancellation Prevention

@@ -5,10 +5,10 @@ from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from app.models.booking import Booking, BookingStatus, BookingRoom, BookingExperience
+from app.models.booking import Booking, BookingStatus, BookingRoom, BookingAdventure, BookingExperience
 from app.models.property import Property
 from app.models.room import Room
-from app.models.experience import Experience
+from app.models.adventure import Adventure, Experience
 from app.models.availability import PropertyAvailability, RoomAvailability
 from app.models.verification import VerificationResult
 from app.models.refund import Refund, RefundStatus
@@ -110,112 +110,24 @@ class BookingService:
                 detail="You must accept and agree to the Property Home Rules before confirming your booking.",
             )
 
-        # Validate Guest Capacity for the requested room count
-        prop_rules = getattr(prop, 'home_rules', None)
-        room_rules = getattr(room, 'rules', None)
-        room_cap = (room_rules.maximum_total_guests if room_rules and room_rules.maximum_total_guests else room.capacity)
-        max_allowed_guests = room_cap * requested_quantity
-
-        if requested_guests > max_allowed_guests:
+        # Authoritative Room Configuration & Guest Policy Validation (Shared Engine)
+        from app.services.ai.booking_agent_tools import BookingAgentToolsService
+        config_eval = BookingAgentToolsService.calculate_room_configuration(
+            db=db,
+            property_id=prop.id,
+            room_id=room.id,
+            adults=adults,
+            children=children,
+            child_ages=child_ages,
+            cot_count=cot_count,
+            extra_bed_count=extra_bed_count,
+            requested_quantity=requested_quantity
+        )
+        if not config_eval.get("valid"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Total requested guests ({requested_guests}) exceeds maximum room capacity ({max_allowed_guests}).",
+                detail=config_eval.get("error", "Room configuration does not meet property policies.")
             )
-
-        # Validate Adult Capacity
-        if room_rules and room_rules.maximum_adults:
-            if adults > room_rules.maximum_adults * requested_quantity:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Selected adults ({adults}) exceeds maximum allowed adults ({room_rules.maximum_adults * requested_quantity}) for this room.",
-                )
-
-        # Validate Children Policy
-        if children > 0:
-            if (prop_rules and prop_rules.children_allowed == "No") or (room_rules and room_rules.children_allowed == "No"):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Children are not permitted in this room or property.",
-                )
-
-            # Check max allowed children allowance (either room max_children or additional_children_allowed)
-            max_child_limit = (
-                room_rules.maximum_children if (room_rules and room_rules.maximum_children is not None)
-                else (getattr(room_rules, 'additional_children_allowed', 0) if room_rules else 0)
-            )
-            if max_child_limit is not None and children > max_child_limit * requested_quantity:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Selected children ({children}) exceeds maximum allowed children ({max_child_limit * requested_quantity}) for this room.",
-                )
-
-            # Minimum child age validation
-            min_age = (room_rules.minimum_child_age if room_rules and room_rules.minimum_child_age is not None else (prop_rules.minimum_child_age if prop_rules and prop_rules.minimum_child_age is not None else None))
-            if min_age is not None:
-                for age in child_ages:
-                    if age < min_age:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"This property cannot accommodate children under {min_age} years of age. Entered child age ({age}) does not meet this requirement.",
-                        )
-
-            # Maximum child age validation (Child Age Limit)
-            max_age_limit = (
-                getattr(room_rules, 'max_child_age', None) if room_rules and getattr(room_rules, 'max_child_age', None) is not None
-                else (getattr(prop_rules, 'max_child_age', None) if prop_rules and getattr(prop_rules, 'max_child_age', None) is not None else None)
-            )
-            if max_age_limit is not None:
-                for age in child_ages:
-                    if age > max_age_limit:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"This room permits additional children up to {max_age_limit} years of age. Entered child age ({age}) exceeds this limit.",
-                        )
-
-        # Validate Baby Cots
-        if cot_count > 0:
-            cot_avail = getattr(room_rules, 'cot_available', None) if room_rules else (getattr(prop_rules, 'cot_available', None) if prop_rules else None)
-            cot_pol = (room_rules.cot_policy if room_rules else (prop_rules.cot_policy if prop_rules else None))
-            max_cots = (room_rules.cot_quantity if room_rules and room_rules.cot_quantity is not None else (prop_rules.cot_quantity if prop_rules and prop_rules.cot_quantity is not None else 0)) or 0
-            
-            is_cot_allowed = (
-                str(cot_avail).lower() in ["yes", "true", "1"] or
-                (cot_pol in ["Yes", "Upon Request"]) or
-                (max_cots > 0 and cot_pol != "No")
-            )
-            if not is_cot_allowed or (cot_avail == "No" and cot_pol == "No" and max_cots == 0):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Baby cots are not available for this room.",
-                )
-            if max_cots > 0 and cot_count > max_cots * requested_quantity:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Requested cots ({cot_count}) exceeds available units ({max_cots * requested_quantity}).",
-                )
-
-        # Validate Extra Beds
-        if extra_bed_count > 0:
-            extra_bed_avail = getattr(room_rules, 'extra_bed_available', None) if room_rules else (getattr(prop_rules, 'extra_bed_available', None) if prop_rules else None)
-            extra_bed_pol = (room_rules.extra_bed_policy if room_rules else None)
-            max_extra_beds = (room_rules.maximum_extra_beds if room_rules and room_rules.maximum_extra_beds is not None else 0) or 0
-            
-            is_extra_bed_allowed = (
-                str(extra_bed_avail).lower() in ["yes", "true", "1"] or
-                (extra_bed_pol in ["Yes", "Upon Request"]) or
-                (max_extra_beds > 0 and extra_bed_pol != "No")
-            )
-            if not is_extra_bed_allowed or (extra_bed_avail == "No" and extra_bed_pol == "No" and max_extra_beds == 0):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Extra beds are not available for this room.",
-                )
-            if max_extra_beds > 0 and extra_bed_count > max_extra_beds * requested_quantity:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Requested extra beds ({extra_bed_count}) exceed the maximum allowed ({max_extra_beds * requested_quantity}).",
-                )
-
 
         # Calculate live booked quantity for overlapping dates (CONFIRMED, CHECKED_IN, VERIFIED)
         booked_qty = db.query(
@@ -240,72 +152,65 @@ class BookingService:
                     detail=f"Only {available_qty} room(s) available for these dates. You requested {requested_quantity}.",
                 )
 
-        # Calculate Room Base Total Authoritatively on Backend
-        room_nightly_price = room.base_price
-        room_total = round(room_nightly_price * nights * requested_quantity, 2)
+        # Calculate Room Base Total & Supplements Authoritatively using Shared Calculation
+        price_calc = BookingAgentToolsService.calculate_booking_price(
+            db=db,
+            property_id=prop.id,
+            room_id=room.id,
+            check_in=data.check_in,
+            check_out=data.check_out,
+            room_quantity=requested_quantity,
+            adults=adults,
+            children=children,
+            child_ages=child_ages,
+            cot_count=cot_count,
+            extra_bed_count=extra_bed_count
+        )
+        room_nightly_price = price_calc["room_nightly_price"]
+        room_total = price_calc["room_total"]
+        extra_bed_total = price_calc["extra_bed_total"]
+        cot_total = price_calc["cot_total"]
+        child_supplement_total = price_calc["child_supplement_total"]
+        supplements_total = price_calc["supplements_total"]
 
-        # Calculate Authoritative Supplements: Extra Bed, Cot, Child Charge
-        extra_bed_unit = getattr(room_rules, 'extra_bed_charge_unit', 'Per night') if room_rules else 'Per night'
-        extra_bed_price = (room_rules.extra_bed_price if room_rules and room_rules.extra_bed_price is not None else 0.0) or 0.0
-        extra_bed_total = round(extra_bed_price * (nights if extra_bed_unit == "Per night" else 1) * extra_bed_count, 2)
+        # 5. Validate Adventure (if selected)
+        adventure_total = 0.0
+        adv_record = None
+        adv_id = getattr(data, 'adventure_id', None) or getattr(data, 'experience_id', None)
+        adv_date = getattr(data, 'adventure_date', None) or getattr(data, 'experience_date', None) or data.check_in
+        adv_participants = getattr(data, 'adventure_participants', 0) or getattr(data, 'experience_participants', 0) or 1
 
-        cot_unit = (getattr(room_rules, 'cot_charge_unit', None) if room_rules else None) or (getattr(prop_rules, 'cot_charge_unit', None) if prop_rules else 'Free') or 'Free'
-        cot_price = (room_rules.cot_price if room_rules and hasattr(room_rules, 'cot_price') and room_rules.cot_price is not None else (getattr(prop_rules, 'cot_price', 0.0) if prop_rules else 0.0)) or 0.0
-        cot_total = round(cot_price * (nights if cot_unit == "Per night" else 1) * cot_count, 2) if cot_unit != "Free" else 0.0
-
-        child_charge_enabled = (getattr(room_rules, 'child_charge_enabled', False) if room_rules else False) or (getattr(prop_rules, 'child_charge_enabled', False) if prop_rules else False)
-        child_charge_amt = (
-            getattr(room_rules, 'child_charge_amount', 0.0) if (room_rules and getattr(room_rules, 'child_charge_amount', None) is not None)
-            else (getattr(prop_rules, 'child_charge_amount', 0.0) if (prop_rules and getattr(prop_rules, 'child_charge_amount', None) is not None) else 0.0)
-        ) or 0.0
-        child_charge_unit = (getattr(room_rules, 'child_charge_unit', None) if room_rules else None) or (getattr(prop_rules, 'child_charge_unit', None) if prop_rules else 'Per night') or 'Per night'
-        free_children_allowance = (
-            getattr(room_rules, 'free_additional_children', 0) if (room_rules and getattr(room_rules, 'free_additional_children', None) is not None)
-            else (getattr(prop_rules, 'free_additional_children', 0) if (prop_rules and getattr(prop_rules, 'free_additional_children', None) is not None) else 0)
-        ) or 0
-
-        chargeable_children = max(0, children - (free_children_allowance * requested_quantity)) if child_charge_enabled else 0
-        child_supplement_total = round(child_charge_amt * (nights if child_charge_unit == "Per night" else 1) * chargeable_children, 2) if (child_charge_enabled and child_charge_amt > 0) else 0.0
-
-        supplements_total = round(extra_bed_total + cot_total + child_supplement_total, 2)
-
-        # 5. Validate Experience (if selected)
-        experience_total = 0.0
-        exp_record = None
-        exp_date = data.experience_date or data.check_in
-        exp_participants = data.experience_participants or 1
-
-        if data.experience_id:
-            exp_record = db.query(Experience).filter(Experience.id == data.experience_id).first()
-            if not exp_record or exp_record.property_id != prop.id or not exp_record.is_active:
+        if adv_id:
+            adv_record = db.query(Adventure).filter(Adventure.id == adv_id).first()
+            if not adv_record or adv_record.property_id != prop.id or not adv_record.is_active:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Selected experience does not exist or does not belong to this property.",
+                    detail="Selected adventure does not exist or does not belong to this property.",
                 )
 
-            # Check Experience Capacity
-            booked_exp_count = db.query(
-                func.coalesce(func.sum(BookingExperience.participants), 0)
+            # Check Adventure Capacity
+            booked_adv_count = db.query(
+                func.coalesce(func.sum(BookingAdventure.participants), 0)
             ).join(Booking).filter(
-                BookingExperience.experience_id == exp_record.id,
-                BookingExperience.scheduled_date == exp_date,
+                BookingAdventure.adventure_id == adv_record.id,
+                BookingAdventure.scheduled_date == adv_date,
                 Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.CHECKED_IN])
             ).scalar() or 0
 
-            remaining_capacity = exp_record.capacity - booked_exp_count
-            if exp_participants > remaining_capacity:
+            remaining_capacity = adv_record.capacity - booked_adv_count
+            if adv_participants > remaining_capacity:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"The selected experience has reached its capacity (Requested: {exp_participants}, Remaining: {max(0, remaining_capacity)}).",
+                    detail=f"The selected adventure has reached its capacity (Requested: {adv_participants}, Remaining: {max(0, remaining_capacity)}).",
                 )
 
-            if exp_record.pricing_model == "per_person":
-                experience_total = round(exp_record.price * exp_participants, 2)
+            if adv_record.pricing_model == "per_person":
+                adventure_total = round(adv_record.price * adv_participants, 2)
             else:
-                experience_total = round(exp_record.price, 2)
+                adventure_total = round(adv_record.price, 2)
 
         # Calculate Total Amount strictly on backend
-        total_amount = round(room_total + experience_total + supplements_total, 2)
+        total_amount = round(room_total + adventure_total + supplements_total, 2)
 
         # Generate unique booking number
         booking_number = generate_booking_number()
@@ -326,7 +231,7 @@ class BookingService:
             total_nights=nights,
             total_guests=requested_guests,
             room_total=room_total,
-            experience_total=experience_total,
+            adventure_total=adventure_total,
             total_amount=total_amount,
             original_total_amount=total_amount,
             commission_percentage_snapshot=10.0,
@@ -343,6 +248,7 @@ class BookingService:
             guest_information_message_snapshot=prop.guest_information_message,
             cancellation_policy_snapshot=policy_snapshot,
             refund_percentage_snapshot=host_refund_pct,
+            booking_source=getattr(data, 'booking_source', 'self') or 'self',
             checkin_reminder_sent=False
         )
         db.add(booking)
@@ -361,19 +267,19 @@ class BookingService:
         )
         db.add(booking_room)
 
-        # Create BookingExperience item if selected
-        if exp_record:
-            booking_exp = BookingExperience(
+        # Create BookingAdventure item if selected
+        if adv_record:
+            booking_adv = BookingAdventure(
                 booking_id=booking.id,
-                experience_id=exp_record.id,
-                experience_title=exp_record.title,
-                price=exp_record.price,
-                pricing_model=exp_record.pricing_model,
-                participants=exp_participants,
-                subtotal=experience_total,
-                scheduled_date=exp_date
+                adventure_id=adv_record.id,
+                adventure_title=adv_record.title,
+                price=adv_record.price,
+                pricing_model=adv_record.pricing_model,
+                participants=adv_participants,
+                subtotal=adventure_total,
+                scheduled_date=adv_date
             )
-            db.add(booking_exp)
+            db.add(booking_adv)
 
         # Create Historical Booking Rule Snapshot
         StayGuideService.create_booking_rule_snapshot(
@@ -448,22 +354,150 @@ class BookingService:
         return booking
 
     @staticmethod
-    def auto_complete_past_bookings(db: Session):
-        """Automatically mark stays as COMPLETED once their checkout date has passed."""
+    def auto_evaluate_past_and_expired_bookings(db: Session):
+        """
+        Authoritative backend evaluation of expired confirmed bookings, missed check-ins, and completed stays:
+        Current system date in Asia/Kolkata timezone:
+        
+        1. PAST CHECKOUT & NEVER CHECKED IN (today > check_out AND checked_in_at IS NULL):
+           Eligible: status in [CONFIRMED, VERIFIED, PENDING]
+           -> Transitions status to BookingStatus.NO_SHOW
+           -> Sets cancellation_reason = "Guest missed check-in (No-Show)"
+           -> Financials:
+              refund_amount = 0.0
+              retained_amount = original_total_amount or total_amount
+              commission_amount = 10% of total_amount
+              provider_settlement_amount = 90% of total_amount
+              commission_status = "FINALIZED"
+              refund_status = "NOT_APPLICABLE"
+              payout_status = "READY"
+           -> Dispatches in-app notification to traveler (if not already sent).
+           -> Sets booking.no_show_notified = True
+           
+        2. PAST CHECKOUT & CHECKED IN (today > check_out AND checked_in_at IS NOT NULL):
+           Eligible: status in [CHECKED_IN, CHECKED_OUT]
+           -> Transitions status to BookingStatus.COMPLETED
+           -> Sets completed_at = datetime.utcnow() if missing.
+           
+        3. ON CHECK-IN DATE (today == check_in AND checked_in_at IS NULL):
+           Eligible: status in [CONFIRMED, VERIFIED]
+           -> Keeps booking active (do NOT mark as missed).
+           -> Dispatches in-app notification to traveler (if not already sent).
+           -> Sets booking.checkin_today_notified = True
+        """
         try:
-            today = date.today()
-            past_bookings = db.query(Booking).filter(
-                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.CHECKED_IN, BookingStatus.CHECKED_OUT]),
-                Booking.check_out < today
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("Asia/Kolkata")
+        except Exception:
+            tz = timezone(timedelta(hours=5, minutes=30))
+        today = datetime.now(tz).date()
+
+        try:
+            from app.services.notifications.notification_service import NotificationService
+            from app.models.notification import Notification
+
+            # 1. Evaluate Missed / No-Show Bookings (today > check_out AND checked_in_at IS NULL)
+            missed_bookings = db.query(Booking).filter(
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.PENDING, BookingStatus.COMPLETED]),
+                Booking.check_out < today,
+                Booking.checked_in_at.is_(None)
             ).all()
-            if past_bookings:
-                for b in past_bookings:
-                    b.status = BookingStatus.COMPLETED
-                    if not b.completed_at:
-                        b.completed_at = datetime.utcnow()
-                db.commit()
+
+            for b in missed_bookings:
+                b.status = BookingStatus.NO_SHOW
+                if not b.cancellation_reason:
+                    b.cancellation_reason = "Guest missed check-in (No-Show)"
+                
+                original_amt = b.original_total_amount or b.total_amount or 0.0
+                comm_pct = b.commission_percentage_snapshot or 10.0
+                comm_amt = round(original_amt * (comm_pct / 100.0), 2)
+                settlement_amt = round(original_amt - comm_amt, 2)
+
+                b.refund_amount = 0.0
+                b.retained_amount = original_amt
+                b.commission_amount = comm_amt
+                b.provider_settlement_amount = settlement_amt
+                b.commission_status = "FINALIZED"
+                b.refund_status = "NOT_APPLICABLE"
+                b.payout_status = "READY" if settlement_amt > 0 else "NOT_APPLICABLE"
+
+                # Dispatch notification if not yet sent (idempotent)
+                if not getattr(b, 'no_show_notified', False):
+                    existing_notif = db.query(Notification).filter(
+                        Notification.user_id == b.user_id,
+                        Notification.booking_id == b.id,
+                        Notification.type == "BOOKING_MISSED"
+                    ).first()
+                    if not existing_notif:
+                        prop_name = b.property.name if b.property else "Sanctuary"
+                        try:
+                            NotificationService.create_notification(
+                                db=db,
+                                user_id=b.user_id,
+                                title="Booking Missed",
+                                message=f"You missed your booking #{b.booking_number} at {prop_name}. Your check-in date has passed and no check-in was recorded.",
+                                type="BOOKING_MISSED",
+                                link="/customer/bookings",
+                                booking_id=b.id
+                            )
+                        except Exception as ne:
+                            print(f"Error creating no-show notification for booking {b.id}:", ne)
+                    b.no_show_notified = True
+
+            # 2. Evaluate Completed Stays (today > check_out AND checked_in_at IS NOT NULL)
+            completed_bookings = db.query(Booking).filter(
+                Booking.status.in_([BookingStatus.CHECKED_IN, BookingStatus.CHECKED_OUT]),
+                Booking.check_out < today,
+                Booking.checked_in_at.isnot(None)
+            ).all()
+
+            for b in completed_bookings:
+                b.status = BookingStatus.COMPLETED
+                if not b.completed_at:
+                    b.completed_at = datetime.utcnow()
+
+            # 3. Check-In Today Notifications (today == check_in AND checked_in_at IS NULL)
+            today_checkin_bookings = db.query(Booking).filter(
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED]),
+                Booking.check_in == today,
+                Booking.checked_in_at.is_(None),
+                Booking.checkin_today_notified == False
+            ).all()
+
+            for b in today_checkin_bookings:
+                existing_notif = db.query(Notification).filter(
+                    Notification.user_id == b.user_id,
+                    Notification.booking_id == b.id,
+                    Notification.type == "CHECKIN_TODAY"
+                ).first()
+                if not existing_notif:
+                    prop_name = b.property.name if b.property else "your sanctuary"
+                    try:
+                        NotificationService.create_notification(
+                            db=db,
+                            user_id=b.user_id,
+                            title="Check-in Today",
+                            message=f"You haven't checked in yet. Your stay at {prop_name} starts today.",
+                            type="CHECKIN_TODAY",
+                            link="/customer/bookings",
+                            booking_id=b.id
+                        )
+                    except Exception as ne:
+                        print(f"Error creating check-in today notification for booking {b.id}:", ne)
+                b.checkin_today_notified = True
+
+            db.commit()
         except Exception as e:
-            print("Error auto-completing past bookings:", e)
+            print("Error auto-evaluating past & expired bookings:", e)
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
+    @staticmethod
+    def auto_complete_past_bookings(db: Session):
+        """Authoritative lifecycle processor alias."""
+        BookingService.auto_evaluate_past_and_expired_bookings(db)
 
     @staticmethod
     def enrich_booking(b: Booking) -> Booking:
@@ -473,23 +507,117 @@ class BookingService:
         except Exception:
             tz = timezone(timedelta(hours=5, minutes=30))
         now = datetime.now(tz)
+        today = now.date()
+
         deadline_dt = datetime.combine(b.check_in, time(6, 0, 0), tzinfo=tz)
         b.cancellation_deadline_str = deadline_dt.strftime('%d %b %Y at 06:00 AM IST')
-        if b.status in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.PENDING]:
+
+        status_str = b.status.value if hasattr(b.status, "value") else str(b.status)
+
+        # Cancellability: only upcoming uncancelled confirmed/verified bookings before 6:00 AM deadline
+        if status_str in [BookingStatus.CONFIRMED.value, BookingStatus.VERIFIED.value, BookingStatus.PENDING.value] and (b.checked_in_at is None) and (today <= b.check_in):
             b.is_cancellable = bool(now < deadline_dt)
         else:
             b.is_cancellable = False
+
+        # Status & Warning Evaluation
+        if status_str == BookingStatus.CANCELLED.value:
+            b.display_status = "CANCELLED"
+            b.checkin_warning = None
+            b.is_missed = False
+            b.is_checkin_today = False
+            b.is_checkin_missed = False
+        elif status_str == BookingStatus.FAILED.value:
+            b.display_status = "FAILED"
+            b.checkin_warning = None
+            b.is_missed = False
+            b.is_checkin_today = False
+            b.is_checkin_missed = False
+        elif status_str == BookingStatus.NO_SHOW.value or (today > b.check_out and b.checked_in_at is None and status_str not in [BookingStatus.CANCELLED.value, BookingStatus.FAILED.value]):
+            b.display_status = "NO_SHOW"
+            b.checkin_warning = {
+                "code": "BOOKING_MISSED",
+                "title": "You missed your booking",
+                "message": "Your check-in date has passed and no check-in was recorded.",
+                "badge_label": "MISSED / NO-SHOW",
+                "level": "error",
+                "reason": b.cancellation_reason or "Guest did not check in (No-Show)",
+                "refund_amount": 0.0
+            }
+            b.is_missed = True
+            b.is_checkin_today = False
+            b.is_checkin_missed = False
+            b.is_cancellable = False
+        elif status_str in [BookingStatus.CHECKED_IN.value, BookingStatus.CHECKED_OUT.value, BookingStatus.COMPLETED.value] or b.checked_in_at is not None:
+            if status_str == BookingStatus.COMPLETED.value:
+                b.display_status = "COMPLETED"
+            elif status_str == BookingStatus.CHECKED_OUT.value:
+                b.display_status = "CHECKED_OUT"
+            else:
+                b.display_status = "CHECKED_IN"
+            b.checkin_warning = None
+            b.is_missed = False
+            b.is_checkin_today = False
+            b.is_checkin_missed = False
+        else:
+            # Confirmed / Verified / Pending without check-in
+            if today < b.check_in:
+                b.display_status = "UPCOMING"
+                b.checkin_warning = None
+                b.is_missed = False
+                b.is_checkin_today = False
+                b.is_checkin_missed = False
+            elif today == b.check_in:
+                b.display_status = "CHECKIN_TODAY"
+                b.checkin_warning = {
+                    "code": "CHECKIN_TODAY",
+                    "title": "Check-in Today",
+                    "message": "You haven't checked in yet. Your stay starts today.",
+                    "badge_label": "CHECK-IN TODAY",
+                    "level": "warning"
+                }
+                b.is_missed = False
+                b.is_checkin_today = True
+                b.is_checkin_missed = False
+            elif b.check_in < today <= b.check_out:
+                b.display_status = "CHECKIN_MISSED"
+                b.checkin_warning = {
+                    "code": "CHECKIN_MISSED",
+                    "title": "Check-in Missed",
+                    "message": "You have not checked in for this booking. Please check your booking details.",
+                    "badge_label": "CHECK-IN MISSED",
+                    "level": "warning"
+                }
+                b.is_missed = False
+                b.is_checkin_today = False
+                b.is_checkin_missed = True
+            else:
+                b.display_status = "NO_SHOW"
+                b.checkin_warning = {
+                    "code": "BOOKING_MISSED",
+                    "title": "You missed your booking",
+                    "message": "Your check-in date has passed and no check-in was recorded.",
+                    "badge_label": "MISSED / NO-SHOW",
+                    "level": "error",
+                    "reason": b.cancellation_reason or "Guest did not check in (No-Show)",
+                    "refund_amount": 0.0
+                }
+                b.is_missed = True
+                b.is_checkin_today = False
+                b.is_checkin_missed = False
+                b.is_cancellable = False
+
         return b
 
     @staticmethod
     def get_customer_bookings(db: Session, user_id: int) -> List[Booking]:
-        BookingService.auto_complete_past_bookings(db)
+        BookingService.auto_evaluate_past_and_expired_bookings(db)
         bookings = (
             db.query(Booking)
             .options(
                 joinedload(Booking.property).joinedload(Property.images),
                 joinedload(Booking.booking_rooms),
-                joinedload(Booking.booking_experiences),
+                joinedload(Booking.booking_adventures),
                 joinedload(Booking.review),
                 joinedload(Booking.refund),
                 joinedload(Booking.payment),
@@ -502,13 +630,13 @@ class BookingService:
 
     @staticmethod
     def get_provider_bookings(db: Session, provider_id: int) -> List[Booking]:
-        BookingService.auto_complete_past_bookings(db)
+        BookingService.auto_evaluate_past_and_expired_bookings(db)
         bookings = (
             db.query(Booking)
             .options(
                 joinedload(Booking.property).joinedload(Property.images),
                 joinedload(Booking.booking_rooms),
-                joinedload(Booking.booking_experiences),
+                joinedload(Booking.booking_adventures),
                 joinedload(Booking.user),
             )
             .join(Property)
@@ -520,13 +648,13 @@ class BookingService:
 
     @staticmethod
     def get_all_bookings(db: Session) -> List[Booking]:
-        BookingService.auto_complete_past_bookings(db)
+        BookingService.auto_evaluate_past_and_expired_bookings(db)
         bookings = (
             db.query(Booking)
             .options(
                 joinedload(Booking.property).joinedload(Property.images),
                 joinedload(Booking.booking_rooms),
-                joinedload(Booking.booking_experiences),
+                joinedload(Booking.booking_adventures),
                 joinedload(Booking.user),
             )
             .order_by(Booking.created_at.desc())
@@ -536,12 +664,13 @@ class BookingService:
 
     @staticmethod
     def get_booking_by_id(db: Session, booking_id: int, user_id: Optional[int] = None, provider_id: Optional[int] = None) -> Booking:
+        BookingService.auto_evaluate_past_and_expired_bookings(db)
         query = (
             db.query(Booking)
             .options(
                 joinedload(Booking.property).joinedload(Property.images),
                 joinedload(Booking.booking_rooms),
-                joinedload(Booking.booking_experiences),
+                joinedload(Booking.booking_adventures),
                 joinedload(Booking.review),
                 joinedload(Booking.refund),
                 joinedload(Booking.payment),
@@ -603,7 +732,17 @@ class BookingService:
         comm_pct = getattr(booking, 'commission_percentage_snapshot', 10.0) or 10.0
 
         # Check deadline compliance
-        if now >= cancellation_deadline_dt:
+        if booking.status == BookingStatus.NO_SHOW:
+            can_cancel = False
+            reason = "Missed or no-show bookings cannot be cancelled."
+            is_free_cancellation = False
+            refund_percentage = 0.0
+            refund_amount = 0.0
+            retained_amount = original_amount
+            cancellation_fee = original_amount
+            commission_amount = round(original_amount * (comm_pct / 100.0), 2)
+            provider_settlement_amount = round(original_amount - commission_amount, 2)
+        elif now >= cancellation_deadline_dt:
             can_cancel = False
             reason = "Cancellation is no longer available because the cancellation deadline has passed."
             is_free_cancellation = False
@@ -664,6 +803,35 @@ class BookingService:
     def get_cancellation_preview(db: Session, booking_id: int, user_id: int) -> dict:
         """Fetch server-side cancellation & refund preview for a customer booking."""
         booking = BookingService.get_booking_by_id(db, booking_id, user_id=user_id)
+
+        if booking.status == BookingStatus.NO_SHOW or getattr(booking, 'is_missed', False):
+            orig_amt = booking.original_total_amount or booking.total_amount
+            comm_pct = getattr(booking, 'commission_percentage_snapshot', 10.0) or 10.0
+            comm_amt = round(orig_amt * (comm_pct / 100.0), 2)
+            settle_amt = round(orig_amt - comm_amt, 2)
+            return {
+                "booking_id": booking.id,
+                "booking_number": booking.booking_number,
+                "property_id": booking.property_id,
+                "property_name": booking.property.name if booking.property else "Sanctuary",
+                "check_in": booking.check_in,
+                "check_in_time": booking.property.check_in_time if booking.property else "14:00",
+                "booking_amount": orig_amt,
+                "original_total_amount": orig_amt,
+                "free_cancellation_deadline": "N/A",
+                "cancellation_deadline_str": "Passed",
+                "is_free_cancellation": False,
+                "refund_percentage": 0.0,
+                "refund_amount": 0.0,
+                "cancellation_fee": orig_amt,
+                "retained_amount": orig_amt,
+                "commission_percentage": comm_pct,
+                "commission_amount": comm_amt,
+                "provider_settlement_amount": settle_amt,
+                "policy_description": "Missed or no-show bookings are not eligible for cancellation or refund.",
+                "can_cancel": False,
+                "reason": "Missed or no-show bookings cannot be cancelled."
+            }
 
         if booking.status in [BookingStatus.CHECKED_IN, BookingStatus.CHECKED_OUT, BookingStatus.COMPLETED]:
             return {
@@ -767,6 +935,12 @@ class BookingService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Booking is already cancelled. Duplicate cancellation is not permitted."
+            )
+
+        if booking.status == BookingStatus.NO_SHOW:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missed or no-show bookings cannot be cancelled."
             )
 
         if booking.status in [BookingStatus.CHECKED_IN, BookingStatus.CHECKED_OUT, BookingStatus.COMPLETED]:
@@ -930,7 +1104,13 @@ class BookingService:
                 detail="Booking not found or you do not have permission to manage this booking."
             )
 
-        if booking.status != BookingStatus.CONFIRMED:
+        if booking.status == BookingStatus.NO_SHOW:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot check in a missed/no-show booking."
+            )
+
+        if booking.status not in [BookingStatus.CONFIRMED, BookingStatus.VERIFIED]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Only CONFIRMED bookings can be checked in. Current status: {booking.status.value}"
@@ -947,6 +1127,12 @@ class BookingService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Check-in is only permitted on or after the scheduled check-in date ({booking.check_in.strftime('%d %b %Y')})."
+            )
+
+        if today_date > booking.check_out:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Check-in is no longer possible because the checkout date has passed ({booking.check_out.strftime('%d %b %Y')})."
             )
 
         original_amount = getattr(booking, 'original_total_amount', None) or booking.total_amount

@@ -6,6 +6,11 @@ import { VerificationBadge } from '../../components/verification/VerificationBad
 import { getBookingStatusTheme } from '../../utils/bookingStatusTheme';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import {
+  formatDisplayName,
+  formatPropertyName,
+  formatLocationName,
+} from '../../utils/formatters';
+import {
   Search,
   MapPin,
   Star,
@@ -29,6 +34,7 @@ import {
   Mail,
   MessageSquare,
   Users,
+  AlertCircle,
 } from 'lucide-react';
 
 export const CustomerDashboard = () => {
@@ -58,9 +64,16 @@ export const CustomerDashboard = () => {
 
         if (Array.isArray(bookings) && bookings.length > 0) {
           const upcoming =
-            bookings.find((b) => b.status === 'CONFIRMED' || b.status === 'PENDING') ||
-            bookings[0];
-          setUpcomingBooking(upcoming);
+            bookings.find(
+              (b) =>
+                (b.status === 'CONFIRMED' || b.status === 'PENDING' || b.status === 'CHECKED_IN') &&
+                !b.is_missed &&
+                b.status !== 'NO_SHOW'
+            ) ||
+            bookings.find(
+              (b) => b.status !== 'CANCELLED' && b.status !== 'NO_SHOW' && !b.is_missed
+            );
+          setUpcomingBooking(upcoming || null);
         }
 
         if (Array.isArray(stays) && stays.length > 0) {
@@ -132,9 +145,9 @@ export const CustomerDashboard = () => {
       border: 'hover:border-[#087F8C]',
     },
     {
-      title: 'Curated Experiences',
+      title: 'Curated Adventures',
       description: 'Stay Partner-led treks & cultural journeys',
-      path: '/experiences',
+      path: '/adventures',
       icon: Flame,
       iconBg: 'bg-[#F97316] text-white shadow-md shadow-[#F97316]/20',
       border: 'hover:border-[#F97316]',
@@ -257,7 +270,7 @@ export const CustomerDashboard = () => {
             </h1>
 
             <p className="text-sm sm:text-base text-slate-200 font-light leading-relaxed max-w-xl">
-              Welcome back, <strong className="text-white font-medium">{user?.name?.split(' ')[0] || 'Traveler'}</strong>. Discover breathtaking private retreats, verified homestays, and immersive host experiences across India.
+              Welcome back, <strong className="text-white font-medium">{formatDisplayName(user?.name?.split(' ')[0]) || 'Traveler'}</strong>. Discover breathtaking private retreats, verified homestays, and immersive host adventures across India.
             </p>
           </div>
 
@@ -313,13 +326,13 @@ export const CustomerDashboard = () => {
                             stay.image_url ||
                             'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=150&q=80'
                           }
-                          alt={stay.name}
+                          alt={formatPropertyName(stay.name)}
                           className="w-10 h-10 rounded-lg object-cover"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-900 dark:text-white truncate">{stay.name}</p>
+                          <p className="font-bold text-slate-900 dark:text-white truncate">{formatPropertyName(stay.name)}</p>
                           <p className="text-[10px] text-slate-500">
-                            {stay.city}, {stay.state}
+                            {[stay.city, stay.state].filter(Boolean).map(formatLocationName).join(', ')}
                           </p>
                         </div>
                         <span className="font-serif font-bold text-xs text-[#F97316]">
@@ -409,7 +422,7 @@ export const CustomerDashboard = () => {
               Plan Your Next Getaway
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 font-light max-w-xl">
-              Build a personalized itinerary around your dates, travel style, favorite experiences, and regional highlights.
+              Build a personalized itinerary around your dates, travel style, favorite adventures, and regional highlights.
             </p>
           </div>
         </div>
@@ -445,7 +458,7 @@ export const CustomerDashboard = () => {
         {loadingBookings ? (
           <div className="h-48 rounded-3xl skeleton" />
         ) : upcomingBooking ? (() => {
-          const theme = getBookingStatusTheme(upcomingBooking.status);
+          const theme = getBookingStatusTheme(upcomingBooking.display_status || upcomingBooking.status);
           const StatusIcon = theme.icon;
           return (
             <div className={`rounded-3xl p-6 sm:p-8 border ${theme.cardBorder} ${theme.cardBg} ${theme.glowClass} shadow-sm hover:shadow-md transition-all grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative overflow-hidden`}>
@@ -463,7 +476,7 @@ export const CustomerDashboard = () => {
                     ) ||
                     'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
                   }
-                  alt={upcomingBooking.property?.name || upcomingBooking.property_name || 'Booked Stay'}
+                  alt={formatPropertyName(upcomingBooking.property?.name || upcomingBooking.property_name || 'Booked Stay')}
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src = 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80';
@@ -483,11 +496,11 @@ export const CustomerDashboard = () => {
                       VOY-{upcomingBooking.id} • {upcomingBooking.verinova_verification_id || 'VN-TX-VERIFIED'}
                     </span>
                     <h3 className="text-2xl font-serif font-bold text-[#17324D] dark:text-white mt-2">
-                      {upcomingBooking.property?.name || upcomingBooking.property_name || 'Sanctuary Stay'}
+                      {formatPropertyName(upcomingBooking.property?.name || upcomingBooking.property_name || 'Sanctuary Stay')}
                     </h3>
                     <p className="text-xs text-[#607080] dark:text-slate-300 flex items-center space-x-1 mt-1">
                       <MapPin className="w-3.5 h-3.5 text-[#F97316]" />
-                      <span>{upcomingBooking.property?.city ? `${upcomingBooking.property.city}, ${upcomingBooking.property.state || ''}` : 'Verified Sanctuary'}</span>
+                      <span>{upcomingBooking.property?.city ? `${formatLocationName(upcomingBooking.property.city)}, ${formatLocationName(upcomingBooking.property.state) || ''}` : 'Verified Sanctuary'}</span>
                     </p>
                   </div>
                   <VerificationBadge
@@ -498,6 +511,19 @@ export const CustomerDashboard = () => {
                     size="sm"
                   />
                 </div>
+
+                {upcomingBooking.checkin_warning && (
+                  <div className={`p-3 rounded-xl border flex items-center space-x-2 text-xs font-semibold ${
+                    upcomingBooking.is_missed || upcomingBooking.status === 'NO_SHOW'
+                      ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 text-rose-800 dark:text-rose-200'
+                      : upcomingBooking.is_checkin_missed
+                      ? 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900/60 text-orange-800 dark:text-orange-200'
+                      : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-200'
+                  }`}>
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{upcomingBooking.checkin_warning}</span>
+                  </div>
+                )}
 
                 {/* 4 Detail Columns - with matching state color */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
@@ -565,7 +591,7 @@ export const CustomerDashboard = () => {
                 Your next journey hasn't been planned yet.
               </h3>
               <p className="text-xs text-[#607080] dark:text-slate-400 font-light leading-relaxed">
-                Discover misty tea bungalows, coastal pool villas, and authentic local culinary experiences across India with VeriNova instant verification.
+                Discover misty tea bungalows, coastal pool villas, and authentic local culinary adventures across India with VeriNova instant verification.
               </p>
               <div className="pt-2">
                 <button
@@ -648,7 +674,7 @@ export const CustomerDashboard = () => {
                   <div className="aspect-16/10 relative overflow-hidden bg-slate-100 dark:bg-slate-900">
                     <img
                       src={img}
-                      alt={stay.name}
+                      alt={formatPropertyName(stay.name)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-3.5 left-3.5">
@@ -668,11 +694,11 @@ export const CustomerDashboard = () => {
                   <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
                     <div>
                       <h4 className="text-base font-serif font-bold text-[#17324D] dark:text-white truncate group-hover:text-[#087F8C] transition-colors">
-                        {stay.name}
+                        {formatPropertyName(stay.name)}
                       </h4>
                       <p className="text-xs text-[#607080] dark:text-slate-400 truncate flex items-center space-x-1.5 mt-1 font-light">
                         <MapPin className="w-3.5 h-3.5 text-[#F97316] shrink-0" />
-                        <span>{stay.city || 'Munnar'}, {stay.state || 'Kerala'}</span>
+                        <span>{formatLocationName(stay.city || 'Munnar')}, {formatLocationName(stay.state || 'Kerala')}</span>
                       </p>
                     </div>
 
@@ -839,7 +865,7 @@ export const CustomerDashboard = () => {
             </div>
             <h4 className="text-sm font-serif font-bold text-white">Authoritative Transparent Pricing</h4>
             <p className="text-slate-300 leading-relaxed font-light">
-              Nightly rates, experiences, and tax calculations are validated strictly by backend algorithms with zero hidden surge fees.
+              Nightly rates, adventures, and tax calculations are validated strictly by backend algorithms with zero hidden surge fees.
             </p>
           </div>
 

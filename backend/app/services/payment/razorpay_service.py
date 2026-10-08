@@ -11,10 +11,10 @@ from sqlalchemy import func
 
 from app.config import settings
 from app.models.user import User
-from app.models.booking import Booking, BookingStatus, BookingRoom, BookingExperience
+from app.models.booking import Booking, BookingStatus, BookingRoom, BookingAdventure, BookingExperience
 from app.models.property import Property
 from app.models.room import Room
-from app.models.experience import Experience
+from app.models.adventure import Adventure, Experience
 from app.models.availability import PropertyAvailability, RoomAvailability
 from app.models.payment import Payment, PaymentStatus
 from app.schemas.payment import (
@@ -133,43 +133,44 @@ class RazorpayService:
         room_nightly_price = room.base_price
         room_total = round(room_nightly_price * nights * requested_quantity, 2)
 
-        # 5. Validate Experience (if selected)
-        experience_total = 0.0
-        exp_record = None
-        exp_date = data.experience_date or data.check_in
-        exp_participants = data.experience_participants or 1
+        # 5. Validate Adventure (if selected)
+        adventure_total = 0.0
+        adv_record = None
+        adv_id = getattr(data, 'adventure_id', None) or getattr(data, 'experience_id', None)
+        adv_date = getattr(data, 'adventure_date', None) or getattr(data, 'experience_date', None) or data.check_in
+        adv_participants = getattr(data, 'adventure_participants', 0) or getattr(data, 'experience_participants', 0) or 1
 
-        if data.experience_id:
-            exp_record = db.query(Experience).filter(Experience.id == data.experience_id).first()
-            if not exp_record or exp_record.property_id != prop.id or not exp_record.is_active:
+        if adv_id:
+            adv_record = db.query(Adventure).filter(Adventure.id == adv_id).first()
+            if not adv_record or adv_record.property_id != prop.id or not adv_record.is_active:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Selected experience does not exist or does not belong to this property.",
+                    detail="Selected adventure does not exist or does not belong to this property.",
                 )
 
-            # Check Experience Capacity
-            booked_exp_count = db.query(
-                func.coalesce(func.sum(BookingExperience.participants), 0)
+            # Check Adventure Capacity
+            booked_adv_count = db.query(
+                func.coalesce(func.sum(BookingAdventure.participants), 0)
             ).join(Booking).filter(
-                BookingExperience.experience_id == exp_record.id,
-                BookingExperience.scheduled_date == exp_date,
+                BookingAdventure.adventure_id == adv_record.id,
+                BookingAdventure.scheduled_date == adv_date,
                 Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED])
             ).scalar() or 0
 
-            remaining_capacity = exp_record.capacity - booked_exp_count
-            if exp_participants > remaining_capacity:
+            remaining_capacity = adv_record.capacity - booked_adv_count
+            if adv_participants > remaining_capacity:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"The selected experience has reached capacity (Requested: {exp_participants}, Remaining: {max(0, remaining_capacity)}).",
+                    detail=f"The selected adventure has reached capacity (Requested: {adv_participants}, Remaining: {max(0, remaining_capacity)}).",
                 )
 
-            if exp_record.pricing_model == "per_person":
-                experience_total = round(exp_record.price * exp_participants, 2)
+            if adv_record.pricing_model == "per_person":
+                adventure_total = round(adv_record.price * adv_participants, 2)
             else:
-                experience_total = round(exp_record.price, 2)
+                adventure_total = round(adv_record.price, 2)
 
         # Calculate Total Amount strictly on backend
-        total_amount = round(room_total + experience_total, 2)
+        total_amount = round(room_total + adventure_total, 2)
 
         # Generate unique booking number
         booking_number = generate_booking_number()
@@ -213,7 +214,7 @@ class RazorpayService:
             total_nights=nights,
             total_guests=requested_guests,
             room_total=room_total,
-            experience_total=experience_total,
+            adventure_total=adventure_total,
             total_amount=total_amount,
             status=BookingStatus.PENDING,
             customer_notes=data.customer_notes
@@ -234,19 +235,19 @@ class RazorpayService:
         )
         db.add(booking_room)
 
-        # Create BookingExperience item if selected
-        if exp_record:
-            booking_exp = BookingExperience(
+        # Create BookingAdventure item if selected
+        if adv_record:
+            booking_adv = BookingAdventure(
                 booking_id=booking.id,
-                experience_id=exp_record.id,
-                experience_title=exp_record.title,
-                price=exp_record.price,
-                pricing_model=exp_record.pricing_model,
-                participants=exp_participants,
-                subtotal=experience_total,
-                scheduled_date=exp_date
+                adventure_id=adv_record.id,
+                adventure_title=adv_record.title,
+                price=adv_record.price,
+                pricing_model=adv_record.pricing_model,
+                participants=adv_participants,
+                subtotal=adventure_total,
+                scheduled_date=adv_date
             )
-            db.add(booking_exp)
+            db.add(booking_adv)
 
         # Create Payment tracking record
         payment = Payment(

@@ -3,8 +3,22 @@ from app.models.provider import ProviderProfile
 from app.models.property import Property, PropertyType, PropertyImage, PropertyAmenity, PropertyRule
 from app.models.room import Room, RoomImage, RoomAmenity, RoomRule
 from app.models.availability import PropertyAvailability, RoomAvailability
-from app.models.experience import Experience, ExperienceSchedule, ExperienceAvailability
-from app.models.booking import Booking, BookingStatus, BookingRoom, BookingExperience, BookingRuleSnapshot
+from app.models.adventure import (
+    Adventure,
+    AdventureSchedule,
+    AdventureAvailability,
+    Experience,
+    ExperienceSchedule,
+    ExperienceAvailability,
+)
+from app.models.booking import (
+    Booking,
+    BookingStatus,
+    BookingRoom,
+    BookingAdventure,
+    BookingExperience,
+    BookingRuleSnapshot,
+)
 from app.models.booking_message import BookingMessage
 from app.models.payment import Payment, PaymentStatus
 from app.models.verification import VerificationResult, VerificationCheck, VerificationStatus, CheckStatus
@@ -31,6 +45,14 @@ from app.models.property_legal_document import (
 
 from app.models.saved_trip import SavedTrip, SavedTripItem
 from app.models.trip_chat_session import TripPlannerChatSession, TripPlannerChatMessage
+from app.models.ai_booking import (
+    AIBookingSession,
+    AIBookingSessionStatus,
+    AIBookingPreview,
+    AIBookingPreviewStatus,
+    AIBookingMessage,
+    AIAgentResearchLog,
+)
 
 __all__ = [
     "User",
@@ -52,12 +74,16 @@ __all__ = [
     "RoomRule",
     "PropertyAvailability",
     "RoomAvailability",
+    "Adventure",
+    "AdventureSchedule",
+    "AdventureAvailability",
     "Experience",
     "ExperienceSchedule",
     "ExperienceAvailability",
     "Booking",
     "BookingStatus",
     "BookingRoom",
+    "BookingAdventure",
     "BookingExperience",
     "BookingRuleSnapshot",
     "BookingMessage",
@@ -84,4 +110,10 @@ __all__ = [
     "SavedTripItem",
     "TripPlannerChatSession",
     "TripPlannerChatMessage",
+    "AIBookingSession",
+    "AIBookingSessionStatus",
+    "AIBookingPreview",
+    "AIBookingPreviewStatus",
+    "AIBookingMessage",
+    "AIAgentResearchLog",
 ]

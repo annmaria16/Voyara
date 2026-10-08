@@ -511,7 +511,7 @@ class StayGuideService:
         # -------------------------------------------------------------------------
         if re.search(r'^(?:hello|hallo|namaste|hola)(?:\s+(?:there|voyara|ai|assistant))?[!?.]*$', q_lower) or q_clean in ["hello", "hello there", "hello voyara", "hello ai", "hello assistant", "hallo", "namaste", "hola"]:
             return StayGuideAskResponse(
-                answer="Hello! 👋 Welcome to Voyara AI. I can help you learn more about this property, its rooms, amenities, guest policies, and available experiences. What would you like to know?",
+                answer="Hello! 👋 Welcome to Voyara AI. I can help you learn more about this property, its rooms, amenities, guest policies, and available adventures. What would you like to know?",
                 source="conversational_greeting",
                 rule_references=[f"Property: {prop.name}"],
                 booking_allowed=True
@@ -594,7 +594,7 @@ class StayGuideService:
         ]) or q_clean in ["what can you do", "what can you do for me", "what you can do", "what you can do for me", "tell me what you can do", "what are your capabilities", "what do you do", "what can u do"]
         if is_what_can_you_do:
             return StayGuideAskResponse(
-                answer="I can help you learn about this selected property and room. You can ask me about amenities, room details, child policies, extra beds, baby cots, home rules, check-in and check-out times, availability, prices, and available experiences.",
+                answer="I can help you learn about this selected property and room. You can ask me about amenities, room details, child policies, extra beds, baby cots, home rules, check-in and check-out times, availability, prices, and available adventures.",
                 source="assistant_capabilities",
                 rule_references=[f"Property: {prop.name}"],
                 booking_allowed=True
@@ -606,7 +606,7 @@ class StayGuideService:
         ]) or q_clean in ["can you help me", "how can you help me", "how can you help", "how you can help me", "how you can help", "can u help me"]) and not any(k in q_lower for k in ["extra bed", "cot", "wifi", "pool", "book", "cancel", "refund", "pet", "smoke", "child", "children", "room", "price", "amenit", "rule"])
         if is_can_you_help:
             return StayGuideAskResponse(
-                answer="Of course! 😊 You can ask me about this property’s rooms, amenities, guest policies, child rules, extra beds, baby cots, check-in times, prices, availability, and experiences.",
+                answer="Of course! 😊 You can ask me about this property’s rooms, amenities, guest policies, child rules, extra beds, baby cots, check-in times, prices, availability, and adventures.",
                 source="assistant_help",
                 rule_references=[f"Property: {prop.name}"],
                 booking_allowed=True
@@ -618,7 +618,7 @@ class StayGuideService:
         ]) or q_clean in ["what can i ask you", "what can i ask", "what should i ask", "what should i ask you", "what questions can i ask", "what can i ask u"]
         if is_what_can_i_ask:
             return StayGuideAskResponse(
-                answer="You can ask about room details, amenities, child occupancy, additional charges, extra beds, baby cots, home rules, check-in and check-out, availability, prices, and experiences available at this property.",
+                answer="You can ask about room details, amenities, child occupancy, additional charges, extra beds, baby cots, home rules, check-in and check-out, availability, prices, and adventures available at this property.",
                 source="assistant_help",
                 rule_references=[f"Property: {prop.name}"],
                 booking_allowed=True
@@ -1790,31 +1790,31 @@ class StayGuideService:
                 )
 
         # -------------------------------------------------------------------------
-        # 20. Public Experiences Connected to Property
+        # 20. Public Adventures Connected to Property
         # -------------------------------------------------------------------------
         is_exp_q = any(k in q_lower for k in [
-            "experience", "experiences", "activities", "things to do", "tours", "adventures",
-            "does this property offer any experiences"
+            "adventure", "adventures", "experience", "experiences", "activities", "things to do", "tours",
+            "does this property offer any adventures", "does this property offer any experiences"
         ])
         if is_exp_q:
-            active_exp = [e for e in prop.experiences if getattr(e, "is_active", True)]
-            if active_exp:
-                exp_list = []
-                for e in active_exp:
-                    cat = getattr(e, "experience_type", None) or getattr(e, "category", "Experience")
+            active_adv = [e for e in (prop.adventures or prop.experiences) if getattr(e, "is_active", True)]
+            if active_adv:
+                adv_list = []
+                for e in active_adv:
+                    cat = getattr(e, "adventure_type", None) or getattr(e, "experience_type", None) or getattr(e, "category", "Adventure")
                     dur = getattr(e, "duration", None) or f"{getattr(e, 'duration_hours', '')} hrs"
-                    exp_list.append(f"• {e.title} ({cat}): ₹{e.price:,.0f}/person ({dur})")
+                    adv_list.append(f"• {e.title} ({cat}): ₹{e.price:,.0f}/person ({dur})")
                 return StayGuideAskResponse(
-                    answer=f"Experiences offered at {prop.name}:\n" + "\n".join(exp_list),
+                    answer=f"Adventures offered at {prop.name}:\n" + "\n".join(adv_list),
                     source="property_data",
-                    rule_references=[f"Experiences count: {len(active_exp)}"],
+                    rule_references=[f"Adventures count: {len(active_adv)}"],
                     booking_allowed=True
                 )
             else:
                 return StayGuideAskResponse(
-                    answer=f"No specialized on-site experiences are currently listed for {prop.name}.",
+                    answer=f"No specialized on-site adventures are currently listed for {prop.name}.",
                     source="property_data",
-                    rule_references=["Experiences: None listed"]
+                    rule_references=["Adventures: None listed"]
                 )
 
         # -------------------------------------------------------------------------
@@ -1919,7 +1919,7 @@ class StayGuideService:
         # 26. Unknown / Unrelated Questions Fallback (Section 10)
         # -------------------------------------------------------------------------
         return StayGuideAskResponse(
-            answer="I can help with public information about the selected property and room. You can ask me about amenities, rooms, child policies, extra beds, baby cots, home rules, check-in times, prices, availability, or experiences.",
+            answer="I can help with public information about the selected property and room. You can ask me about amenities, rooms, child policies, extra beds, baby cots, home rules, check-in times, prices, availability, or adventures.",
             source="fallback",
             rule_references=[f"Property: {prop.name}"],
             requires_stay_partner_confirmation=False

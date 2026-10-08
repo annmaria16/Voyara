@@ -21,18 +21,29 @@ class BookingRoomItemResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class BookingExperienceItemResponse(BaseModel):
+class BookingAdventureItemResponse(BaseModel):
     id: int
-    experience_id: int
-    experience_title: str
+    adventure_id: int
+    adventure_title: str
     price: float
     pricing_model: str
     participants: int
     subtotal: float
     scheduled_date: date
 
+    # Compatibility alias properties
+    @property
+    def experience_id(self) -> int:
+        return self.adventure_id
+
+    @property
+    def experience_title(self) -> str:
+        return self.adventure_title
+
     class Config:
         from_attributes = True
+
+BookingExperienceItemResponse = BookingAdventureItemResponse
 
 class BookingCreate(BaseModel):
     property_id: int
@@ -47,10 +58,23 @@ class BookingCreate(BaseModel):
     extra_bed_count: Optional[int] = 0
     rules_accepted: bool = False
     room_quantity: int = 1
+    adventure_id: Optional[int] = None
+    adventure_participants: Optional[int] = 0
+    adventure_date: Optional[date] = None
+    # Backward compatibility fields
     experience_id: Optional[int] = None
     experience_participants: Optional[int] = 0
     experience_date: Optional[date] = None
     customer_notes: Optional[str] = None
+    booking_source: Optional[str] = "self"
+
+    def model_post_init(self, __context):
+        if self.experience_id is not None and self.adventure_id is None:
+            self.adventure_id = self.experience_id
+        if self.experience_participants is not None and self.adventure_participants == 0:
+            self.adventure_participants = self.experience_participants
+        if self.experience_date is not None and self.adventure_date is None:
+            self.adventure_date = self.experience_date
 
 class RefundResponse(BaseModel):
     id: int
@@ -111,7 +135,8 @@ class BookingResponse(BaseModel):
     cot_count: Optional[int] = 0
     extra_bed_count: Optional[int] = 0
     room_total: float
-    experience_total: float
+    adventure_total: float = 0.0
+    experience_total: Optional[float] = 0.0
     total_amount: float
     original_total_amount: Optional[float] = None
     commission_percentage_snapshot: Optional[float] = 10.0
@@ -136,19 +161,28 @@ class BookingResponse(BaseModel):
     checked_out_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     checkin_reminder_sent: Optional[bool] = False
+    checkin_today_notified: Optional[bool] = False
+    no_show_notified: Optional[bool] = False
     checkin_reminder: Optional[dict] = None
+    display_status: Optional[str] = None
+    checkin_warning: Optional[dict] = None
+    is_missed: Optional[bool] = False
+    is_checkin_today: Optional[bool] = False
+    is_checkin_missed: Optional[bool] = False
     is_cancellable: Optional[bool] = None
     cancellation_deadline_str: Optional[str] = None
     created_at: datetime
     user: Optional[UserResponse] = None
     property: Optional[PropertyResponse] = None
     booking_rooms: List[BookingRoomItemResponse] = []
-    booking_experiences: List[BookingExperienceItemResponse] = []
+    booking_adventures: List[BookingAdventureItemResponse] = []
+    booking_experiences: List[BookingAdventureItemResponse] = []
     verification_status: Optional[str] = None
     verinova_verification_id: Optional[str] = None
     verinova_score: Optional[int] = 100
     verinova_status: Optional[str] = "VERIFIED"
     verinova_verified_at: Optional[datetime] = None
+    booking_source: Optional[str] = "self"
     payment: Optional[PaymentResponse] = None
     refund: Optional[RefundResponse] = None
     review: Optional[ReviewResponse] = None

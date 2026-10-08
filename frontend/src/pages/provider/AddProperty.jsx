@@ -126,7 +126,7 @@ const ROOM_TYPE_OPTIONS = [
   'Dormitory Bed',
 ];
 
-const EXPERIENCE_TYPE_OPTIONS = [
+const ADVENTURE_TYPE_OPTIONS = [
   'Campfire',
   'Guided Trek',
   'Sightseeing',
@@ -136,6 +136,7 @@ const EXPERIENCE_TYPE_OPTIONS = [
   'Adventure',
   'Event',
 ];
+const EXPERIENCE_TYPE_OPTIONS = ADVENTURE_TYPE_OPTIONS;
 
 const AVAILABLE_ROOM_AMENITIES = [
   'King Bed',
@@ -211,8 +212,10 @@ export const AddProperty = () => {
   ]);
   const [customRoomAmenities, setCustomRoomAmenities] = useState({});
 
-  // 6. Experiences / Activities Configuration State (Multiple Experiences under One Stay)
-  const [experiences, setExperiences] = useState([]);
+  // 6. Adventures / Activities Configuration State (Multiple Adventures under One Stay)
+  const [adventures, setAdventures] = useState([]);
+  const experiences = adventures;
+  const setExperiences = setAdventures;
 
   // 7. Property Home Rules State
   const [homeRules, setHomeRules] = useState(DEFAULT_HOME_RULES);
@@ -453,12 +456,13 @@ export const AddProperty = () => {
     });
   };
 
-  // --- Experience Operations Handlers (Multiple Experiences) ---
-  const handleAddExperience = () => {
-    setExperiences((prev) => [
+  // --- Adventure Operations Handlers (Multiple Adventures) ---
+  const handleAddAdventure = () => {
+    setAdventures((prev) => [
       ...prev,
       {
         title: '',
+        adventure_type: 'Guided Trek',
         experience_type: 'Guided Trek',
         description: '',
         price: 800,
@@ -469,18 +473,23 @@ export const AddProperty = () => {
       },
     ]);
   };
+  const handleAddExperience = handleAddAdventure;
 
-  const handleRemoveExperience = (index) => {
-    setExperiences((prev) => prev.filter((_, i) => i !== index));
+  const handleRemoveAdventure = (index) => {
+    setAdventures((prev) => prev.filter((_, i) => i !== index));
   };
+  const handleRemoveExperience = handleRemoveAdventure;
 
-  const handleUpdateExperience = (index, field, value) => {
-    setExperiences((prev) => {
+  const handleUpdateAdventure = (index, field, value) => {
+    setAdventures((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
+      if (field === 'adventure_type') next[index].experience_type = value;
+      if (field === 'experience_type') next[index].adventure_type = value;
       return next;
     });
   };
+  const handleUpdateExperience = handleUpdateAdventure;
 
   // --- Live Field Validation Rules ---
   const errors = useMemo(() => {
@@ -876,7 +885,7 @@ export const AddProperty = () => {
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
         contact_phone: contactPhone.trim(),
-        contact_email: contactEmail.trim(),
+        contact_email: contactEmail.trim().toLowerCase(),
         check_in_time: checkInTime,
         check_out_time: checkOutTime,
         cancellation_refund_percentage: parseInt(cancellationRefundPercentage, 10) || 50,
@@ -893,11 +902,26 @@ export const AddProperty = () => {
           amenities: r.amenities || [],
           images: (r.images || []).map((img) => (typeof img === 'string' ? img : img.image_url)).filter(Boolean),
         })),
-        experiences: experiences
+        adventures: adventures
           .filter((exp) => exp.title && exp.title.trim())
           .map((exp) => ({
             title: exp.title.trim(),
-            experience_type: exp.experience_type || 'Guided Trek',
+            adventure_type: exp.adventure_type || exp.experience_type || 'Guided Trek',
+            experience_type: exp.adventure_type || exp.experience_type || 'Guided Trek',
+            description: exp.description.trim() || 'Curated partner adventure and activity.',
+            price: parseFloat(exp.price) || 500,
+            pricing_model: exp.pricing_model || 'per_person',
+            capacity: parseInt(exp.capacity, 10) || 15,
+            duration: exp.duration?.trim() || '3 Hours',
+            schedule_type: 'recurring',
+            image_url: exp.image_url || undefined,
+          })),
+        experiences: adventures
+          .filter((exp) => exp.title && exp.title.trim())
+          .map((exp) => ({
+            title: exp.title.trim(),
+            adventure_type: exp.adventure_type || exp.experience_type || 'Guided Trek',
+            experience_type: exp.adventure_type || exp.experience_type || 'Guided Trek',
             description: exp.description.trim() || 'Curated partner adventure and activity.',
             price: parseFloat(exp.price) || 500,
             pricing_model: exp.pricing_model || 'per_person',
@@ -1845,15 +1869,15 @@ export const AddProperty = () => {
             </div>
           </div>
 
-          {/* SECTION 7: EXPERIENCES & ACTIVITIES (OPTIONAL) */}
+          {/* SECTION 7: ADVENTURES & ACTIVITIES (OPTIONAL) */}
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
               <h2 className="text-base font-bold text-[#091B29] dark:text-white flex items-center space-x-2">
                 <Flame className="w-4 h-4 text-orange-500" />
-                <span>Experiences & Activities (Optional)</span>
+                <span>Adventures & Activities (Optional)</span>
               </h2>
               <span className="text-xs font-bold text-orange-700 dark:text-orange-300 bg-orange-500/15 px-2.5 py-0.5 rounded-full">
-                {experiences.length} Experience(s)
+                {adventures.length} Adventure(s)
               </span>
             </div>
 
@@ -1861,9 +1885,9 @@ export const AddProperty = () => {
               Add multiple curated adventures, guided treks, campfires, or cultural workshops directly attached to this stay.
             </p>
 
-            {experiences.length > 0 && (
+            {adventures.length > 0 && (
               <div className="space-y-5">
-                {experiences.map((exp, expIdx) => (
+                {adventures.map((exp, expIdx) => (
                   <div
                     key={expIdx}
                     className="p-5 rounded-3xl bg-[#FFF8F0]/50 dark:bg-slate-900/60 border border-orange-200/80 dark:border-slate-800 space-y-4 shadow-xs"
@@ -1874,14 +1898,14 @@ export const AddProperty = () => {
                           {expIdx + 1}
                         </span>
                         <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                          {exp.title ? exp.title : `Experience #${expIdx + 1}`}
+                          {exp.title ? exp.title : `Adventure #${expIdx + 1}`}
                         </h4>
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleRemoveExperience(expIdx)}
+                        onClick={() => handleRemoveAdventure(expIdx)}
                         className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 p-1.5 rounded-xl transition-colors cursor-pointer text-xs flex items-center space-x-1"
-                        title="Remove experience"
+                        title="Remove adventure"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span className="font-semibold text-[11px]">Remove</span>
@@ -1891,13 +1915,13 @@ export const AddProperty = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="sm:col-span-2">
                         <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Experience Title
+                          Adventure Title
                         </label>
                         <input
                           type="text"
                           placeholder="e.g. Sunset Tea Plantation Walk"
                           value={exp.title}
-                          onChange={(e) => handleUpdateExperience(expIdx, 'title', e.target.value)}
+                          onChange={(e) => handleUpdateAdventure(expIdx, 'title', e.target.value)}
                           className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500"
                         />
                       </div>
@@ -1907,11 +1931,11 @@ export const AddProperty = () => {
                           Type
                         </label>
                         <select
-                          value={exp.experience_type}
-                          onChange={(e) => handleUpdateExperience(expIdx, 'experience_type', e.target.value)}
+                          value={exp.adventure_type || exp.experience_type || 'Guided Trek'}
+                          onChange={(e) => handleUpdateAdventure(expIdx, 'adventure_type', e.target.value)}
                           className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                         >
-                          {EXPERIENCE_TYPE_OPTIONS.map((t) => (
+                          {ADVENTURE_TYPE_OPTIONS.map((t) => (
                             <option key={t} value={t}>
                               {t}
                             </option>
@@ -1931,7 +1955,7 @@ export const AddProperty = () => {
                           step="50"
                           placeholder="800"
                           value={exp.price}
-                          onChange={(e) => handleUpdateExperience(expIdx, 'price', e.target.value)}
+                          onChange={(e) => handleUpdateAdventure(expIdx, 'price', e.target.value)}
                           className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-hidden"
                         />
                       </div>
@@ -1942,7 +1966,7 @@ export const AddProperty = () => {
                         </label>
                         <select
                           value={exp.pricing_model}
-                          onChange={(e) => handleUpdateExperience(expIdx, 'pricing_model', e.target.value)}
+                          onChange={(e) => handleUpdateAdventure(expIdx, 'pricing_model', e.target.value)}
                           className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                         >
                           <option value="per_person">Per Person</option>
@@ -1959,7 +1983,7 @@ export const AddProperty = () => {
                           min="1"
                           placeholder="15"
                           value={exp.capacity}
-                          onChange={(e) => handleUpdateExperience(expIdx, 'capacity', e.target.value)}
+                          onChange={(e) => handleUpdateAdventure(expIdx, 'capacity', e.target.value)}
                           className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                         />
                       </div>
@@ -1972,7 +1996,7 @@ export const AddProperty = () => {
                           type="text"
                           placeholder="3 Hours"
                           value={exp.duration}
-                          onChange={(e) => handleUpdateExperience(expIdx, 'duration', e.target.value)}
+                          onChange={(e) => handleUpdateAdventure(expIdx, 'duration', e.target.value)}
                           className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                         />
                       </div>
@@ -1986,7 +2010,7 @@ export const AddProperty = () => {
                         rows={2}
                         placeholder="Describe the activity itinerary, equipment provided, departure point..."
                         value={exp.description}
-                        onChange={(e) => handleUpdateExperience(expIdx, 'description', e.target.value)}
+                        onChange={(e) => handleUpdateAdventure(expIdx, 'description', e.target.value)}
                         className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                       />
                     </div>
@@ -1995,14 +2019,14 @@ export const AddProperty = () => {
               </div>
             )}
 
-            {/* + Add Experience Button */}
+            {/* + Add Adventure Button */}
             <button
               type="button"
-              onClick={handleAddExperience}
+              onClick={handleAddAdventure}
               className="w-full py-3.5 border-2 border-dashed border-orange-500/60 hover:border-orange-600 bg-orange-500/5 hover:bg-orange-500/10 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300 rounded-2xl font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-xs"
             >
               <Flame className="w-4 h-4" />
-              <span>+ Add Experience or Activity</span>
+              <span>+ Add Adventure or Activity</span>
             </button>
           </div>
 

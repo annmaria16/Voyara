@@ -5,8 +5,8 @@ from app.models.user import User, UserRole
 from app.models.provider import ProviderProfile
 from app.models.property import Property, PropertyType, PropertyImage, PropertyAmenity
 from app.models.room import Room, RoomImage, RoomAmenity
-from app.models.experience import Experience, ExperienceSchedule
-from app.models.booking import Booking, BookingStatus, BookingRoom, BookingExperience
+from app.models.adventure import Adventure, AdventureSchedule, Experience, ExperienceSchedule
+from app.models.booking import Booking, BookingStatus, BookingRoom, BookingAdventure, BookingExperience
 from app.auth.password import hash_password
 from app.services.verinova.verification_service import VeriNovaService
 
@@ -179,11 +179,11 @@ def seed_database():
         db.add(RoomAmenity(room_id=r1_1.id, amenity_name=am))
         db.add(RoomAmenity(room_id=r1_2.id, amenity_name=am))
 
-    # P1 Experiences
-    e1_1 = Experience(
+    # P1 Adventures
+    e1_1 = Adventure(
         property_id=p1.id,
         title="Guided Trek to Meesapulimala Peak",
-        experience_type="Guided Trek",
+        adventure_type="Guided Trek",
         description="Early morning guided trekking through rhododendron valleys and cloud-capped ridges with a certified naturalist.",
         price=1200.0,
         pricing_model="per_person",
@@ -195,10 +195,10 @@ def seed_database():
         image_url="https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1000&q=80",
         is_active=True
     )
-    e1_2 = Experience(
+    e1_2 = Adventure(
         property_id=p1.id,
         title="Starlit Campfire & Acoustic Mountain Night",
-        experience_type="Campfire",
+        adventure_type="Campfire",
         description="Evening gathering by the outdoor stone fire pit with local plantation appetizers, hot cocoa, and acoustic guitar sessions.",
         price=500.0,
         pricing_model="per_person",
@@ -261,10 +261,10 @@ def seed_database():
     db.commit()
     db.add(RoomImage(room_id=r2_1.id, image_url="https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1000&q=80", is_primary=True))
 
-    e2_1 = Experience(
+    e2_1 = Adventure(
         property_id=p2.id,
         title="Traditional Kerala Spice Trail & Farm Cooking",
-        experience_type="Local Food Experience",
+        adventure_type="Local Food Adventure",
         description="Walk through 20+ varieties of wild spices with the host, harvest cardamom pods, and learn clay-pot Kerala cooking.",
         price=800.0,
         pricing_model="per_person",
@@ -327,10 +327,10 @@ def seed_database():
     db.commit()
     db.add(RoomImage(room_id=r3_1.id, image_url="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1000&q=80", is_primary=True))
 
-    e3_1 = Experience(
+    e3_1 = Adventure(
         property_id=p3.id,
         title="Sunset Sea Kayaking & Dolphin Spotting",
-        experience_type="Outdoor Activity",
+        adventure_type="Outdoor Activity",
         description="Guided paddle along the coastal sea caves and tranquil dolphin pods at golden hour.",
         price=1800.0,
         pricing_model="per_person",
@@ -455,7 +455,7 @@ def seed_database():
         total_nights=nights_1,
         total_guests=2,
         room_total=room_total_1,
-        experience_total=exp_total_1,
+        adventure_total=exp_total_1,
         total_amount=total_1,
         status=BookingStatus.CONFIRMED,
         customer_notes="Looking forward to early morning sunrise trek."
@@ -473,10 +473,10 @@ def seed_database():
         guests=2,
         subtotal=room_total_1
     ))
-    db.add(BookingExperience(
+    db.add(BookingAdventure(
         booking_id=b1.id,
-        experience_id=e1_1.id,
-        experience_title=e1_1.title,
+        adventure_id=e1_1.id,
+        adventure_title=e1_1.title,
         price=1200.0,
         pricing_model="per_person",
         participants=2,
@@ -505,7 +505,7 @@ def seed_database():
         total_nights=nights_2,
         total_guests=2,
         room_total=room_total_2,
-        experience_total=exp_total_2,
+        adventure_total=exp_total_2,
         total_amount=total_2,
         status=BookingStatus.CONFIRMED,
         customer_notes="Anniversary celebration stay."
@@ -523,10 +523,10 @@ def seed_database():
         guests=2,
         subtotal=room_total_2
     ))
-    db.add(BookingExperience(
+    db.add(BookingAdventure(
         booking_id=b2.id,
-        experience_id=e3_1.id,
-        experience_title=e3_1.title,
+        adventure_id=e3_1.id,
+        adventure_title=e3_1.title,
         price=1800.0,
         pricing_model="per_person",
         participants=2,
@@ -538,7 +538,7 @@ def seed_database():
     # Run VeriNova verification on b2
     VeriNovaService.verify_booking_transaction(db, b2)
 
-    print("[OK] Database seeding successfully completed with real properties, rooms, experiences, and VeriNova verified bookings!")
+    print("[OK] Database seeding successfully completed with real properties, rooms, adventures, and VeriNova verified bookings!")
     db.close()
 
 if __name__ == "__main__":

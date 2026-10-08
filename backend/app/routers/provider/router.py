@@ -7,7 +7,7 @@ from app.auth.dependencies import get_current_provider
 from app.models.provider import ProviderProfile
 from app.models.property import Property
 from app.models.room import Room
-from app.models.experience import Experience
+from app.models.adventure import Adventure
 from app.models.booking import Booking, BookingStatus
 from app.schemas.booking import BookingResponse, RefundResponse
 from app.services.bookings.booking_service import BookingService
@@ -16,7 +16,7 @@ from app.services.search.provider_search_service import ProviderSearchService
 from app.routers.provider.properties import router as properties_router
 from app.routers.provider.rooms import router as rooms_router
 from app.routers.provider.availability import router as availability_router
-from app.routers.provider.experiences import router as experiences_router
+from app.routers.provider.adventures import router as adventures_router
 from app.routers.provider.verinova import router as verinova_router
 from app.routers.provider.legal_documents import router as legal_documents_router
 from fastapi import Query
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/provider", tags=["Provider"])
 
 @router.get("/search")
 def search_provider_data(
-    q: str = Query("", description="Search term across provider's properties, rooms, experiences, bookings, reviews"),
+    q: str = Query("", description="Search term across provider's properties, rooms, adventures, bookings, reviews"),
     provider: ProviderProfile = Depends(get_current_provider),
     db: Session = Depends(get_db)
 ):
@@ -48,7 +48,7 @@ def get_provider_dashboard(
     total_properties = len(properties)
     active_properties = sum(1 for p in properties if p.is_active)
     total_rooms = db.query(Room).filter(Room.property_id.in_(property_ids)).count() if property_ids else 0
-    total_experiences = db.query(Experience).filter(Experience.property_id.in_(property_ids)).count() if property_ids else 0
+    total_adventures = db.query(Adventure).filter(Adventure.property_id.in_(property_ids)).count() if property_ids else 0
     
     # Bookings
     bookings = db.query(Booking).filter(Booking.property_id.in_(property_ids)).order_by(Booking.created_at.desc()).all() if property_ids else []
@@ -94,7 +94,8 @@ def get_provider_dashboard(
             "total_properties": total_properties,
             "active_properties": active_properties,
             "total_rooms": total_rooms,
-            "total_experiences": total_experiences,
+            "total_adventures": total_adventures,
+            "total_experiences": total_adventures,
             "total_bookings": total_bookings,
             "confirmed_bookings": upcoming_bookings,
             "upcoming_bookings": upcoming_bookings,
@@ -190,7 +191,7 @@ def get_provider_booking_refund(
 router.include_router(properties_router)
 router.include_router(rooms_router)
 router.include_router(availability_router)
-router.include_router(experiences_router)
+router.include_router(adventures_router)
 router.include_router(verinova_router)
 router.include_router(legal_documents_router)
 

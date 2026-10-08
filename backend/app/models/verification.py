@@ -33,7 +33,7 @@ class VerificationCheck(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     verification_id = Column(Integer, ForeignKey("verification_results.id", ondelete="CASCADE"), nullable=False)
-    check_category = Column(String(50), nullable=False)  # "PROPERTY", "ROOM", "EXPERIENCE", "PRICE", "BOOKING"
+    check_category = Column(String(50), nullable=False)  # "PROPERTY", "ROOM", "ADVENTURE", "PRICE", "BOOKING"
     check_name = Column(String(255), nullable=False)    # e.g., "Property Active Check", "Room Availability & Conflict Check"
     status = Column(Enum(CheckStatus), default=CheckStatus.PASS, nullable=False)
     message = Column(Text, nullable=False)              # e.g., "Property is active and operational"

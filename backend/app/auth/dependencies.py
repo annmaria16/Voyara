@@ -122,7 +122,7 @@ def get_current_provider(
         # Create a provider profile if missing
         profile = ProviderProfile(
             user_id=user.id,
-            business_name=user.name + " Stays & Experiences",
+            business_name=user.name + " Stays & Adventures",
             contact_phone=user.phone or "",
             contact_email=user.email,
             verification_status="VERIFIED"

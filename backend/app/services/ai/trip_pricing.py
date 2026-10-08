@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Optional
 from app.models.room import Room, RoomRule
 from app.models.property import Property, PropertyRule
-from app.models.experience import Experience
+from app.models.adventure import Adventure, Experience
 from app.schemas.trip_planner import PricingSummaryResponse
 
 class TripPricingService:
@@ -13,13 +13,18 @@ class TripPricingService:
         children: int = 0,
         child_ages: Optional[List[int]] = None,
         property_rule: Optional[PropertyRule] = None,
-        room_rule: Optional[RoomRule] = None
+        room_rule: Optional[RoomRule] = None,
+        room_quantity: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Calculates authoritative stay pricing from PostgreSQL fields and rules.
         Never allows AI to calculate or mutate final pricing.
         """
-        room_subtotal = round(float(room.base_price) * max(1, nights), 2)
+        total_guests = adults + children
+        room_cap = (room_rule.maximum_total_guests if room_rule and room_rule.maximum_total_guests else room.capacity) or 2
+        quantity = room_quantity if (room_quantity is not None and room_quantity >= 1) else max(1, (total_guests + room_cap - 1) // room_cap)
+
+        room_subtotal = round(float(room.base_price) * max(1, nights) * quantity, 2)
         child_subtotal = 0.0
 
         # Evaluate child pricing rules if children are present
@@ -42,21 +47,22 @@ class TripPricingService:
         return {
             "price_per_night": float(room.base_price),
             "total_nights": nights,
+            "room_quantity": quantity,
             "room_subtotal": room_subtotal,
             "child_charge_subtotal": child_subtotal,
             "total_stay_cost": total_stay_cost
         }
 
     @staticmethod
-    def calculate_experience_cost(
-        experience: Experience,
+    def calculate_adventure_cost(
+        adventure: Adventure,
         participants: int
     ) -> Dict[str, Any]:
         """
-        Calculates authoritative experience pricing based on pricing_model.
+        Calculates authoritative adventure pricing based on pricing_model.
         """
-        unit_price = float(experience.price)
-        pricing_model = str(experience.pricing_model).lower()
+        unit_price = float(adventure.price)
+        pricing_model = str(adventure.pricing_model).lower()
 
         if pricing_model in ["per_person", "per-person", "per person"]:
             total_cost = round(unit_price * max(1, participants), 2)
@@ -67,20 +73,30 @@ class TripPricingService:
             "unit_price": unit_price,
             "pricing_model": pricing_model,
             "participants": participants,
+            "total_adventure_cost": total_cost,
             "total_experience_cost": total_cost
         }
 
     @staticmethod
+    def calculate_experience_cost(
+        experience: Experience,
+        participants: int
+    ) -> Dict[str, Any]:
+        return TripPricingService.calculate_adventure_cost(experience, participants)
+
+    @staticmethod
     def build_pricing_summary(
         accommodation_total: float,
-        experiences_total: float,
+        adventures_total: Optional[float] = None,
+        experiences_total: Optional[float] = None,
         budget: Optional[float] = None,
         budget_type: str = "TOTAL"
     ) -> PricingSummaryResponse:
         """
         Constructs transparent pricing summary with budget compatibility evaluation.
         """
-        known_cost = round(accommodation_total + experiences_total, 2)
+        adv_total = adventures_total if adventures_total is not None else (experiences_total or 0.0)
+        known_cost = round(accommodation_total + adv_total, 2)
         
         budget_status = "NO_BUDGET_SET"
         budget_difference = None
@@ -98,10 +114,11 @@ class TripPricingService:
 
         return PricingSummaryResponse(
             accommodation_total=round(accommodation_total, 2),
-            experiences_total=round(experiences_total, 2),
+            adventures_total=round(adv_total, 2),
+            experiences_total=round(adv_total, 2),
             known_cost=known_cost,
             currency="INR",
-            disclaimer="This estimate includes your selected Voyara stay and verified experiences. Food, local transport, and personal expenses are not included.",
+            disclaimer="This estimate includes your selected Voyara stay and verified adventures. Food, local transport, and personal expenses are not included.",
             budget_status=budget_status,
             budget_target=budget,
             budget_difference=budget_difference

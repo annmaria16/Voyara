@@ -97,38 +97,95 @@ class TripPlannerChatService:
             # Action: Booking
             if any(k in msg_lower for k in ["book this", "book stay", "proceed to book", "book now", "i want to book"]):
                 stay = current_plan.stay
-                exp = current_plan.experiences[0] if current_plan.experiences else None
-                booking_payload = {
-                    "property_id": stay.property_id if stay else None,
-                    "property_name": stay.property_name if stay else None,
-                    "property_type": stay.property_type if stay else None,
-                    "property_city": stay.city if stay else None,
-                    "room_id": stay.room_id if stay else None,
-                    "room_name": stay.room_name if stay else None,
-                    "room_price": stay.price_per_night if stay else 0.0,
-                    "room_quantity": 1,
-                    "check_in": current_plan.trip.get("start_date"),
-                    "check_out": current_plan.trip.get("end_date"),
-                    "nights": stay.total_nights if stay else 1,
-                    "guests": current_plan.trip.get("adults", 2) + current_plan.trip.get("children", 0),
-                    "adults": current_plan.trip.get("adults", 2),
-                    "children": current_plan.trip.get("children", 0),
-                    "child_ages": current_plan.trip.get("child_ages", []),
-                    "room_subtotal": stay.room_subtotal if stay else 0.0,
-                    "children_subtotal": stay.child_charge_subtotal if stay else 0.0,
-                    "total_amount": current_plan.pricing_summary.known_cost,
-                }
-                if exp:
-                    booking_payload["experience_id"] = exp.experience_id
-                    booking_payload["experience_title"] = exp.title
-                    booking_payload["experience_price"] = exp.price
-                    booking_payload["experience_pricing_model"] = exp.pricing_model
-                    booking_payload["experience_participants"] = exp.participants
-                    booking_payload["experience_subtotal"] = exp.total_experience_cost
+                if not stay:
+                    response = TripChatResponse(
+                        session_id=session_id,
+                        reply="There is currently no stay selected in this trip plan. Please choose a verified stay first.",
+                        requires_input=True,
+                        trip_context=ctx,
+                        plan_status=current_plan.pricing_summary.budget_status,
+                        trip_plan=current_plan,
+                        suggested_actions=["Choose a stay", "Suggest stays"]
+                    )
+                    cls._persist_assistant_message(db, session_obj, response)
+                    return response
+
+                # Only include adventure if it belongs to this property
+                adv = None
+                plan_advs = getattr(current_plan, "adventures", None) or getattr(current_plan, "experiences", None) or []
+                if plan_advs:
+                    for e in plan_advs:
+                        if getattr(e, "property_id", None) == stay.property_id:
+                            adv = e
+                            break
+
+                try:
+                    from app.schemas.trip_planner import TripBookingHandoffRequest
+                    c_in = datetime.strptime(current_plan.trip.get("start_date"), "%Y-%m-%d").date()
+                    c_out = datetime.strptime(current_plan.trip.get("end_date"), "%Y-%m-%d").date()
+                    adv_d = datetime.strptime(adv.scheduled_date, "%Y-%m-%d").date() if (adv and getattr(adv, "scheduled_date", None)) else None
+                    adv_id_val = getattr(adv, "adventure_id", None) or getattr(adv, "experience_id", None) if adv else None
+
+                    handoff_req = TripBookingHandoffRequest(
+                        property_id=stay.property_id,
+                        room_id=stay.room_id,
+                        check_in=c_in,
+                        check_out=c_out,
+                        adults=current_plan.trip.get("adults", 2),
+                        children=current_plan.trip.get("children", 0),
+                        child_ages=current_plan.trip.get("child_ages", []),
+                        room_quantity=getattr(stay, "room_quantity", None),
+                        adventure_id=adv_id_val,
+                        adventure_date=adv_d,
+                        adventure_participants=adv.participants if adv else None,
+                        experience_id=adv_id_val,
+                        experience_date=adv_d,
+                        experience_participants=adv.participants if adv else None,
+                        session_id=session_id
+                    )
+                    handoff_res = TripPlannerService.create_booking_handoff(db=db, request=handoff_req, user_id=user_id)
+                    booking_payload = handoff_res.model_dump()
+                except Exception as ex:
+                    room_qty = getattr(stay, "room_quantity", 1) or 1
+                    booking_payload = {
+                        "property_id": stay.property_id,
+                        "property_name": stay.property_name,
+                        "property_type": stay.property_type,
+                        "property_city": stay.city,
+                        "room_id": stay.room_id,
+                        "room_name": stay.room_name,
+                        "room_price": stay.price_per_night,
+                        "room_quantity": room_qty,
+                        "check_in": current_plan.trip.get("start_date"),
+                        "check_out": current_plan.trip.get("end_date"),
+                        "nights": stay.total_nights,
+                        "guests": current_plan.trip.get("adults", 2) + current_plan.trip.get("children", 0),
+                        "adults": current_plan.trip.get("adults", 2),
+                        "children": current_plan.trip.get("children", 0),
+                        "child_ages": current_plan.trip.get("child_ages", []),
+                        "room_subtotal": stay.room_subtotal,
+                        "children_subtotal": stay.child_charge_subtotal,
+                        "total_amount": current_plan.pricing_summary.known_cost,
+                    }
+                    if adv:
+                        a_id = getattr(adv, "adventure_id", None) or getattr(adv, "experience_id", None)
+                        a_cost = getattr(adv, "total_adventure_cost", None) or getattr(adv, "total_experience_cost", None)
+                        booking_payload["adventure_id"] = a_id
+                        booking_payload["adventure_title"] = adv.title
+                        booking_payload["adventure_price"] = adv.price
+                        booking_payload["adventure_pricing_model"] = adv.pricing_model
+                        booking_payload["adventure_participants"] = adv.participants
+                        booking_payload["adventure_subtotal"] = a_cost
+                        booking_payload["experience_id"] = a_id
+                        booking_payload["experience_title"] = adv.title
+                        booking_payload["experience_price"] = adv.price
+                        booking_payload["experience_pricing_model"] = adv.pricing_model
+                        booking_payload["experience_participants"] = adv.participants
+                        booking_payload["experience_subtotal"] = a_cost
 
                 response = TripChatResponse(
                     session_id=session_id,
-                    reply=f"I'm transferring you to our secure checkout for {stay.property_name if stay else 'your sanctuary'}. All dates, guests, and pricing are verified.",
+                    reply=f"I'm transferring you to our secure checkout for {stay.property_name}. All dates, guests, room quantity, and pricing are verified.",
                     requires_input=False,
                     input_type="NONE",
                     trip_context=ctx,
@@ -209,7 +266,8 @@ class TripPlannerChatService:
                         stays=updated_plan.available_stays if updated_plan else [],
                         selected_stay=updated_plan.stay if updated_plan else None,
                         room_options=room_opts,
-                        experiences=updated_plan.experiences if updated_plan else [],
+                        adventures=getattr(updated_plan, "adventures", None) or getattr(updated_plan, "experiences", []) if updated_plan else [],
+                        experiences=getattr(updated_plan, "adventures", None) or getattr(updated_plan, "experiences", []) if updated_plan else [],
                         places=updated_plan.external_places if updated_plan else [],
                         itinerary=updated_plan.days if updated_plan else [],
                         budget=updated_plan.pricing_summary if updated_plan else {},
@@ -815,7 +873,8 @@ class TripPlannerChatService:
             stays=plan.available_stays or [],
             selected_stay=plan.stay,
             room_options=plan.stay.available_rooms if (plan.stay and hasattr(plan.stay, "available_rooms") and plan.stay.available_rooms) else [],
-            experiences=plan.experiences or [],
+            adventures=getattr(plan, "adventures", None) or getattr(plan, "experiences", []) or [],
+            experiences=getattr(plan, "adventures", None) or getattr(plan, "experiences", []) or [],
             places=plan.external_places or [],
             itinerary=plan.days or [],
             budget=plan.pricing_summary,

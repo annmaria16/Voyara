@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 from app.models.property import Property, PropertyImage, PropertyAmenity, PropertyType, PropertyRule
 from app.models.room import Room, RoomImage, RoomAmenity, RoomRule
-from app.models.experience import Experience
+from app.models.adventure import Adventure, Experience
 from app.models.availability import PropertyAvailability, RoomAvailability
 from app.models.provider import ProviderProfile
 from app.models.user import User
@@ -357,26 +357,28 @@ class PropertyService:
                             ))
 
 
-        # Add experiences if provided during property creation
-        if data.experiences:
-            for exp_data in data.experiences:
-                exp = Experience(
+        # Add adventures if provided during property creation
+        adventures_to_create = getattr(data, 'adventures', None) or getattr(data, 'experiences', None)
+        if adventures_to_create:
+            for adv_data in adventures_to_create:
+                adv_type = getattr(adv_data, 'adventure_type', None) or getattr(adv_data, 'experience_type', 'Adventure')
+                adv = Adventure(
                     property_id=prop.id,
-                    title=exp_data.title.strip(),
-                    experience_type=exp_data.experience_type.strip(),
-                    description=exp_data.description.strip(),
-                    price=exp_data.price,
-                    pricing_model=exp_data.pricing_model,
-                    capacity=exp_data.capacity,
-                    duration=exp_data.duration,
-                    schedule_type=exp_data.schedule_type or "recurring",
-                    event_date=exp_data.event_date,
-                    start_time=exp_data.start_time or "09:00",
-                    end_time=exp_data.end_time or "12:00",
-                    image_url=exp_data.image_url,
+                    title=adv_data.title.strip(),
+                    adventure_type=adv_type.strip(),
+                    description=adv_data.description.strip(),
+                    price=adv_data.price,
+                    pricing_model=adv_data.pricing_model,
+                    capacity=adv_data.capacity,
+                    duration=adv_data.duration,
+                    schedule_type=adv_data.schedule_type or "recurring",
+                    event_date=adv_data.event_date,
+                    start_time=adv_data.start_time or "09:00",
+                    end_time=adv_data.end_time or "12:00",
+                    image_url=adv_data.image_url,
                     is_active=True
                 )
-                db.add(exp)
+                db.add(adv)
 
         db.commit()
         db.refresh(prop)
@@ -417,8 +419,8 @@ class PropertyService:
             min_price = db.query(func.min(Room.base_price)).filter(Room.property_id == p.id, Room.is_active == True).scalar()
             room_count = db.query(Room).filter(Room.property_id == p.id).count()
             total_units = db.query(func.coalesce(func.sum(Room.quantity), 0)).filter(Room.property_id == p.id).scalar() or 0
-            experience_count = db.query(Experience).filter(Experience.property_id == p.id).count()
-            results.append(PropertyService._format_property(p, min_price, room_count, experience_count, total_units=int(total_units)))
+            adventure_count = db.query(Adventure).filter(Adventure.property_id == p.id).count()
+            results.append(PropertyService._format_property(p, min_price, room_count, adventure_count, total_units=int(total_units)))
         return results
 
     @staticmethod
@@ -537,6 +539,8 @@ class PropertyService:
         amenities: Optional[List[str]] = None,
         host: Optional[str] = None,
         property_name: Optional[str] = None,
+        adventure: Optional[str] = None,
+        adventure_date: Optional[date] = None,
         experience: Optional[str] = None,
         experience_date: Optional[date] = None,
     ) -> List[dict]:
@@ -570,15 +574,16 @@ class PropertyService:
         scored_properties = []
 
         clean_dest = destination.strip() if destination else ""
+        target_adventure_filter = adventure or experience
 
         for p in properties:
             match_score = 1.0
 
             # Destination / Keyword Matching with Fuzzy, Host Brand, & Multi-target support
             if clean_dest:
-                experiences_for_p = db.query(Experience).filter(Experience.property_id == p.id, Experience.is_active == True).all()
+                adventures_for_p = db.query(Adventure).filter(Adventure.property_id == p.id, Adventure.is_active == True).all()
                 amenities_names = [a.amenity_name for a in p.amenities]
-                exp_titles = [e.title for e in experiences_for_p] + [e.experience_type for e in experiences_for_p]
+                adv_titles = [a.title for a in adventures_for_p] + [a.adventure_type for a in adventures_for_p]
 
                 host_brand = p.provider.business_name if p.provider and p.provider.business_name else ""
                 host_user_name = p.provider.user.name if p.provider and p.provider.user else ""
@@ -593,7 +598,7 @@ class PropertyService:
                     p.property_type,
                     p.address or "",
                     p.location_details or "",
-                ] + amenities_names + exp_titles
+                ] + amenities_names + adv_titles
 
                 # Calculate best match score across primary property targets
                 scores = [_calculate_fuzzy_match_score(clean_dest, target) for target in search_targets if target]
@@ -609,13 +614,13 @@ class PropertyService:
                     continue
                 match_score = best_score
 
-            # Experience search filter if explicitly provided
-            if experience and experience.strip():
-                clean_exp = experience.strip()
-                exp_records = db.query(Experience).filter(Experience.property_id == p.id, Experience.is_active == True).all()
-                exp_texts = [e.title for e in exp_records] + [e.experience_type for e in exp_records] + [e.description for e in exp_records]
-                exp_scores = [_calculate_fuzzy_match_score(clean_exp, t) for t in exp_texts if t]
-                if not exp_scores or max(exp_scores) < 0.60:
+            # Adventure search filter if explicitly provided
+            if target_adventure_filter and target_adventure_filter.strip():
+                clean_adv = target_adventure_filter.strip()
+                adv_records = db.query(Adventure).filter(Adventure.property_id == p.id, Adventure.is_active == True).all()
+                adv_texts = [a.title for a in adv_records] + [a.adventure_type for a in adv_records] + [a.description for a in adv_records]
+                adv_scores = [_calculate_fuzzy_match_score(clean_adv, t) for t in adv_texts if t]
+                if not adv_scores or max(adv_scores) < 0.60:
                     continue
 
             # Check property closures if dates provided
@@ -690,8 +695,8 @@ class PropertyService:
                     continue
 
             room_count = len(rooms)
-            exp_count = db.query(Experience).filter(Experience.property_id == p.id, Experience.is_active == True).count()
-            formatted = PropertyService._format_public_property(p, min_p, room_count, exp_count)
+            adv_count = db.query(Adventure).filter(Adventure.property_id == p.id, Adventure.is_active == True).count()
+            formatted = PropertyService._format_public_property(p, min_p, room_count, adv_count)
             scored_properties.append((match_score, formatted))
 
         # Sort by relevance score descending
@@ -714,9 +719,9 @@ class PropertyService:
 
         min_price = db.query(func.min(Room.base_price)).filter(Room.property_id == prop.id, Room.is_active == True).scalar() or 0.0
         room_count = db.query(Room).filter(Room.property_id == prop.id, Room.is_active == True).count()
-        exp_count = db.query(Experience).filter(Experience.property_id == prop.id, Experience.is_active == True).count()
+        adv_count = db.query(Adventure).filter(Adventure.property_id == prop.id, Adventure.is_active == True).count()
 
-        data = PropertyService._format_public_property(prop, min_price, room_count, exp_count)
+        data = PropertyService._format_public_property(prop, min_price, room_count, adv_count)
         
         # Add active rooms
         rooms = db.query(Room).filter(Room.property_id == prop.id, Room.is_active == True).all()
@@ -740,34 +745,37 @@ class PropertyService:
         ]
         data["home_rules"] = StayGuideService.serialize_property_rules(prop.home_rules) if prop.home_rules else None
 
-        # Add active experiences
-        experiences = db.query(Experience).filter(Experience.property_id == prop.id, Experience.is_active == True).all()
-        data["experiences"] = [
+        # Add active adventures
+        adventures = db.query(Adventure).filter(Adventure.property_id == prop.id, Adventure.is_active == True).all()
+        adventure_list = [
             {
-                "id": e.id,
-                "property_id": e.property_id,
-                "title": e.title,
-                "experience_type": e.experience_type,
-                "description": e.description,
-                "price": e.price,
-                "pricing_model": e.pricing_model,
-                "capacity": e.capacity,
-                "duration": e.duration,
-                "schedule_type": e.schedule_type,
-                "event_date": e.event_date,
-                "start_time": e.start_time,
-                "end_time": e.end_time,
-                "image_url": e.image_url,
-                "is_active": e.is_active,
-                "schedules": [{"id": s.id, "day_of_week": s.day_of_week, "start_time": s.start_time, "end_time": s.end_time} for s in e.schedules if s.is_active]
+                "id": a.id,
+                "property_id": a.property_id,
+                "title": a.title,
+                "adventure_type": a.adventure_type,
+                "experience_type": a.adventure_type,  # Compatibility
+                "description": a.description,
+                "price": a.price,
+                "pricing_model": a.pricing_model,
+                "capacity": a.capacity,
+                "duration": a.duration,
+                "schedule_type": a.schedule_type,
+                "event_date": a.event_date,
+                "start_time": a.start_time,
+                "end_time": a.end_time,
+                "image_url": a.image_url,
+                "is_active": a.is_active,
+                "schedules": [{"id": s.id, "day_of_week": s.day_of_week, "start_time": s.start_time, "end_time": s.end_time} for s in a.schedules if s.is_active]
             }
-            for e in experiences
+            for a in adventures
         ]
+        data["adventures"] = adventure_list
+        data["experiences"] = adventure_list
 
         return data
 
     @staticmethod
-    def _format_public_property(p: Property, min_price: float, room_count: int, experience_count: int) -> dict:
+    def _format_public_property(p: Property, min_price: float, room_count: int, adventure_count: int) -> dict:
         """Format customer-safe property dictionary without confidential ownership documents or internal admin notes."""
         host_brand = p.provider.business_name if p.provider and p.provider.business_name else (p.provider.user.name if p.provider and p.provider.user else "Verified Host")
         return {
@@ -801,14 +809,18 @@ class PropertyService:
             "created_at": p.created_at,
             "min_price": min_price or 0.0,
             "room_count": room_count,
-            "experience_count": experience_count,
+            "rooms_count": room_count,
+            "adventure_count": adventure_count,
+            "adventures_count": adventure_count,
+            "experience_count": adventure_count,
+            "experiences_count": adventure_count,
             "images": [{"id": img.id, "image_url": img.image_url, "caption": img.caption, "is_primary": img.is_primary} for img in p.images],
             "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities],
             "home_rules": StayGuideService.serialize_property_rules(p.home_rules) if getattr(p, 'home_rules', None) else None
         }
 
     @staticmethod
-    def _format_property(p: Property, min_price: float, room_count: int, experience_count: int, total_units: Optional[int] = None) -> dict:
+    def _format_property(p: Property, min_price: float, room_count: int, adventure_count: int, total_units: Optional[int] = None) -> dict:
         """Format full provider-facing property dictionary."""
         units = total_units if total_units is not None else sum(r.quantity for r in p.rooms)
         return {
@@ -847,9 +859,13 @@ class PropertyService:
             "created_at": p.created_at,
             "min_price": min_price or 0.0,
             "room_count": room_count,
+            "rooms_count": room_count,
             "room_types_count": room_count,
             "total_units": units,
-            "experience_count": experience_count,
+            "adventure_count": adventure_count,
+            "adventures_count": adventure_count,
+            "experience_count": adventure_count,
+            "experiences_count": adventure_count,
             "images": [{"id": img.id, "image_url": img.image_url, "caption": img.caption, "is_primary": img.is_primary} for img in p.images],
             "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities],
             "home_rules": StayGuideService.serialize_property_rules(p.home_rules) if getattr(p, 'home_rules', None) else None,

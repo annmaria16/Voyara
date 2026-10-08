@@ -21,7 +21,7 @@ export const Footer = () => {
             </p>
             <div className="pt-2 flex items-center space-x-2 text-xs text-[#F6C945]">
               <ShieldCheck className="w-4 h-4 text-[#F6C945]" />
-              <span className="font-bold tracking-wide">Stay. Explore. Experience.</span>
+              <span className="font-bold tracking-wide">Stay. Explore. Adventure.</span>
             </div>
           </div>
 
@@ -38,15 +38,15 @@ export const Footer = () => {
             </ul>
           </div>
 
-          {/* Experiences */}
+          {/* Adventures */}
           <div>
-            <h4 className="text-sm font-bold uppercase tracking-wider text-[#F6C945] mb-4">Experiences</h4>
+            <h4 className="text-sm font-bold uppercase tracking-wider text-[#F6C945] mb-4">Adventures</h4>
             <ul className="space-y-2.5 text-xs text-white/90 font-medium">
-              <li><Link to="/experiences" className="hover:text-[#F97316] transition-colors">Guided Mountain Treks</Link></li>
-              <li><Link to="/experiences" className="hover:text-[#F97316] transition-colors">Starlit Campfires & Nights</Link></li>
-              <li><Link to="/experiences" className="hover:text-[#F97316] transition-colors">Spice Trails & Cooking</Link></li>
-              <li><Link to="/experiences" className="hover:text-[#F97316] transition-colors">Sea Kayaking & Adventures</Link></li>
-              <li><Link to="/experiences" className="hover:text-[#F97316] transition-colors">Heritage Walks</Link></li>
+              <li><Link to="/adventures" className="hover:text-[#F97316] transition-colors">Guided Mountain Treks</Link></li>
+              <li><Link to="/adventures" className="hover:text-[#F97316] transition-colors">Starlit Campfires & Nights</Link></li>
+              <li><Link to="/adventures" className="hover:text-[#F97316] transition-colors">Spice Trails & Cooking</Link></li>
+              <li><Link to="/adventures" className="hover:text-[#F97316] transition-colors">Sea Kayaking & Excursions</Link></li>
+              <li><Link to="/adventures" className="hover:text-[#F97316] transition-colors">Heritage Walks</Link></li>
             </ul>
           </div>
 

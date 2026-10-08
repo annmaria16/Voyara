@@ -149,7 +149,7 @@ export const TripPlanner = () => {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const staysCarouselRef = useRef(null);
-  const experiencesCarouselRef = useRef(null);
+  const adventuresCarouselRef = useRef(null);
   const placesCarouselRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -479,43 +479,52 @@ export const TripPlanner = () => {
     }
   };
 
-  // Direct Booking Navigation
-  const handleBookStayDirect = () => {
+  // Direct Booking Navigation with Server-Side Handoff Validation
+  const handleBookStayDirect = async () => {
     if (!currentPlan || !currentPlan.stay) return;
     const stay = currentPlan.stay;
-    const exp = currentPlan.experiences?.[0];
-
-    const bookingPayload = {
-      property_id: stay.property_id,
-      property_name: stay.property_name,
-      property_type: stay.property_type,
-      property_city: stay.city,
-      room_id: stay.room_id,
-      room_name: stay.room_name,
-      room_price: stay.price_per_night,
-      room_quantity: 1,
-      check_in: currentPlan.trip.start_date,
-      check_out: currentPlan.trip.end_date,
-      nights: stay.total_nights,
-      guests: currentPlan.trip.adults + currentPlan.trip.children,
-      adults: currentPlan.trip.adults,
-      children: currentPlan.trip.children,
-      child_ages: currentPlan.trip.child_ages,
-      room_subtotal: stay.room_subtotal,
-      children_subtotal: stay.child_charge_subtotal,
-      total_amount: currentPlan.pricing_summary.known_cost,
-    };
-
-    if (exp) {
-      bookingPayload.experience_id = exp.experience_id;
-      bookingPayload.experience_title = exp.title;
-      bookingPayload.experience_price = exp.price;
-      bookingPayload.experience_pricing_model = exp.pricing_model;
-      bookingPayload.experience_participants = exp.participants;
-      bookingPayload.experience_subtotal = exp.total_experience_cost;
+    
+    // Only select adventure if it belongs to this property
+    let validExp = null;
+    const planAdventures = currentPlan.adventures || currentPlan.experiences || [];
+    if (planAdventures.length > 0) {
+      for (const e of planAdventures) {
+        if (e.property_id === stay.property_id) {
+          validExp = e;
+          break;
+        }
+      }
     }
 
-    navigate('/booking', { state: bookingPayload });
+    setLoading(true);
+    try {
+      const handoffPayload = {
+        property_id: stay.property_id,
+        room_id: stay.room_id,
+        check_in: currentPlan.trip.start_date,
+        check_out: currentPlan.trip.end_date,
+        adults: currentPlan.trip.adults || 2,
+        children: currentPlan.trip.children || 0,
+        child_ages: currentPlan.trip.child_ages || [],
+        room_quantity: stay.room_quantity || 1,
+        adventure_id: validExp ? (validExp.adventure_id || validExp.experience_id) : undefined,
+        adventure_date: validExp ? (validExp.scheduled_date || currentPlan.trip.start_date) : undefined,
+        adventure_participants: validExp ? (validExp.participants || (currentPlan.trip.adults + (currentPlan.trip.children || 0))) : undefined,
+        experience_id: validExp ? (validExp.adventure_id || validExp.experience_id) : undefined,
+        experience_date: validExp ? (validExp.scheduled_date || currentPlan.trip.start_date) : undefined,
+        experience_participants: validExp ? (validExp.participants || (currentPlan.trip.adults + (currentPlan.trip.children || 0))) : undefined,
+        session_id: currentSessionId || undefined,
+      };
+
+      const validatedHandoff = await tripPlannerApi.createBookingHandoff(handoffPayload);
+      navigate('/booking', { state: validatedHandoff });
+    } catch (err) {
+      console.error('Booking handoff error:', err);
+      const detailMsg = err.response?.data?.detail || err.message || 'Unable to initialize checkout. Please refresh your trip plan.';
+      alert(detailMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Copy Itinerary Text Summary
@@ -1236,9 +1245,9 @@ export const TripPlanner = () => {
                                             Check-out
                                           </span>
                                         )}
-                                        {item.item_type === 'VOYARA_EXPERIENCE' && (
+                                        {(item.item_type === 'VOYARA_ADVENTURE' || item.item_type === 'VOYARA_EXPERIENCE') && (
                                           <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-purple-500/15 text-purple-600">
-                                            Experience
+                                            Adventure
                                           </span>
                                         )}
                                       </div>
@@ -1271,25 +1280,25 @@ export const TripPlanner = () => {
                       })()}
                     </div>
 
-                    {/* SECTION: EXPERIENCES CAROUSEL */}
-                    {currentPlan.experiences && currentPlan.experiences.length > 0 && (
+                    {/* SECTION: ADVENTURES CAROUSEL */}
+                    {((currentPlan.adventures && currentPlan.adventures.length > 0) || (currentPlan.experiences && currentPlan.experiences.length > 0)) && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                            <span>Verified Regional Experiences</span>
+                            <span>Verified Regional Adventures</span>
                           </span>
                           <div className="flex items-center space-x-1">
                             <button
                               type="button"
-                              onClick={() => scrollCarousel(experiencesCarouselRef, 'left')}
+                              onClick={() => scrollCarousel(adventuresCarouselRef, 'left')}
                               className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 cursor-pointer"
                             >
                               <ChevronLeft className="w-3.5 h-3.5" />
                             </button>
                             <button
                               type="button"
-                              onClick={() => scrollCarousel(experiencesCarouselRef, 'right')}
+                              onClick={() => scrollCarousel(adventuresCarouselRef, 'right')}
                               className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 cursor-pointer"
                             >
                               <ChevronRight className="w-3.5 h-3.5" />
@@ -1298,10 +1307,10 @@ export const TripPlanner = () => {
                         </div>
 
                         <div
-                          ref={experiencesCarouselRef}
+                          ref={adventuresCarouselRef}
                           className="flex space-x-3 overflow-x-auto pb-2 scrollbar-thin scroll-smooth"
                         >
-                          {currentPlan.experiences.map((exp, i) => (
+                          {(currentPlan.adventures || currentPlan.experiences || []).map((exp, i) => (
                             <div
                               key={i}
                               className="w-56 shrink-0 p-2.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-2xs"
@@ -1317,7 +1326,7 @@ export const TripPlanner = () => {
                                   }}
                                 />
                                 <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-[#17324D]/80 backdrop-blur-xs text-white text-[8px] font-bold">
-                                  {exp.category || 'Experience'}
+                                  {exp.category || 'Adventure'}
                                 </span>
                               </div>
 
@@ -1420,7 +1429,8 @@ export const TripPlanner = () => {
                         <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xs">
                           <TripPlannerMap
                             stay={currentPlan.stay}
-                            experiences={currentPlan.experiences}
+                            adventures={currentPlan.adventures || currentPlan.experiences}
+                            experiences={currentPlan.adventures || currentPlan.experiences}
                             days={currentPlan.days}
                           />
                         </div>
@@ -1442,9 +1452,9 @@ export const TripPlanner = () => {
                         </div>
 
                         <div className="p-2.5 rounded-xl bg-white dark:bg-[#0F273D] border border-slate-100 dark:border-slate-800">
-                          <span className="text-[9px] text-slate-400 uppercase font-mono block">Experiences</span>
+                          <span className="text-[9px] text-slate-400 uppercase font-mono block">Adventures</span>
                           <span className="font-mono font-bold text-[#17324D] dark:text-white">
-                            ₹{currentPlan.pricing_summary.experiences_total.toLocaleString('en-IN')}
+                            ₹{(currentPlan.pricing_summary.adventures_total ?? currentPlan.pricing_summary.experiences_total ?? 0).toLocaleString('en-IN')}
                           </span>
                         </div>
 

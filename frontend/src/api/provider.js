@@ -146,24 +146,45 @@ export const providerApi = {
     return response.data;
   },
 
-  // Experiences
+  // Adventures
+  getAdventures: async (propertyId) => {
+    const response = await api.get(`/provider/properties/${propertyId}/adventures`);
+    return response.data;
+  },
+
+  createAdventure: async (propertyId, data) => {
+    const response = await api.post(`/provider/properties/${propertyId}/adventures`, data);
+    return response.data;
+  },
+
+  updateAdventure: async (adventureId, data) => {
+    const response = await api.put(`/provider/adventures/${adventureId}`, data);
+    return response.data;
+  },
+
+  deleteAdventure: async (adventureId) => {
+    const response = await api.delete(`/provider/adventures/${adventureId}`);
+    return response.data;
+  },
+
+  // Backward compatibility aliases
   getExperiences: async (propertyId) => {
-    const response = await api.get(`/provider/properties/${propertyId}/experiences`);
+    const response = await api.get(`/provider/properties/${propertyId}/adventures`);
     return response.data;
   },
 
   createExperience: async (propertyId, data) => {
-    const response = await api.post(`/provider/properties/${propertyId}/experiences`, data);
+    const response = await api.post(`/provider/properties/${propertyId}/adventures`, data);
     return response.data;
   },
 
   updateExperience: async (experienceId, data) => {
-    const response = await api.put(`/provider/experiences/${experienceId}`, data);
+    const response = await api.put(`/provider/adventures/${experienceId}`, data);
     return response.data;
   },
 
   deleteExperience: async (experienceId) => {
-    const response = await api.delete(`/provider/experiences/${experienceId}`);
+    const response = await api.delete(`/provider/adventures/${experienceId}`);
     return response.data;
   },
 

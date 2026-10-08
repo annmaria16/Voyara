@@ -72,7 +72,8 @@ def get_all_properties(
             "reviewed_at": p.reviewed_at,
             "rating": p.rating,
             "rooms_count": len(p.rooms),
-            "experiences_count": len(p.experiences),
+            "adventures_count": len(p.adventures),
+            "experiences_count": len(p.adventures),
             "created_at": p.created_at,
             "images": [{"id": img.id, "image_url": img.image_url, "is_primary": img.is_primary} for img in p.images],
             "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities]
@@ -140,7 +141,8 @@ def get_admin_property_detail(
         "reviewed_at": p.reviewed_at,
         "rating": p.rating,
         "rooms_count": len(p.rooms),
-        "experiences_count": len(p.experiences),
+        "adventures_count": len(p.adventures),
+        "experiences_count": len(p.adventures),
         "created_at": p.created_at,
         "images": [{"id": img.id, "image_url": img.image_url, "caption": img.caption, "is_primary": img.is_primary} for img in p.images],
         "amenities": [{"id": a.id, "amenity_name": a.amenity_name} for a in p.amenities],
@@ -163,6 +165,22 @@ def get_admin_property_detail(
                 "rules": StayGuideService.serialize_room_rules(r.rules, r) if getattr(r, 'rules', None) else None
             }
             for r in p.rooms
+        ],
+        "adventures": [
+            {
+                "id": a.id,
+                "property_id": a.property_id,
+                "title": a.title,
+                "adventure_type": a.adventure_type,
+                "description": a.description,
+                "price": a.price,
+                "pricing_model": a.pricing_model,
+                "capacity": a.capacity,
+                "duration": a.duration,
+                "schedule_type": a.schedule_type,
+                "is_active": a.is_active
+            }
+            for a in p.adventures
         ]
     }
 
@@ -352,21 +370,24 @@ def get_all_rooms(
         })
     return results
 
+@router.get("/adventures")
 @router.get("/experiences")
-def get_all_experiences(
+def get_all_adventures(
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """Admin endpoint to list all experiences."""
-    experiences = db.query(Experience).all()
+    """Admin endpoint to list all adventures/experiences."""
+    adventures = db.query(Experience).all()
     results = []
-    for e in experiences:
+    for e in adventures:
+        adv_type = getattr(e, 'adventure_type', None) or getattr(e, 'experience_type', 'Guided Trek')
         results.append({
             "id": e.id,
             "property_id": e.property_id,
             "property_name": e.property.name if e.property else "",
             "title": e.title,
-            "experience_type": e.experience_type,
+            "adventure_type": adv_type,
+            "experience_type": adv_type,
             "price": e.price,
             "pricing_model": e.pricing_model,
             "capacity": e.capacity,

@@ -42,7 +42,7 @@ def get_authorized_booking(db: Session, booking_id: int, current_user: User) -> 
             joinedload(Booking.property).joinedload(Property.home_rules),
             joinedload(Booking.booking_rooms).joinedload(BookingRoom.room).joinedload(Room.rules),
             joinedload(Booking.booking_rooms).joinedload(BookingRoom.room).joinedload(Room.amenities),
-            joinedload(Booking.booking_experiences),
+            joinedload(Booking.booking_adventures),
             joinedload(Booking.rule_snapshot),
             joinedload(Booking.user),
             joinedload(Booking.messages),
@@ -114,10 +114,12 @@ def format_conversation_item(booking: Booking, current_user: User) -> Dict[str, 
     
     # Booking lifecycle flags
     is_active = status_str in ["CONFIRMED", "VERIFIED", "CHECKED_IN"]
-    is_closed = status_str in ["CHECKED_OUT", "COMPLETED"]
+    is_closed = status_str in ["CHECKED_OUT", "COMPLETED", "NO_SHOW"]
     
     close_reason = None
-    if is_closed:
+    if status_str == "NO_SHOW":
+        close_reason = "Stay missed (No-Show) — this conversation is now closed."
+    elif is_closed:
         close_reason = "Stay completed — this conversation is now closed."
     elif status_str in ["CANCELLED", "FAILED", "PENDING", "PAYMENT_PENDING"]:
         close_reason = "This booking is no longer active for direct messaging."
@@ -512,7 +514,10 @@ def get_stay_information(
     Retrieve full, immutable Stay Information snapshot for a confirmed booking.
     Contains real PostgreSQL property coordinates, address, rules snapshot, room specs, child policy, and host messages.
     """
+    from app.services.bookings.booking_service import BookingService
+    BookingService.auto_evaluate_past_and_expired_bookings(db)
     booking = get_authorized_booking(db, booking_id, current_user)
+    booking = BookingService.enrich_booking(booking)
     prop = booking.property
 
     # Extract Home Rules from Snapshot (or fallback to live property rules if not yet snapshotted)
@@ -538,17 +543,19 @@ def get_stay_information(
     if room_record and room_record.amenities:
         room_amenities = [a.amenity_name for a in room_record.amenities]
 
-    # Extract Experience details if booked
-    exp_details = None
-    if booking.booking_experiences:
-        exp_item = booking.booking_experiences[0]
-        exp_details = {
-            "title": exp_item.experience_title,
-            "scheduled_date": str(exp_item.scheduled_date),
-            "participants": exp_item.participants,
-            "price": exp_item.price,
-            "pricing_model": exp_item.pricing_model,
-            "subtotal": exp_item.subtotal
+    # Extract Adventure details if booked
+    adv_details = None
+    booked_adv_items = getattr(booking, 'booking_adventures', None) or getattr(booking, 'booking_experiences', [])
+    if booked_adv_items:
+        adv_item = booked_adv_items[0]
+        adv_title = getattr(adv_item, 'adventure_title', None) or getattr(adv_item, 'experience_title', '')
+        adv_details = {
+            "title": adv_title,
+            "scheduled_date": str(adv_item.scheduled_date),
+            "participants": adv_item.participants,
+            "price": adv_item.price,
+            "pricing_model": adv_item.pricing_model,
+            "subtotal": adv_item.subtotal
         }
 
     # Extract Google Maps Coordinates
@@ -570,6 +577,11 @@ def get_stay_information(
         "booking_id": booking.id,
         "booking_number": booking.booking_number,
         "status": get_booking_status_string(booking),
+        "display_status": getattr(booking, 'display_status', get_booking_status_string(booking)),
+        "checkin_warning": getattr(booking, 'checkin_warning', None),
+        "is_missed": getattr(booking, 'is_missed', False),
+        "is_checkin_today": getattr(booking, 'is_checkin_today', False),
+        "is_checkin_missed": getattr(booking, 'is_checkin_missed', False),
         "check_in": str(booking.check_in),
         "check_out": str(booking.check_out),
         "total_nights": booking.total_nights,
@@ -630,6 +642,7 @@ def get_stay_information(
         # Cancellation Policy Snapshot
         "cancellation_policy": booking.cancellation_policy_snapshot or "Standard Voyara cancellation policy applies.",
 
-        # Experience Details (if booked)
-        "experience": exp_details,
+        # Adventure Details (if booked)
+        "adventure": adv_details,
+        "experience": adv_details,
     }

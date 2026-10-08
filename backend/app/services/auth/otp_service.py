@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.user import User, HostVerificationStatus, AccountStatus
@@ -243,7 +244,7 @@ class OtpService:
         if user_id:
             user = db.query(User).filter(User.id == user_id).first()
         if not user:
-            user = db.query(User).filter(User.email == clean_email).first()
+            user = db.query(User).filter(func.lower(User.email) == clean_email).first()
 
         if user and user.email_verified:
             return {
@@ -299,7 +300,7 @@ class OtpService:
         if user_id:
             user = db.query(User).filter(User.id == user_id).first()
         if not user:
-            user = db.query(User).filter(User.email == clean_email).first()
+            user = db.query(User).filter(func.lower(User.email) == clean_email).first()
 
         if not user:
             raise HTTPException(

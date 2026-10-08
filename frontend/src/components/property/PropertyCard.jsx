@@ -2,6 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Star, ShieldCheck, ArrowRight, Users } from 'lucide-react';
 import { resolveImageUrl } from '../../utils/imageUrl';
+import {
+  formatPropertyName,
+  formatPropertyType,
+  formatLocationName,
+  formatDisplayName,
+} from '../../utils/formatters';
 
 export const PropertyCard = ({ property }) => {
   const rawImg =
@@ -38,11 +44,11 @@ export const PropertyCard = ({ property }) => {
       <Link
         to={`/properties/${property.id}`}
         className="block relative aspect-4/3 overflow-hidden bg-slate-100 dark:bg-slate-800 img-zoom-container cursor-pointer"
-        title={`Review details for ${property.name}`}
+        title={`Review details for ${formatPropertyName(property.name)}`}
       >
         <img
           src={primaryImg}
-          alt={property.name}
+          alt={formatPropertyName(property.name)}
           className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
           loading="lazy"
           onError={(e) => {
@@ -57,7 +63,7 @@ export const PropertyCard = ({ property }) => {
             property.property_type
           )}`}
         >
-          {property.property_type}
+          {formatPropertyType(property.property_type)}
         </span>
 
         {/* Voyara Trust indicator */}
@@ -75,7 +81,7 @@ export const PropertyCard = ({ property }) => {
         <div className="absolute bottom-3 left-3.5 right-3.5 flex items-center justify-between text-white text-xs">
           <div className="flex items-center space-x-1 drop-shadow-md truncate">
             <MapPin className="w-3.5 h-3.5 text-[#27B7A8] shrink-0" />
-            <span className="font-medium truncate">{property.city || property.district || 'Kerala'}, {property.state || 'India'}</span>
+            <span className="font-medium truncate">{[property.city || property.district || 'Kerala', property.state || 'India'].map(formatLocationName).join(', ')}</span>
           </div>
           <div className="flex items-center space-x-1 bg-black/40 backdrop-blur-xs px-2.5 py-0.5 rounded-full shrink-0">
             {property.review_count > 0 ? (
@@ -96,12 +102,12 @@ export const PropertyCard = ({ property }) => {
         <div>
           <Link to={`/properties/${property.id}`} className="block">
             <h3 className="text-base sm:text-lg font-bold font-serif text-[#17324D] dark:text-white group-hover:text-[#087F8C] dark:group-hover:text-[#27B7A8] transition-colors line-clamp-1">
-              {property.name}
+              {formatPropertyName(property.name)}
             </h3>
           </Link>
           {(property.provider_business_name || property.host_name) && (
             <span className="text-[11px] font-semibold text-[#087F8C] dark:text-[#27B7A8] block mt-0.5">
-              Stay Partner: {property.provider_business_name || property.host_name}
+              Stay Partner: {formatDisplayName(property.provider_business_name || property.host_name)}
             </span>
           )}
           <p className="text-xs text-[#607080] dark:text-slate-400 mt-1.5 line-clamp-2 leading-relaxed font-light">

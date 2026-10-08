@@ -5,6 +5,16 @@ import { legalDocumentsApi } from '../../api/legalDocuments';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import { SecureDocumentViewerModal } from './SecureDocumentViewerModal';
 import {
+  formatDisplayName,
+  formatEmail,
+  formatPropertyName,
+  formatLocationName,
+  formatRoomName,
+  formatRoomType,
+  formatPropertyType,
+  formatAmenityName,
+} from '../../utils/formatters';
+import {
   X,
   MapPin,
   FileText,
@@ -183,7 +193,7 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                 )}
               </div>
               <h2 className="text-xl font-black font-serif text-[#091B29] dark:text-white mt-0.5">
-                {property ? property.name : 'Loading Property Dossier...'}
+                {property ? formatPropertyName(property.name) : 'Loading Property Dossier...'}
               </h2>
             </div>
           </div>
@@ -612,7 +622,7 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200/80 dark:border-slate-800">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Property Type</span>
-                    <strong className="text-slate-900 dark:text-white text-xs">{property.property_type}</strong>
+                    <strong className="text-slate-900 dark:text-white text-xs">{formatPropertyType(property.property_type)}</strong>
                   </div>
                   <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200/80 dark:border-slate-800">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Check-in / Check-out</span>
@@ -620,7 +630,7 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                   </div>
                   <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200/80 dark:border-slate-800">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Stay Partner</span>
-                    <strong className="text-slate-900 dark:text-white text-xs">{property.provider_name || `Stay Partner #${property.provider_id}`}</strong>
+                    <strong className="text-slate-900 dark:text-white text-xs">{property.provider_name ? formatDisplayName(property.provider_name) : `Stay Partner #${property.provider_id}`}</strong>
                   </div>
                 </div>
 
@@ -636,14 +646,14 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                     <Mail className="w-4 h-4 text-[#087F8C] shrink-0" />
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">Contact Email</span>
-                      <strong className="text-slate-900 dark:text-white">{property.contact_email || 'N/A'}</strong>
+                      <strong className="text-slate-900 dark:text-white">{property.contact_email ? formatEmail(property.contact_email) : 'N/A'}</strong>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Declared Address & GPS</span>
-                  <p className="text-slate-900 dark:text-white font-medium">{property.address}, {property.city}, {property.state}, {property.country || 'India'}</p>
+                  <p className="text-slate-900 dark:text-white font-medium">{property.address}, {formatLocationName(property.city)}, {formatLocationName(property.state)}, {property.country || 'India'}</p>
                   {property.latitude && property.longitude && (
                     <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 block pt-0.5">
                       GPS Coordinates: {property.latitude.toFixed(6)}, {property.longitude.toFixed(6)} (Within India Boundaries)
@@ -666,7 +676,7 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                         const amName = typeof am === 'string' ? am : (am.amenity_name || '');
                         return (
                           <span key={am.id || idx} className="px-2.5 py-1 bg-[#FFFDF7] dark:bg-[#091B29] rounded-lg border border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                            ✓ {amName}
+                            ✓ {formatAmenityName(amName)}
                           </span>
                         );
                       })}
@@ -731,13 +741,13 @@ export const PropertyReviewModal = ({ propertyId, isOpen, onClose, onActionCompl
                       return (
                         <div key={r.id} className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-2">
                           <div className="flex items-center justify-between">
-                            <strong className="text-slate-900 dark:text-white text-xs">{r.name}</strong>
+                            <strong className="text-slate-900 dark:text-white text-xs">{formatRoomName(r.name)}</strong>
                             <span className="font-mono font-black text-orange-500">₹{r.base_price}/night</span>
                           </div>
                           <div className="flex items-center space-x-3 text-[11px] text-slate-500">
                             <span className="flex items-center space-x-1">
                               <Bed className="w-3.5 h-3.5" />
-                              <span>{r.room_type}</span>
+                              <span>{formatRoomType(r.room_type)}</span>
                             </span>
                             <span className="flex items-center space-x-1">
                               <Layers className="w-3.5 h-3.5" />

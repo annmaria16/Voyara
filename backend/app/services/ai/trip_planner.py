@@ -1,12 +1,16 @@
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
+import uuid
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
 
 from app.models.saved_trip import SavedTrip, SavedTripItem
 from app.models.property import Property, PropertyImage, PropertyAmenity, PropertyRule, PropertyVerificationStatus
 from app.models.room import Room, RoomImage, RoomAmenity, RoomRule
-from app.models.experience import Experience
+from app.models.adventure import Adventure, AdventureSchedule, AdventureAvailability, Experience, ExperienceSchedule, ExperienceAvailability
+from app.models.booking import Booking, BookingStatus, BookingRoom, BookingAdventure, BookingExperience
+from app.models.availability import PropertyAvailability, RoomAvailability
 from app.schemas.trip_planner import (
     TripPlannerRequest,
     TripPlanResponse,
@@ -14,6 +18,7 @@ from app.schemas.trip_planner import (
     TripPlannerPropertyOption,
     TripPlannerRoomOption,
     DestinationInfo,
+    TripPlannerAdventureCandidate,
     TripPlannerExperienceCandidate,
     ExternalPlaceCandidate,
     ItineraryDayResponse,
@@ -22,7 +27,9 @@ from app.schemas.trip_planner import (
     RevalidateTripResponse,
     SaveTripRequest,
     SavedTripSummaryResponse,
-    SavedTripDetailResponse
+    SavedTripDetailResponse,
+    TripBookingHandoffRequest,
+    TripBookingHandoffResponse
 )
 from app.services.ai.destination_places import DestinationPlacesService
 from app.services.ai.trip_pricing import TripPricingService
@@ -125,6 +132,7 @@ class TripPlannerService:
                     max_children=rm_rule.maximum_children if rm_rule else 0,
                     price_per_night=pricing_res["price_per_night"],
                     total_nights=num_nights,
+                    room_quantity=pricing_res.get("room_quantity", 1),
                     room_subtotal=pricing_res["room_subtotal"],
                     child_charge_subtotal=pricing_res["child_charge_subtotal"],
                     total_stay_cost=pricing_res["total_stay_cost"],
@@ -232,6 +240,7 @@ class TripPlannerService:
                 capacity=best_room.capacity,
                 price_per_night=pricing_res["price_per_night"],
                 total_nights=num_nights,
+                room_quantity=pricing_res.get("room_quantity", 1),
                 room_subtotal=pricing_res["room_subtotal"],
                 child_charge_subtotal=pricing_res["child_charge_subtotal"],
                 total_stay_cost=pricing_res["total_stay_cost"],
@@ -276,36 +285,39 @@ class TripPlannerService:
                     why_this_stay=f"Nearby verified sanctuary in {n_prop.city}."
                 ))
 
-        # 2. Query verified PostgreSQL candidate experiences
+        # 2. Query verified PostgreSQL candidate adventures
         prop_ids = [selected_stay_candidate.property_id] if selected_stay_candidate else None
-        candidate_exps = TripPlannerValidationService.query_verified_candidate_experiences(db, request, prop_ids)
+        candidate_advs = TripPlannerValidationService.query_verified_candidate_adventures(db, request, prop_ids) if prop_ids else []
 
-        experience_candidates: List[TripPlannerExperienceCandidate] = []
-        experiences_total = 0.0
+        adventure_candidates: List[TripPlannerAdventureCandidate] = []
+        adventures_total = 0.0
 
-        for exp, exp_date in candidate_exps[:2]:  # Select up to 2 top matching experiences
-            day_num = max(1, min(total_days, (exp_date - request.start_date).days + 1))
-            exp_pricing = TripPricingService.calculate_experience_cost(exp, participants)
-            experiences_total += exp_pricing["total_experience_cost"]
+        for adv, adv_date in candidate_advs[:2]:  # Select up to 2 top matching adventures
+            day_num = max(1, min(total_days, (adv_date - request.start_date).days + 1))
+            adv_pricing = TripPricingService.calculate_adventure_cost(adv, participants)
+            adventures_total += adv_pricing["total_adventure_cost"]
 
-            experience_candidates.append(TripPlannerExperienceCandidate(
-                experience_id=exp.id,
-                property_id=exp.property_id,
-                property_name=exp.property.name if exp.property else "Voyara Partner",
-                title=exp.title,
-                experience_type=exp.experience_type,
-                description=exp.description,
-                price=float(exp.price),
-                pricing_model=exp.pricing_model,
-                duration=exp.duration,
-                start_time=exp.start_time,
-                end_time=exp.end_time,
-                image_url=exp.image_url,
-                scheduled_date=exp_date.strftime("%Y-%m-%d"),
+            adventure_candidates.append(TripPlannerAdventureCandidate(
+                adventure_id=adv.id,
+                experience_id=adv.id,
+                property_id=adv.property_id,
+                property_name=adv.property.name if adv.property else "Voyara Partner",
+                title=adv.title,
+                adventure_type=adv.adventure_type or adv.experience_type,
+                experience_type=adv.adventure_type or adv.experience_type,
+                description=adv.description,
+                price=float(adv.price),
+                pricing_model=adv.pricing_model,
+                duration=adv.duration,
+                start_time=adv.start_time,
+                end_time=adv.end_time,
+                image_url=adv.image_url,
+                scheduled_date=adv_date.strftime("%Y-%m-%d"),
                 day_number=day_num,
                 participants=participants,
-                total_experience_cost=exp_pricing["total_experience_cost"],
-                capacity_available=exp.capacity
+                total_adventure_cost=adv_pricing["total_adventure_cost"],
+                total_experience_cost=adv_pricing["total_adventure_cost"],
+                capacity_available=adv.capacity
             ))
 
         # 3. Query real destination places / attractions & destination metadata
@@ -322,7 +334,8 @@ class TripPlannerService:
             start_date=request.start_date,
             end_date=request.end_date,
             stay=selected_stay_candidate,
-            experiences=experience_candidates,
+            adventures=adventure_candidates,
+            experiences=adventure_candidates,
             external_places=external_places,
             travel_style=request.travel_style,
             interests=request.interests
@@ -331,7 +344,8 @@ class TripPlannerService:
         # 5. Pricing summary
         pricing_summary = TripPricingService.build_pricing_summary(
             accommodation_total=accommodation_total,
-            experiences_total=experiences_total,
+            adventures_total=adventures_total,
+            experiences_total=adventures_total,
             budget=request.budget,
             budget_type=request.budget_type
         )
@@ -341,7 +355,8 @@ class TripPlannerService:
             destination=request.destination,
             num_nights=num_nights,
             stay=selected_stay_candidate,
-            experiences=experience_candidates,
+            adventures=adventure_candidates,
+            experiences=adventure_candidates,
             places=external_places,
             travel_style=request.travel_style
         )
@@ -362,14 +377,16 @@ class TripPlannerService:
                 "travel_style": request.travel_style,
                 "stay_type": request.stay_type,
                 "interests": request.interests,
-                "experience_preferences": request.experience_preferences,
+                "adventure_preferences": getattr(request, 'adventure_preferences', None) or getattr(request, 'experience_preferences', []),
+                "experience_preferences": getattr(request, 'adventure_preferences', None) or getattr(request, 'experience_preferences', []),
                 "special_requests": request.special_requests
             },
             stay=selected_stay_candidate,
             available_stays=available_stays,
             nearby_stays=nearby_stays,
             destination_info=destination_info,
-            experiences=experience_candidates,
+            adventures=adventure_candidates,
+            experiences=adventure_candidates,
             external_places=external_places,
             days=days,
             pricing_summary=pricing_summary,
@@ -602,8 +619,24 @@ class TripPlannerService:
                 if abs(curr_price - saved_price) > 0.01:
                     changes_summary.append(f"Room nightly rate updated from ₹{saved_price:,.0f} to ₹{curr_price:,.0f}.")
                     stay_dict["price_per_night"] = curr_price
-                    stay_dict["room_subtotal"] = curr_price * saved.total_nights
+                    stay_dict["room_subtotal"] = curr_price * saved.total_nights * stay_dict.get("room_quantity", 1)
                     stay_dict["total_stay_cost"] = stay_dict["room_subtotal"] + stay_dict.get("child_charge_subtotal", 0.0)
+
+        # Revalidate adventures in saved plan
+        advs_list = full_plan_dict.get("adventures") or full_plan_dict.get("experiences") or []
+        if advs_list and stay_dict:
+            for adv_item in advs_list:
+                a_id = adv_item.get("adventure_id") or adv_item.get("experience_id")
+                a_rec = db.query(Adventure).filter(Adventure.id == a_id).first() if a_id else None
+                if not a_rec or not a_rec.is_active or a_rec.property_id != stay_dict.get("property_id"):
+                    is_exp_avail = False
+                    changes_summary.append(f"Adventure '{adv_item.get('title')}' is no longer available for this property.")
+                else:
+                    curr_adv_price = float(a_rec.price)
+                    saved_adv_price = float(adv_item.get("price", curr_adv_price))
+                    if abs(curr_adv_price - saved_adv_price) > 0.01:
+                        changes_summary.append(f"Adventure '{a_rec.title}' price updated from ₹{saved_adv_price:,.0f} to ₹{curr_adv_price:,.0f}.")
+                        adv_item["price"] = curr_adv_price
 
         # Parse updated full plan
         try:
@@ -622,7 +655,8 @@ class TripPlannerService:
                 travel_style=saved.travel_style,
                 stay_type=saved.stay_type,
                 interests=saved.interests or [],
-                experience_preferences=saved.experience_preferences or [],
+                adventure_preferences=getattr(saved, 'adventure_preferences', None) or getattr(saved, 'experience_preferences', []),
+                experience_preferences=getattr(saved, 'adventure_preferences', None) or getattr(saved, 'experience_preferences', []),
                 special_requests=saved.special_requests
             )
             updated_plan = cls.generate_trip_plan(db, req, user_id)
@@ -634,8 +668,273 @@ class TripPlannerService:
             has_changes=has_changes,
             changes_summary=changes_summary,
             is_stay_available=is_stay_avail,
+            is_adventure_available=is_exp_avail,
             is_experience_available=is_exp_avail,
             updated_plan=updated_plan
+        )
+
+    @classmethod
+    def create_booking_handoff(
+        cls,
+        db: Session,
+        request: TripBookingHandoffRequest,
+        user_id: Optional[int] = None
+    ) -> TripBookingHandoffResponse:
+        """
+        Authoritatively validates the entire trip booking selection against PostgreSQL ground truth,
+        recalculates current pricing, enforces property-experience constraints and room capacity,
+        and generates a secure booking context handoff for checkout.
+        """
+        # 1. Dates validation
+        today = date.today()
+        if request.check_in < today:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Check-in date cannot be in the past."
+            )
+        if request.check_out <= request.check_in:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Check-out date must be strictly after Check-in date."
+            )
+        nights = max(1, (request.check_out - request.check_in).days)
+
+        # 2. Property validation
+        prop = db.query(Property).filter(Property.id == request.property_id).first()
+        if not prop or not prop.is_active or prop.verification_status != PropertyVerificationStatus.VERIFIED.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The selected property does not exist, is inactive, or is not currently verified."
+            )
+
+        # Check property closures
+        closure = db.query(PropertyAvailability).filter(
+            PropertyAvailability.property_id == prop.id,
+            PropertyAvailability.is_closed == True,
+            PropertyAvailability.start_date <= request.check_out,
+            PropertyAvailability.end_date >= request.check_in
+        ).first()
+        if closure:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Property '{prop.name}' is closed for the selected dates. Reason: {closure.reason}"
+            )
+
+        # 3. Room validation
+        room = db.query(Room).filter(Room.id == request.room_id).first()
+        if not room or room.property_id != prop.id or not room.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The selected room unit does not exist, is inactive, or does not belong to this property."
+            )
+
+        # Check room blocked availability
+        room_block = db.query(RoomAvailability).filter(
+            RoomAvailability.room_id == room.id,
+            RoomAvailability.is_blocked == True,
+            RoomAvailability.start_date <= request.check_out,
+            RoomAvailability.end_date >= request.check_in
+        ).first()
+        if room_block:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Room '{room.name}' is unavailable or blocked for the selected dates. Reason: {room_block.reason}"
+            )
+
+        # 4. Guests, Room Capacity & Quantity calculation
+        adults = max(1, request.adults)
+        children = max(0, request.children)
+        child_ages = request.child_ages or []
+        total_guests = adults + children
+
+        prop_rule: Optional[PropertyRule] = getattr(prop, "home_rules", None)
+        room_rule: Optional[RoomRule] = getattr(room, "rules", None)
+
+        room_cap = (room_rule.maximum_total_guests if room_rule and room_rule.maximum_total_guests else room.capacity) or 2
+        needed_quantity = request.room_quantity if (request.room_quantity and request.room_quantity >= 1) else max(1, (total_guests + room_cap - 1) // room_cap)
+
+        # Check room inventory against existing bookings
+        active_bookings_count = db.query(BookingRoom).join(Booking, Booking.id == BookingRoom.booking_id).filter(
+            BookingRoom.room_id == room.id,
+            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.PENDING, BookingStatus.VERIFIED]),
+            Booking.check_in < request.check_out,
+            Booking.check_out > request.check_in
+        ).count()
+        total_units = room.quantity or 1
+        remaining_units = max(0, total_units - active_bookings_count)
+
+        if needed_quantity > remaining_units:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only {remaining_units} unit(s) of '{room.name}' available for these dates (Group of {total_guests} requires {needed_quantity} room(s))."
+            )
+
+        # 5. Room Suitability & Child Policy
+        is_suitable, unsuitability_reason = TripPlannerValidationService.check_room_suitability(
+            room=room,
+            adults=adults,
+            children=children,
+            child_ages=child_ages,
+            room_quantity=needed_quantity
+        )
+        if not is_suitable:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=unsuitability_reason or "The selected room configuration does not meet occupancy or child policies."
+            )
+
+        # 6. Stay Pricing Calculation
+        pricing_res = TripPricingService.calculate_stay_cost(
+            room=room,
+            nights=nights,
+            adults=adults,
+            children=children,
+            child_ages=child_ages,
+            property_rule=prop_rule,
+            room_rule=room_rule,
+            room_quantity=needed_quantity
+        )
+        room_subtotal = pricing_res["room_subtotal"]
+        child_charge_subtotal = pricing_res["child_charge_subtotal"]
+
+        cot_count = max(0, request.cot_count or 0)
+        extra_bed_count = max(0, request.extra_bed_count or 0)
+        cots_subtotal = round(cot_count * nights * 500.0, 2)
+        extra_beds_subtotal = round(extra_bed_count * nights * (float(room.base_price) * 0.3), 2)
+
+        # 7. Adventure Validation (if requested)
+        adv_record = None
+        adventure_subtotal = 0.0
+        adv_date_str = None
+        adv_participants = None
+
+        req_adv_id = getattr(request, 'adventure_id', None) or getattr(request, 'experience_id', None)
+        req_adv_date = getattr(request, 'adventure_date', None) or getattr(request, 'experience_date', None)
+        req_adv_parts = getattr(request, 'adventure_participants', None) or getattr(request, 'experience_participants', None)
+
+        if req_adv_id:
+            adv_record = db.query(Adventure).filter(Adventure.id == req_adv_id).first()
+            if not adv_record or not adv_record.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="One of the selected adventures is no longer active or available. Please refresh your trip plan before continuing."
+                )
+            if adv_record.property_id != prop.id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Selected adventure does not exist or does not belong to this property."
+                )
+
+            adv_date = req_adv_date or request.check_in
+            adv_date_str = adv_date.strftime("%Y-%m-%d")
+            adv_participants = req_adv_parts or total_guests
+
+            # Schedule type check
+            if adv_record.schedule_type == "one-time":
+                if adv_record.event_date and adv_record.event_date != adv_date:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"The selected adventure '{adv_record.title}' is only scheduled on {adv_record.event_date}."
+                    )
+            else:
+                day_name = adv_date.strftime("%A")
+                sched = db.query(AdventureSchedule).filter(
+                    AdventureSchedule.adventure_id == adv_record.id,
+                    AdventureSchedule.is_active.is_(True),
+                    func.lower(AdventureSchedule.day_of_week) == day_name.lower()
+                ).first()
+                if not sched:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"The selected adventure '{adv_record.title}' is not scheduled on {day_name}s."
+                    )
+
+            # Capacity check
+            booked_adv_count = db.query(
+                func.coalesce(func.sum(BookingAdventure.participants), 0)
+            ).join(Booking).filter(
+                BookingAdventure.adventure_id == adv_record.id,
+                BookingAdventure.scheduled_date == adv_date,
+                Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.VERIFIED, BookingStatus.CHECKED_IN])
+            ).scalar() or 0
+
+            rem_cap = adv_record.capacity - booked_adv_count
+            if adv_participants > rem_cap:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"The selected adventure '{adv_record.title}' has reached its capacity for {adv_date_str} (Requested: {adv_participants}, Available: {max(0, rem_cap)})."
+                )
+
+            adv_pricing = TripPricingService.calculate_adventure_cost(adv_record, adv_participants)
+            adventure_subtotal = adv_pricing["total_adventure_cost"]
+
+        # 8. Grand Total Calculation
+        total_amount = round(room_subtotal + child_charge_subtotal + cots_subtotal + extra_beds_subtotal + adventure_subtotal, 2)
+        handoff_token = f"handoff-{uuid.uuid4().hex[:12]}"
+
+        # Prop and Room rules snapshots
+        prop_rules_dict = {
+            "children_allowed": getattr(prop_rule, "children_allowed", True) if prop_rule else True,
+            "min_child_age": getattr(prop_rule, "min_child_age", 0) if prop_rule else 0,
+            "pets_allowed": getattr(prop_rule, "pets_allowed", False) if prop_rule else False,
+            "pet_types_allowed": getattr(prop_rule, "pet_types_allowed", None) if prop_rule else None,
+            "smoking_allowed": getattr(prop_rule, "smoking_allowed", False) if prop_rule else False,
+            "parties_allowed": getattr(prop_rule, "parties_allowed", False) if prop_rule else False,
+            "check_in_time_start": getattr(prop_rule, "check_in_time_start", "14:00") if prop_rule else (prop.check_in_time or "14:00"),
+            "check_in_time_end": getattr(prop_rule, "check_in_time_end", "22:00") if prop_rule else "22:00",
+            "quiet_hours_start": getattr(prop_rule, "quiet_hours_start", "22:00") if prop_rule else "22:00",
+            "quiet_hours_end": getattr(prop_rule, "quiet_hours_end", "07:00") if prop_rule else "07:00",
+        }
+
+        room_rules_dict = {
+            "max_adults": getattr(room_rule, "maximum_adults", room.capacity) if room_rule else room.capacity,
+            "max_children": getattr(room_rule, "maximum_children", 0) if room_rule else 0,
+            "max_guests": getattr(room_rule, "maximum_total_guests", room.capacity) if room_rule else room.capacity,
+            "child_charge_enabled": getattr(room_rule, "child_charge_enabled", False) if room_rule else False,
+            "child_charge_amount": getattr(room_rule, "child_charge_amount", 0.0) if room_rule else 0.0,
+        }
+
+        return TripBookingHandoffResponse(
+            handoff_token=handoff_token,
+            property_id=prop.id,
+            property_name=prop.name,
+            property_type=prop.property_type,
+            property_city=prop.city,
+            room_id=room.id,
+            room_name=room.name,
+            room_price=float(room.base_price),
+            room_quantity=needed_quantity,
+            check_in=request.check_in.strftime("%Y-%m-%d"),
+            check_out=request.check_out.strftime("%Y-%m-%d"),
+            nights=nights,
+            guests=total_guests,
+            adults=adults,
+            children=children,
+            child_ages=child_ages,
+            cot_count=cot_count,
+            extra_bed_count=extra_bed_count,
+            cots_subtotal=cots_subtotal,
+            extra_beds_subtotal=extra_beds_subtotal,
+            children_subtotal=child_charge_subtotal,
+            room_subtotal=room_subtotal,
+            adventure_id=adv_record.id if adv_record else None,
+            adventure_title=adv_record.title if adv_record else None,
+            adventure_price=float(adv_record.price) if adv_record else None,
+            adventure_pricing_model=adv_record.pricing_model if adv_record else None,
+            adventure_participants=adv_participants if adv_record else None,
+            adventure_date=adv_date_str if adv_record else None,
+            adventure_subtotal=adventure_subtotal,
+            adventures_total=adventure_subtotal,
+            experience_id=adv_record.id if adv_record else None,
+            experience_title=adv_record.title if adv_record else None,
+            experience_price=float(adv_record.price) if adv_record else None,
+            experience_pricing_model=adv_record.pricing_model if adv_record else None,
+            experience_participants=adv_participants if adv_record else None,
+            experience_date=adv_date_str if adv_record else None,
+            experience_subtotal=adventure_subtotal,
+            total_amount=total_amount,
+            property_rules=prop_rules_dict,
+            room_rules=room_rules_dict
         )
 
     @classmethod

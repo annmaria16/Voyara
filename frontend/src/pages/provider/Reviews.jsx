@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { providerApi } from '../../api/provider';
 import {
+  formatDisplayName,
+  formatPropertyName,
+  formatLocationName,
+  formatPropertyType,
+} from '../../utils/formatters';
+import {
   Star,
   Sparkles,
   ShieldCheck,
@@ -199,7 +205,7 @@ export const ProviderReviews = () => {
             </button>
             <span className="text-xs text-slate-400">/</span>
             <span className="text-xs font-semibold text-[#17324D] dark:text-white truncate max-w-xs sm:max-w-md">
-              {selectedPropertyDetails?.property_name}
+              {formatPropertyName(selectedPropertyDetails?.property_name)}
             </span>
           </div>
         ) : null}
@@ -207,11 +213,11 @@ export const ProviderReviews = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-4xl font-black font-serif text-[#17324D] dark:text-white tracking-tight">
-              {selectedPropertyId ? selectedPropertyDetails?.property_name : 'Guest Reviews & Ratings'}
+              {selectedPropertyId ? formatPropertyName(selectedPropertyDetails?.property_name) : 'Guest Reviews & Ratings'}
             </h1>
             <p className="text-xs sm:text-sm text-[#607080] dark:text-slate-300 mt-1 font-light max-w-2xl">
               {selectedPropertyId
-                ? `Detailed traveler ratings and genuine feedback submitted for ${selectedPropertyDetails?.property_name}.`
+                ? `Detailed traveler ratings and genuine feedback submitted for ${formatPropertyName(selectedPropertyDetails?.property_name)}.`
                 : 'View feedback from Travelers who stayed at your properties.'}
             </p>
           </div>
@@ -367,7 +373,7 @@ export const ProviderReviews = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {propertiesList.map((prop) => {
                   const hasReviews = (prop.review_count || 0) > 0;
-                  const locationStr = [prop.city, prop.state].filter(Boolean).join(', ');
+                  const locationStr = [prop.city, prop.state].filter(Boolean).map(formatLocationName).join(', ');
 
                   return (
                     <div
@@ -380,7 +386,7 @@ export const ProviderReviews = () => {
                         {prop.image_url ? (
                           <img
                             src={prop.image_url}
-                            alt={prop.property_name}
+                            alt={formatPropertyName(prop.property_name)}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                         ) : (
@@ -394,7 +400,7 @@ export const ProviderReviews = () => {
                         {/* Top Pills */}
                         <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
                           <span className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider">
-                            {prop.property_type || 'Stay'}
+                            {formatPropertyType(prop.property_type) || 'Stay'}
                           </span>
                           {hasReviews ? (
                             <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-400 text-slate-900 text-xs font-black shadow-md">
@@ -411,7 +417,7 @@ export const ProviderReviews = () => {
                         {/* Bottom Location Overlay */}
                         <div className="absolute bottom-3 left-3 right-3 text-white">
                           <h3 className="text-base font-bold font-serif leading-tight drop-shadow-sm truncate">
-                            {prop.property_name}
+                            {formatPropertyName(prop.property_name)}
                           </h3>
                           {locationStr && (
                             <div className="flex items-center space-x-1 text-[11px] text-slate-200 mt-1 opacity-90 drop-shadow-xs">
@@ -498,16 +504,17 @@ export const ProviderReviews = () => {
             <div className="p-6 bg-gradient-to-br from-[#FFF8F0] to-white dark:from-[#091B29] dark:to-[#0F273D] rounded-3xl border border-orange-200/70 dark:border-teal-900/40 shadow-xs flex flex-col justify-between space-y-4">
               <div className="space-y-1">
                 <div className="flex items-center space-x-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  <span>{selectedPropertyDetails.property_type || 'Property'}</span>
+                  <span>{formatPropertyType(selectedPropertyDetails.property_type) || 'Property'}</span>
                   <span>•</span>
                   <span>
                     {[selectedPropertyDetails.city, selectedPropertyDetails.state, selectedPropertyDetails.country]
                       .filter(Boolean)
+                      .map(formatLocationName)
                       .join(', ')}
                   </span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black font-serif text-[#17324D] dark:text-white">
-                  {selectedPropertyDetails.property_name}
+                  {formatPropertyName(selectedPropertyDetails.property_name)}
                 </h2>
               </div>
 
@@ -740,12 +747,12 @@ export const ProviderReviews = () => {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#087F8C] to-[#0F9D9A] text-white font-bold text-sm flex items-center justify-center shadow-xs">
-                            {rev.user_name ? rev.user_name.charAt(0).toUpperCase() : 'G'}
+                            {rev.user_name ? formatDisplayName(rev.user_name).charAt(0).toUpperCase() : 'G'}
                           </div>
                           <div>
                             <div className="flex items-center space-x-2">
                               <strong className="text-sm text-[#17324D] dark:text-white font-sans">
-                                {rev.user_name || 'Verified Traveler'}
+                                {formatDisplayName(rev.user_name) || 'Verified Traveler'}
                               </strong>
                               <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
                                 <ShieldCheck className="w-3 h-3" />

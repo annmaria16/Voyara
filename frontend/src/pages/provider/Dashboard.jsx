@@ -19,6 +19,7 @@ import {
   Star,
   UserCheck,
 } from 'lucide-react';
+import { formatDisplayName, formatPropertyName } from '../../utils/formatters';
 
 export const ProviderDashboard = () => {
   const { user } = useAuth();
@@ -132,9 +133,9 @@ export const ProviderDashboard = () => {
             </h1>
 
             <p className="text-sm sm:text-base text-slate-200 font-light leading-relaxed">
-              Welcome back, <strong className="text-white font-medium">{dashboardData?.provider?.business_name || user?.name || 'Stay Partner'}</strong>.
+              Welcome back, <strong className="text-white font-medium">{formatDisplayName(dashboardData?.provider?.business_name || user?.name || 'Stay Partner')}</strong>.
               {featuredProperty ? (
-                <> Managing <strong className="text-[#F6C945] font-medium">{featuredProperty.name}</strong> and {totalPropsCount} verified properties across India.</>
+                <> Managing <strong className="text-[#F6C945] font-medium">{formatPropertyName(featuredProperty.name)}</strong> and {totalPropsCount} verified properties across India.</>
               ) : (
                 <> Ready to welcome mindful travelers to your authentic stays.</>
               )}

@@ -4,6 +4,11 @@ import { VerificationBadge } from '../../components/verification/VerificationBad
 import { VerificationModal } from '../../components/verification/VerificationModal';
 import { InvoiceModal } from '../../components/payment/InvoiceModal';
 import {
+  formatDisplayName,
+  formatEmail,
+  formatPropertyName,
+} from '../../utils/formatters';
+import {
   BookOpen,
   AlertCircle,
   ShieldCheck,
@@ -126,7 +131,7 @@ export const AdminBookings = () => {
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-2 overflow-x-auto pb-1 custom-scrollbar">
-          {['ALL', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED'].map((s) => (
+          {['ALL', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'NO_SHOW', 'CANCELLED'].map((s) => (
             <button
               key={s}
               type="button"
@@ -136,7 +141,7 @@ export const AdminBookings = () => {
                 : 'bg-white dark:bg-[#0F273D] text-slate-700 dark:text-slate-300 hover:bg-[#FFFDF7] dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
                 }`}
             >
-              {s === 'ALL' ? 'All Bookings' : s.replace(/_/g, ' ')} ({bookings.filter((b) => s === 'ALL' || b.status === s).length})
+              {s === 'ALL' ? 'All Bookings' : s === 'NO_SHOW' ? 'Missed / No-Show' : s.replace(/_/g, ' ')} ({bookings.filter((b) => s === 'ALL' || b.status === s || (s === 'NO_SHOW' && (b.status === 'MISSED' || b.is_missed))).length})
             </button>
           ))}
         </div>
@@ -184,10 +189,11 @@ export const AdminBookings = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredBookings.map((b) => {
                   const origAmount = b.original_total_amount || b.total_amount || 0;
+                  const isNoShow = b.status === 'NO_SHOW' || b.status === 'MISSED' || b.is_missed;
                   const isCancelled = b.status === 'CANCELLED';
                   const isCheckedIn = b.status === 'CHECKED_IN';
                   const isCompleted = b.status === 'COMPLETED';
-                  const isFinalized = b.commission_status === 'FINALIZED';
+                  const isFinalized = b.commission_status === 'FINALIZED' || isNoShow || isCompleted;
 
                   return (
                     <tr key={b.id} data-testid={`admin-booking-row-${b.id}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
@@ -195,9 +201,9 @@ export const AdminBookings = () => {
                         {b.booking_number || `VOY-${b.id}`}
                       </td>
                       <td className="py-4">
-                        <strong className="text-[#091B29] dark:text-white block">{b.user?.name || 'Customer'}</strong>
-                        <span className="text-slate-500 dark:text-slate-400 text-[11px] block">{b.property?.name}</span>
-                        <span className="text-slate-400 dark:text-slate-500 text-[10px] block">{b.user?.email}</span>
+                        <strong className="text-[#091B29] dark:text-white block">{formatDisplayName(b.user?.name) || 'Customer'}</strong>
+                        <span className="text-slate-500 dark:text-slate-400 text-[11px] block">{formatPropertyName(b.property?.name)}</span>
+                        <span className="text-slate-400 dark:text-slate-500 text-[10px] block">{formatEmail(b.user?.email)}</span>
                       </td>
                       <td className="py-4 text-slate-600 dark:text-slate-300">
                         <div>{b.check_in} ➔ {b.check_out}</div>
@@ -216,6 +222,15 @@ export const AdminBookings = () => {
                               Retained: ₹{(b.retained_amount || 0).toLocaleString('en-IN')}
                             </div>
                           </div>
+                        ) : isNoShow ? (
+                          <div className="space-y-0.5 text-[11px]">
+                            <div className="text-amber-600 dark:text-amber-400 font-semibold">
+                              No-Show (₹0 Refund)
+                            </div>
+                            <div className="text-slate-600 dark:text-slate-300">
+                              Retained: ₹{origAmount.toLocaleString('en-IN')}
+                            </div>
+                          </div>
                         ) : (
                           <span className="text-slate-400 text-[11px]">₹0 refunded</span>
                         )}
@@ -223,28 +238,30 @@ export const AdminBookings = () => {
                       <td className="py-4">
                         <div className="space-y-0.5">
                           <span className="font-bold text-slate-900 dark:text-white block">
-                            ₹{(b.commission_amount || (isFinalized ? 0 : Math.round(origAmount * 0.10))).toLocaleString('en-IN')}
+                            ₹{(b.commission_amount || (isFinalized ? Math.round(origAmount * 0.10) : Math.round(origAmount * 0.10))).toLocaleString('en-IN')}
                           </span>
                           <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${isFinalized
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                             : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                             }`}>
-                            {b.commission_status || 'NOT_FINALIZED'}
+                            {isNoShow ? 'FINALIZED (NO-SHOW)' : b.commission_status || 'NOT_FINALIZED'}
                           </span>
                         </div>
                       </td>
                       <td className="py-4">
                         <div className="space-y-0.5">
                           <span className="font-bold text-emerald-600 dark:text-emerald-400 block">
-                            ₹{(b.provider_settlement_amount || (isFinalized ? 0 : Math.round(origAmount * 0.90))).toLocaleString('en-IN')}
+                            ₹{(b.provider_settlement_amount || (isFinalized ? Math.round(origAmount * 0.90) : Math.round(origAmount * 0.90))).toLocaleString('en-IN')}
                           </span>
                           <span className="text-[9px] text-slate-400 block font-mono">
-                            {b.payout_status || 'PENDING_CHECKIN'}
+                            {isNoShow ? 'SETTLED_NO_SHOW' : b.payout_status || 'PENDING_CHECKIN'}
                           </span>
                         </div>
                       </td>
                       <td className="py-4">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${isCancelled
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${isNoShow
+                          ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/40'
+                          : isCancelled
                           ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
                           : isCheckedIn
                             ? 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30'
@@ -252,7 +269,7 @@ export const AdminBookings = () => {
                               ? 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30'
                               : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
                           }`}>
-                          {b.status === 'CHECKED_IN' ? 'CHECKED IN' : b.status}
+                          {isNoShow ? 'MISSED / NO-SHOW' : b.status === 'CHECKED_IN' ? 'CHECKED IN' : b.status}
                         </span>
                       </td>
                       <td className="py-4">

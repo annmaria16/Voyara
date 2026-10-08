@@ -6,7 +6,7 @@ from pydantic import field_validator
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Voyara"
     PROJECT_SLOGAN: str = "Find Your Place."
-    PROJECT_BRAND: str = "Stay. Explore. Experience."
+    PROJECT_BRAND: str = "Stay. Explore. Adventure."
     ENVIRONMENT: str = "development"
     API_V1_STR: str = "/api"
 

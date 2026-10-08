@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { messagesApi } from '../../api/messages';
 import { getBookingStatusTheme } from '../../utils/bookingStatusTheme';
 import { formatMessageTime, formatConversationTime } from '../../utils/dateUtils';
+import { formatDisplayName, formatPropertyName } from '../../utils/formatters';
 import {
   MessageSquare,
   Send,
@@ -344,7 +345,7 @@ export const CustomerMessages = () => {
                         {conv.property_image ? (
                           <img
                             src={conv.property_image}
-                            alt={conv.property_name}
+                            alt={formatPropertyName(conv.property_name)}
                             className="w-full h-full object-cover"
                           />
                         ) : (
@@ -369,7 +370,7 @@ export const CustomerMessages = () => {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center justify-between gap-1">
                           <h4 className="text-xs font-bold text-[#17324D] dark:text-white truncate font-serif">
-                            {conv.property_name}
+                            {formatPropertyName(conv.property_name)}
                           </h4>
                           <span className="text-[10px] text-slate-400 shrink-0 font-medium">
                             {formatConversationTime(conv.last_message_time)}
@@ -378,7 +379,7 @@ export const CustomerMessages = () => {
 
                         <div className="flex items-center space-x-1.5 text-[11px] text-slate-500 dark:text-slate-400">
                           <User className="w-3 h-3 text-[#087F8C] shrink-0" />
-                          <span className="truncate">Host: <strong>{conv.stay_partner_name}</strong></span>
+                          <span className="truncate">Host: <strong>{formatDisplayName(conv.stay_partner_name)}</strong></span>
                         </div>
 
                         <p className="text-[11px] text-[#607080] dark:text-slate-300 truncate font-sans">
@@ -423,7 +424,7 @@ export const CustomerMessages = () => {
                       {activeConversation.property_image ? (
                         <img
                           src={activeConversation.property_image}
-                          alt={activeConversation.property_name}
+                          alt={formatPropertyName(activeConversation.property_name)}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -437,7 +438,7 @@ export const CustomerMessages = () => {
                     <div className="min-w-0">
                       <div className="flex items-center space-x-2">
                         <h3 className="text-sm sm:text-base font-bold font-serif text-[#17324D] dark:text-white truncate">
-                          {activeConversation.property_name}
+                          {formatPropertyName(activeConversation.property_name)}
                         </h3>
                         <span
                           className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
@@ -449,7 +450,7 @@ export const CustomerMessages = () => {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
-                        <span>Stay Partner: <strong className="text-slate-700 dark:text-slate-200">{activeConversation.stay_partner_name}</strong></span>
+                        <span>Stay Partner: <strong className="text-slate-700 dark:text-slate-200">{formatDisplayName(activeConversation.stay_partner_name)}</strong></span>
                         <span>•</span>
                         <span className="font-mono font-bold text-[#087F8C] dark:text-[#27B7A8]">{activeConversation.booking_number}</span>
                         <span>•</span>
@@ -486,7 +487,7 @@ export const CustomerMessages = () => {
                         <MessageSquare className="w-6 h-6" />
                       </div>
                       <p className="text-xs font-medium max-w-sm">
-                        No messages exchanged yet. Send a message to <strong>{activeConversation.stay_partner_name}</strong> regarding check-in, directions, or stay inquiries.
+                        No messages exchanged yet. Send a message to <strong>{formatDisplayName(activeConversation.stay_partner_name)}</strong> regarding check-in, directions, or stay inquiries.
                       </p>
                     </div>
                   ) : (
@@ -500,7 +501,7 @@ export const CustomerMessages = () => {
                         >
                           {/* Sender Label */}
                           <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 font-medium px-1">
-                            <span>{isMe ? 'You' : msg.sender_name || 'Stay Partner'}</span>
+                            <span>{isMe ? 'You' : formatDisplayName(msg.sender_name) || 'Stay Partner'}</span>
                             <span>•</span>
                             <span>{formatMessageTime(msg.created_at)}</span>
                           </div>
@@ -544,7 +545,7 @@ export const CustomerMessages = () => {
                     <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
                       <input
                         type="text"
-                        placeholder={`Type a message to ${activeConversation.stay_partner_name}...`}
+                        placeholder={`Type a message to ${formatDisplayName(activeConversation.stay_partner_name)}...`}
                         value={messageText}
                         onChange={(e) => setMessageText(e.target.value)}
                         disabled={sending}

@@ -6,6 +6,15 @@ import { loadRazorpayScript } from '../../utils/razorpay';
 import { VerificationBadge } from '../../components/verification/VerificationBadge';
 import { VoyaraAIChat } from '../../components/ai/VoyaraAIChat';
 import {
+  formatDisplayName,
+  formatEmail,
+  formatPropertyName,
+  formatRoomName,
+  formatAdventureName,
+  formatLocationName,
+  formatPropertyType,
+} from '../../utils/formatters';
+import {
   ShieldCheck,
   Calendar,
   Users,
@@ -69,16 +78,32 @@ export const BookingPage = () => {
     extra_beds_subtotal = 0,
     children_subtotal = 0,
     room_subtotal,
+    adventure_id,
+    adventure_title,
+    adventure_price,
+    adventure_pricing_model,
+    adventure_participants,
+    adventure_date,
+    adventure_subtotal,
     experience_id,
     experience_title,
     experience_price,
     experience_pricing_model,
     experience_participants,
+    experience_date,
     experience_subtotal,
     total_amount,
     property_rules,
     room_rules,
   } = bookingState;
+
+  const resolvedAdventureId = adventure_id || experience_id;
+  const resolvedAdventureTitle = adventure_title || experience_title;
+  const resolvedAdventurePrice = adventure_price !== undefined ? adventure_price : experience_price;
+  const resolvedAdventurePricingModel = adventure_pricing_model || experience_pricing_model;
+  const resolvedAdventureParticipants = adventure_participants || experience_participants;
+  const resolvedAdventureDate = adventure_date || experience_date;
+  const resolvedAdventureSubtotal = adventure_subtotal !== undefined ? adventure_subtotal : experience_subtotal;
 
   const handleRazorpayPayment = async (e) => {
     e.preventDefault();
@@ -113,8 +138,12 @@ export const BookingPage = () => {
         extra_bed_count,
         room_quantity,
         rules_accepted: true,
-        experience_id: experience_id || undefined,
-        experience_participants: experience_participants || undefined,
+        adventure_id: resolvedAdventureId || undefined,
+        adventure_date: resolvedAdventureDate || undefined,
+        adventure_participants: resolvedAdventureParticipants || undefined,
+        experience_id: resolvedAdventureId || undefined,
+        experience_date: resolvedAdventureDate || undefined,
+        experience_participants: resolvedAdventureParticipants || undefined,
         customer_notes: customerNotes.trim() || undefined,
       };
 
@@ -216,7 +245,12 @@ export const BookingPage = () => {
 
       razorpayInstance.open();
     } catch (err) {
-      setError(err.message || 'Payment reservation initialization failed. Please check availability.');
+      const serverMsg = err.response?.data?.detail || err.message || '';
+      if (serverMsg.toLowerCase().includes('adventure') || serverMsg.toLowerCase().includes('experience')) {
+        setError('This trip plan needs to be refreshed: One of the selected adventures is no longer available for this stay. Please return to your trip plan and refresh the selection.');
+      } else {
+        setError(serverMsg || 'Payment reservation initialization failed. Please check availability.');
+      }
       setLoading(false);
     }
   };
@@ -296,7 +330,7 @@ export const BookingPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Primary Guest</span>
-                <strong className="text-[#17324D] dark:text-white text-sm block">{user?.name || 'Voyara Traveler'}</strong>
+                <strong className="text-[#17324D] dark:text-white text-sm block">{formatDisplayName(user?.name) || 'Voyara Traveler'}</strong>
               </div>
 
               <div className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40">
@@ -306,7 +340,7 @@ export const BookingPage = () => {
 
               <div className="p-3.5 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40 sm:col-span-2">
                 <span className="text-slate-400 font-bold block text-[10px] uppercase">Contact Email</span>
-                <strong className="text-[#17324D] dark:text-white text-sm block">{user?.email}</strong>
+                <strong className="text-[#17324D] dark:text-white text-sm block">{formatEmail(user?.email)}</strong>
               </div>
             </div>
           </div>
@@ -426,9 +460,9 @@ export const BookingPage = () => {
 
             <div className="space-y-3 text-xs">
               <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-2xl border border-slate-100 dark:border-teal-900/40 space-y-1">
-                <span className="text-[10px] font-bold uppercase text-[#087F8C] dark:text-[#27B7A8]">{property_type}</span>
-                <h4 className="text-sm font-bold text-[#17324D] dark:text-white">{property_name}</h4>
-                <p className="text-[#607080] dark:text-slate-400">{property_city} • {room_name}</p>
+                <span className="text-[10px] font-bold uppercase text-[#087F8C] dark:text-[#27B7A8]">{formatPropertyType(property_type)}</span>
+                <h4 className="text-sm font-bold text-[#17324D] dark:text-white">{formatPropertyName(property_name)}</h4>
+                <p className="text-[#607080] dark:text-slate-400">{formatLocationName(property_city)} • {formatRoomName(room_name)}</p>
                 <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-[#607080] dark:text-slate-300">
                   <span>🏢 {room_quantity} {room_quantity === 1 ? 'Room' : 'Rooms'}</span>
                   <span>•</span>
@@ -449,11 +483,13 @@ export const BookingPage = () => {
                 </div>
               </div>
 
-              {experience_title && (
+              {resolvedAdventureTitle && (
                 <div className="p-3 bg-[#DDF3E7] dark:bg-[#35A66F]/20 rounded-xl border border-[#35A66F]/30 space-y-0.5">
-                  <span className="text-[10px] font-bold uppercase text-[#35A66F]">Bundled Experience</span>
-                  <h5 className="font-bold text-[#17324D] dark:text-emerald-300">{experience_title}</h5>
-                  <p className="text-[11px] text-[#35A66F]">{experience_participants} participant(s)</p>
+                  <span className="text-[10px] font-bold uppercase text-[#35A66F]">Bundled Adventure</span>
+                  <h5 className="font-bold text-[#17324D] dark:text-emerald-300">{formatAdventureName(resolvedAdventureTitle)}</h5>
+                  <p className="text-[11px] text-[#35A66F] font-medium">
+                    {resolvedAdventureDate ? `Date: ${resolvedAdventureDate} • ` : ''}{resolvedAdventureParticipants || guests} participant(s)
+                  </p>
                 </div>
               )}
             </div>
@@ -461,7 +497,7 @@ export const BookingPage = () => {
             {/* Price Calculations */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs">
               <div className="flex justify-between text-[#607080] dark:text-slate-300">
-                <span>{room_name} (₹{room_price?.toLocaleString('en-IN')} × {nights}n × {room_quantity}r)</span>
+                <span>{formatRoomName(room_name)} (₹{room_price?.toLocaleString('en-IN')} × {nights}n × {room_quantity}r)</span>
                 <span className="font-bold text-[#17324D] dark:text-white">₹{room_subtotal.toLocaleString('en-IN')}</span>
               </div>
 
@@ -486,10 +522,10 @@ export const BookingPage = () => {
                 </div>
               )}
 
-              {experience_title && (
+              {resolvedAdventureTitle && (
                 <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
-                  <span>Experience Add-on</span>
-                  <span className="font-bold">₹{experience_subtotal.toLocaleString('en-IN')}</span>
+                  <span>Adventure Add-on</span>
+                  <span className="font-bold">₹{resolvedAdventureSubtotal?.toLocaleString('en-IN')}</span>
                 </div>
               )}
 

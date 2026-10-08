@@ -7,7 +7,14 @@ from app.models.property import Property, PropertyVerificationStatus, PropertyRu
 from app.models.room import Room, RoomRule
 from app.models.availability import PropertyAvailability, RoomAvailability
 from app.models.booking import Booking, BookingStatus, BookingRoom
-from app.models.experience import Experience, ExperienceSchedule, ExperienceAvailability
+from app.models.adventure import (
+    Adventure,
+    AdventureSchedule,
+    AdventureAvailability,
+    Experience,
+    ExperienceSchedule,
+    ExperienceAvailability
+)
 from app.schemas.trip_planner import TripPlannerRequest, TripPlanResponse
 
 class TripPlannerValidationService:
@@ -16,44 +23,38 @@ class TripPlannerValidationService:
         room: Room,
         adults: int,
         children: int = 0,
-        child_ages: Optional[List[int]] = None
+        child_ages: Optional[List[int]] = None,
+        room_quantity: int = 1
     ) -> Tuple[bool, Optional[str]]:
         """
-        Validates whether a room satisfies traveler occupancy and child policies.
+        Validates whether a room configuration satisfies traveler occupancy and child policies.
+        Delegates to BookingAgentToolsService.calculate_room_configuration for 100% unified rule enforcement.
         Returns (is_suitable, unsuitability_reason).
         """
-        total_guests = adults + children
-        rule: Optional[RoomRule] = getattr(room, "rules", None)
-        prop: Optional[Property] = getattr(room, "property", None)
-        prop_rule: Optional[PropertyRule] = getattr(prop, "home_rules", None) if prop else None
-
-        # 1. Total capacity check
-        max_capacity = rule.maximum_total_guests if rule and rule.maximum_total_guests else room.capacity
-        if max_capacity < total_guests:
-            return False, f"Room capacity is {max_capacity} guests, but your group has {total_guests}."
-
-        # 2. Adult capacity check
-        if rule and rule.maximum_adults and adults > rule.maximum_adults:
-            return False, f"Maximum allowed adults for this room is {rule.maximum_adults}."
-
-        # 3. Children policy check
-        if children > 0:
-            if rule and str(rule.children_allowed).lower() == "no":
-                return False, "This room type does not accommodate children."
-            if prop_rule and str(prop_rule.children_allowed).lower() == "no":
-                return False, "This property does not accommodate children."
-
-            if rule and rule.maximum_children and children > rule.maximum_children:
-                return False, f"Maximum allowed children for this room is {rule.maximum_children}."
-
-            if child_ages:
-                min_age = getattr(rule, "minimum_child_age", None) or (getattr(prop_rule, "minimum_child_age", None) if prop_rule else None)
-                if min_age is not None:
-                    for age in child_ages:
-                        if age < min_age:
-                            return False, f"Children under age {min_age} are not permitted in this room."
-
-        return True, None
+        from app.services.ai.booking_agent_tools import BookingAgentToolsService
+        from app.database import SessionLocal
+        
+        db = Session.object_session(room)
+        should_close = False
+        if db is None:
+            db = SessionLocal()
+            should_close = True
+        try:
+            config = BookingAgentToolsService.calculate_room_configuration(
+                db=db,
+                property_id=room.property_id,
+                room_id=room.id,
+                adults=adults,
+                children=children,
+                child_ages=child_ages or [],
+                requested_quantity=room_quantity
+            )
+            if config.get("valid"):
+                return True, None
+            return False, config.get("error", "Room does not satisfy guest and child policies.")
+        finally:
+            if should_close:
+                db.close()
 
     @classmethod
     def query_verified_candidate_stays(
@@ -115,11 +116,17 @@ class TripPlannerValidationService:
             ).all()
 
             for room in rooms:
+                room_cap = max(1, room.capacity or 2)
+                needed_qty = max(1, (total_guests + room_cap - 1) // room_cap)
+                if room.quantity and room.quantity < needed_qty:
+                    continue
+
                 is_suitable, _ = cls.check_room_suitability(
                     room=room,
                     adults=request.adults,
                     children=request.children,
-                    child_ages=request.child_ages
+                    child_ages=request.child_ages,
+                    room_quantity=needed_qty
                 )
                 if not is_suitable:
                     continue
@@ -198,43 +205,39 @@ class TripPlannerValidationService:
         return nearby_pairs
 
     @staticmethod
-    def query_verified_candidate_experiences(
+    def query_verified_candidate_adventures(
         db: Session,
         request: TripPlannerRequest,
         property_ids: Optional[List[int]] = None
-    ) -> List[Tuple[Experience, date]]:
+    ) -> List[Tuple[Adventure, date]]:
         """
-        Queries PostgreSQL for active Voyara experiences matching target destination/dates.
+        Queries PostgreSQL for active Voyara adventures matching target destination/dates.
         Validates schedule, available capacity, and date overlap.
         """
         dest = request.destination.strip().lower()
         participants = request.adults + request.children
 
-        exp_query = db.query(Experience).join(Property).filter(
-            Experience.is_active.is_(True),
+        adv_query = db.query(Adventure).join(Property).filter(
+            Adventure.is_active.is_(True),
             Property.verification_status == PropertyVerificationStatus.VERIFIED.value,
             Property.is_active.is_(True)
         )
 
         if property_ids:
-            exp_query = exp_query.filter(
-                or_(
-                    Experience.property_id.in_(property_ids),
-                    func.lower(Property.city).ilike(f"%{dest}%")
-                )
-            )
+            adv_query = adv_query.filter(Adventure.property_id.in_(property_ids))
         else:
-            exp_query = exp_query.filter(func.lower(Property.city).ilike(f"%{dest}%"))
+            adv_query = adv_query.filter(func.lower(Property.city).ilike(f"%{dest}%"))
 
-        # Filter by experience preferences if provided
-        if request.experience_preferences and "ANY" not in [ep.upper() for ep in request.experience_preferences]:
-            prefs = [ep.lower() for ep in request.experience_preferences]
-            exp_query = exp_query.filter(
-                or_(*[func.lower(Experience.experience_type).ilike(f"%{p}%") for p in prefs])
+        # Filter by adventure preferences if provided
+        adv_prefs = getattr(request, 'adventure_preferences', None) or getattr(request, 'experience_preferences', None)
+        if adv_prefs and "ANY" not in [ep.upper() for ep in adv_prefs]:
+            prefs = [ep.lower() for ep in adv_prefs]
+            adv_query = adv_query.filter(
+                or_(*[func.lower(Adventure.adventure_type).ilike(f"%{p}%") for p in prefs])
             )
 
-        all_exps = exp_query.all()
-        matched: List[Tuple[Experience, date]] = []
+        all_advs = adv_query.all()
+        matched: List[Tuple[Adventure, date]] = []
 
         num_nights = max(1, (request.end_date - request.start_date).days)
         if num_nights > 1:
@@ -243,43 +246,55 @@ class TripPlannerValidationService:
         else:
             trip_dates = [request.start_date, request.end_date]
 
-        for exp in all_exps:
+        for adv in all_advs:
             # Check capacity
-            if exp.capacity < participants:
+            if adv.capacity < participants:
                 continue
 
             for trip_d in trip_dates:
                 # 1. One-time schedule
-                if exp.schedule_type == "one-time":
-                    if exp.event_date == trip_d:
-                        avail = db.query(ExperienceAvailability).filter(
-                            ExperienceAvailability.experience_id == exp.id,
-                            ExperienceAvailability.date == trip_d
+                if adv.schedule_type == "one-time":
+                    if adv.event_date == trip_d:
+                        avail = db.query(AdventureAvailability).filter(
+                            AdventureAvailability.adventure_id == adv.id,
+                            AdventureAvailability.date == trip_d
                         ).first()
                         booked = avail.booked_count if avail else 0
-                        if exp.capacity - booked >= participants:
-                            matched.append((exp, trip_d))
+                        if adv.capacity - booked >= participants:
+                            matched.append((adv, trip_d))
                             break
                 # 2. Recurring schedule
                 else:
                     day_name = trip_d.strftime("%A")
-                    sched = db.query(ExperienceSchedule).filter(
-                        ExperienceSchedule.experience_id == exp.id,
-                        ExperienceSchedule.is_active.is_(True),
-                        func.lower(ExperienceSchedule.day_of_week) == day_name.lower()
+                    sched = db.query(AdventureSchedule).filter(
+                        AdventureSchedule.adventure_id == adv.id,
+                        AdventureSchedule.is_active.is_(True),
+                        func.lower(AdventureSchedule.day_of_week) == day_name.lower()
                     ).first()
 
                     if sched:
-                        avail = db.query(ExperienceAvailability).filter(
-                            ExperienceAvailability.experience_id == exp.id,
-                            ExperienceAvailability.date == trip_d
+                        avail = db.query(AdventureAvailability).filter(
+                            AdventureAvailability.adventure_id == adv.id,
+                            AdventureAvailability.date == trip_d
                         ).first()
                         booked = avail.booked_count if avail else 0
-                        if exp.capacity - booked >= participants:
-                            matched.append((exp, trip_d))
+                        if adv.capacity - booked >= participants:
+                            matched.append((adv, trip_d))
                             break
 
         return matched
+
+    @staticmethod
+    def query_verified_candidate_experiences(
+        db: Session,
+        request: TripPlannerRequest,
+        property_ids: Optional[List[int]] = None
+    ) -> List[Tuple[Experience, date]]:
+        return TripPlannerValidationService.query_verified_candidate_adventures(
+            db=db,
+            request=request,
+            property_ids=property_ids
+        )
 
     @staticmethod
     def validate_plan_integrity(plan: TripPlanResponse) -> Tuple[str, List[str]]:

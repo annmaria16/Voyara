@@ -14,6 +14,8 @@ import {
   ExternalLink,
   MessageSquare,
   AlertCircle,
+  AlertTriangle,
+  XCircle,
   FileText,
   Phone,
   Mail,
@@ -29,7 +31,7 @@ export const StayInformationModal = ({ bookingId, isOpen, onClose, onOpenMessagi
   const [stayInfo, setStayInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'location', 'rules', 'room', 'host', 'experience'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'location', 'rules', 'room', 'host', 'adventure'
 
   useEffect(() => {
     if (isOpen && bookingId) {
@@ -56,7 +58,7 @@ export const StayInformationModal = ({ bookingId, isOpen, onClose, onOpenMessagi
   const room = stayInfo?.room || {};
   const rules = stayInfo?.home_rules || {};
   const roomRules = room.rules || {};
-  const exp = stayInfo?.experience;
+  const exp = stayInfo?.adventure || stayInfo?.experience;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
@@ -105,7 +107,7 @@ export const StayInformationModal = ({ bookingId, isOpen, onClose, onOpenMessagi
             { key: 'rules', label: 'Home Rules' },
             { key: 'room', label: 'Booked Room' },
             { key: 'host', label: 'Host Instructions' },
-            ...(exp ? [{ key: 'experience', label: 'Booked Experience' }] : []),
+            ...(exp ? [{ key: 'adventure', label: 'Booked Adventure' }] : []),
           ].map((tab) => (
             <button
               key={tab.key}
@@ -139,27 +141,89 @@ export const StayInformationModal = ({ bookingId, isOpen, onClose, onOpenMessagi
               {/* TAB 1: OVERVIEW */}
               {activeTab === 'overview' && (
                 <div className="space-y-6 animate-in fade-in duration-150">
-                  {/* Confirmed Banner */}
-                  <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-center space-x-3.5">
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-                        <CheckCircle2 className="w-6 h-6" />
+                  {/* Dynamic Stay Status Banner */}
+                  {stayInfo.is_missed || stayInfo.status === 'NO_SHOW' ? (
+                    <div className="p-5 rounded-2xl bg-gradient-to-r from-rose-500/15 via-red-500/10 to-transparent border border-rose-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center space-x-3.5">
+                        <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <XCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-[#091B29] dark:text-white">
+                            Booking Missed / Expired
+                          </h3>
+                          <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
+                            {stayInfo.checkin_warning || "You have not checked in for this booking and the scheduled stay period has ended."}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-black text-[#091B29] dark:text-white">
-                          Your Stay is Confirmed!
-                        </h3>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                          Verified transaction • Protected under Voyara Stay Guarantee.
-                        </p>
+                      <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-700 dark:text-rose-300 text-xs font-bold">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>Missed / No-Show</span>
                       </div>
                     </div>
+                  ) : stayInfo.is_checkin_missed ? (
+                    <div className="p-5 rounded-2xl bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-transparent border border-orange-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center space-x-3.5">
+                        <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <AlertCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-[#091B29] dark:text-white">
+                            Check-in Missed
+                          </h3>
+                          <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5">
+                            {stayInfo.checkin_warning || "You have not checked in for this booking. Please check your booking details or contact the host."}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-700 dark:text-orange-300 text-xs font-bold">
+                        <Clock className="w-4 h-4" />
+                        <span>Check-in Missed</span>
+                      </div>
+                    </div>
+                  ) : stayInfo.is_checkin_today ? (
+                    <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-transparent border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center space-x-3.5">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <Clock className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-[#091B29] dark:text-white">
+                            Check-in Today
+                          </h3>
+                          <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
+                            {stayInfo.checkin_warning || "You haven't checked in yet. Your stay starts today."}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-bold">
+                        <Clock className="w-4 h-4" />
+                        <span>Check-in Today</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-center space-x-3.5">
+                        <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <CheckCircle2 className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-[#091B29] dark:text-white">
+                            Your Stay is Confirmed!
+                          </h3>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                            Verified transaction • Protected under Voyara Stay Guarantee.
+                          </p>
+                        </div>
+                      </div>
 
-                    <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#091B29] border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>VeriNova Verified</span>
+                      <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#091B29] border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>VeriNova Verified</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Property Photo & Summary Showcase */}
                   <div className="rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-[#091B29]/70 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center p-4">
@@ -460,24 +524,24 @@ export const StayInformationModal = ({ bookingId, isOpen, onClose, onOpenMessagi
                 </div>
               )}
 
-              {/* TAB 6: BOOKED EXPERIENCE */}
-              {activeTab === 'experience' && exp && (
+              {/* TAB 6: BOOKED ADVENTURE */}
+              {(activeTab === 'adventure' || activeTab === 'experience') && exp && (
                 <div className="space-y-6 animate-in fade-in duration-150">
                   <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#091B29]/70 border border-slate-200/70 dark:border-slate-800 space-y-3">
                     <div className="flex items-center space-x-2 text-xs font-bold text-[#087F8C] dark:text-[#27B7A8]">
                       <Compass className="w-4 h-4" />
-                      <span>Curated Stay Experience</span>
+                      <span>Curated Stay Adventure</span>
                     </div>
 
                     <div className="space-y-1">
-                      <h4 className="text-base font-black text-slate-900 dark:text-white">{exp.title}</h4>
+                      <h4 className="text-base font-black text-slate-900 dark:text-white">{exp.title || exp.adventure_title || exp.experience_title}</h4>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Scheduled Date: <strong>{exp.scheduled_date}</strong> • Participants: <strong>{exp.participants}</strong>
                       </p>
                     </div>
 
                     <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-slate-500">Total Experience Price</span>
+                      <span className="text-slate-500">Total Adventure Price</span>
                       <strong className="text-orange-500 text-sm">₹{Number(exp.subtotal || exp.price).toLocaleString('en-IN')}</strong>
                     </div>
                   </div>

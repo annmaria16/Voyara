@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supportApi } from '../../api/support';
 import { StatusBadge } from '../../components/dashboard/StatusBadge';
 import { formatMessageTime } from '../../utils/dateUtils';
+import { formatDisplayName, formatEmail } from '../../utils/formatters';
 import {
   MessageSquare,
   Send,
@@ -63,7 +64,7 @@ export const SupportPage = () => {
     'Property Management',
     'Booking Problems',
     'Availability Problems',
-    'Experience Problems',
+    'Adventure Problems',
     'Payment / Commission Questions',
     'Account Problems',
     'Technical Problems',
@@ -194,7 +195,7 @@ export const SupportPage = () => {
             Voyara Help, Trust & <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-300 via-emerald-300 to-amber-200">Support</span>
           </h1>
           <p className="text-sm sm:text-base text-slate-200 font-medium leading-relaxed max-w-2xl">
-            Have a question regarding your upcoming stay, experience add-on, listing approval, or reservation verification? Our dedicated concierge team is active 24/7.
+            Have a question regarding your upcoming stay, adventure add-on, listing approval, or reservation verification? Our dedicated concierge team is active 24/7.
           </p>
 
           {/* Contact Direct Badge */}
@@ -234,7 +235,7 @@ export const SupportPage = () => {
                 </div>
               </div>
               <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                User: {user ? (user.name || user.email) : 'Guest'}
+                User: {user ? (user.name ? formatDisplayName(user.name) : formatEmail(user.email)) : 'Guest'}
               </span>
             </div>
 

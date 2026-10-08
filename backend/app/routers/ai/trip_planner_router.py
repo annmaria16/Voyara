@@ -21,12 +21,28 @@ from app.schemas.trip_planner import (
     ChatSessionSummaryResponse,
     ChatSessionDetailResponse,
     CreateChatSessionRequest,
-    ChatMessageItem
+    ChatMessageItem,
+    TripBookingHandoffRequest,
+    TripBookingHandoffResponse
 )
 from app.services.ai.trip_planner import TripPlannerService
 from app.services.ai.trip_planner_chat import TripPlannerChatService
 
 router = APIRouter()
+
+@router.post("/trip-planner/booking-handoff", response_model=TripBookingHandoffResponse)
+def create_trip_booking_handoff(
+    request: TripBookingHandoffRequest,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Authoritative booking handoff endpoint for Trip Planner.
+    Validates live property, room, capacity, availability, dates, child rules,
+    experience constraints, and recalculates authoritative pricing from PostgreSQL.
+    """
+    user_id = current_user.id if current_user else None
+    return TripPlannerService.create_booking_handoff(db=db, request=request, user_id=user_id)
 
 @router.post("/trip-planner/chat", response_model=TripChatResponse)
 def chat_trip_planner(

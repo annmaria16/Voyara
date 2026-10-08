@@ -75,7 +75,7 @@ export const Login = () => {
 
     setLoading(true);
     try {
-      const user = await login(trimmedEmail, password);
+      const user = await login(trimmedEmail.toLowerCase(), password);
       if (user.role === 'ADMIN') {
         navigate('/admin');
       } else if (user.role === 'PROVIDER') {
@@ -177,7 +177,7 @@ export const Login = () => {
           {/* Top Brand & Slogan */}
           <div className="relative z-10 space-y-2">
             <span className="text-[11px] font-extrabold tracking-widest text-[#F6C945] uppercase">
-              Stay. Explore. Experience.
+              Stay. Explore. Adventure.
             </span>
             <h2 className="text-4xl xl:text-5xl font-black font-serif leading-tight tracking-tight text-white drop-shadow-md">
               Find Your Place.
@@ -233,7 +233,7 @@ export const Login = () => {
                 Login to Voyara
               </h1>
               <p className="text-xs sm:text-sm text-[#607080] dark:text-slate-400 font-light">
-                Find your place. Stay. Explore. Experience.
+                Find your place. Stay. Explore. Adventure.
               </p>
             </div>
 

@@ -20,6 +20,7 @@ import { ResetPassword } from './pages/auth/ResetPassword';
 import { LandingPage } from './pages/customer/LandingPage';
 import { SearchPage } from './pages/customer/Search';
 import { PropertyDetails } from './pages/customer/PropertyDetails';
+import { AdventureDetails } from './pages/customer/AdventureDetails';
 import { ExperienceDetails } from './pages/customer/ExperienceDetails';
 import { BookingPage } from './pages/customer/Booking';
 import { BookingConfirmation } from './pages/customer/BookingConfirmation';
@@ -27,6 +28,7 @@ import { MyBookings } from './pages/customer/MyBookings';
 import { CustomerDashboard } from './pages/customer/Dashboard';
 import { CustomerMessages } from './pages/customer/Messages';
 import { TripPlanner } from './pages/customer/TripPlanner';
+import { AIBooking } from './pages/customer/AIBooking';
 
 // Provider Pages
 import { ProviderDashboard } from './pages/provider/Dashboard';
@@ -35,6 +37,7 @@ import { AddProperty } from './pages/provider/AddProperty';
 import { EditProperty } from './pages/provider/EditProperty';
 import { ProviderRooms } from './pages/provider/Rooms';
 import { ProviderAvailability } from './pages/provider/Availability';
+import { ProviderAdventures } from './pages/provider/Adventures';
 import { ProviderExperiences } from './pages/provider/Experiences';
 import { ProviderBookings } from './pages/provider/Bookings';
 import { ProviderMessages } from './pages/provider/Messages';
@@ -78,14 +81,19 @@ export function App() {
               }
             >
               <Route path="/customer" element={<CustomerDashboard />} />
+              <Route path="/traveler/ai-booking" element={<AIBooking />} />
+              <Route path="/customer/ai-booking" element={<AIBooking />} />
+              <Route path="/book-with-ai" element={<AIBooking />} />
               <Route path="/traveler/trip-planner" element={<TripPlanner />} />
               <Route path="/trip-planner" element={<TripPlanner />} />
               <Route path="/customer/trip-planner" element={<TripPlanner />} />
               <Route path="/customer/saved-trips" element={<TripPlanner />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/properties/:id" element={<PropertyDetails />} />
-              <Route path="/experiences" element={<ExperienceDetails />} />
-              <Route path="/experiences/:id" element={<ExperienceDetails />} />
+              <Route path="/adventures" element={<AdventureDetails />} />
+              <Route path="/adventures/:id" element={<AdventureDetails />} />
+              <Route path="/experiences" element={<AdventureDetails />} />
+              <Route path="/experiences/:id" element={<AdventureDetails />} />
               <Route path="/booking" element={<BookingPage />} />
               <Route path="/booking/confirmation/:id" element={<BookingConfirmation />} />
               <Route path="/customer/bookings" element={<MyBookings />} />
@@ -113,7 +121,8 @@ export function App() {
               <Route path="properties/:id/edit" element={<EditProperty />} />
               <Route path="rooms" element={<ProviderRooms />} />
               <Route path="availability" element={<ProviderAvailability />} />
-              <Route path="experiences" element={<ProviderExperiences />} />
+              <Route path="adventures" element={<ProviderAdventures />} />
+              <Route path="experiences" element={<ProviderAdventures />} />
               <Route path="bookings" element={<ProviderBookings />} />
               <Route path="messages" element={<ProviderMessages />} />
               <Route path="reviews" element={<ProviderReviews />} />
@@ -134,6 +143,7 @@ export function App() {
               <Route path="users" element={<AdminUsers />} />
               <Route path="properties" element={<AdminProperties />} />
               <Route path="rooms" element={<AdminProperties />} />
+              <Route path="adventures" element={<AdminProperties />} />
               <Route path="experiences" element={<AdminProperties />} />
               <Route path="bookings" element={<AdminBookings />} />
               <Route path="verification" element={<VerificationCenter />} />

@@ -45,6 +45,41 @@ export const StatusBadge = ({ status, size = 'md' }) => {
       classes: 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-400/40',
       icon: AlertTriangle,
     },
+    NO_SHOW: {
+      label: 'Missed / No-Show',
+      classes: 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-500/50',
+      icon: AlertCircle,
+    },
+    MISSED: {
+      label: 'Missed / No-Show',
+      classes: 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-500/50',
+      icon: AlertCircle,
+    },
+    CHECKIN_TODAY: {
+      label: 'Check-in Today',
+      classes: 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-500/50',
+      icon: Clock,
+    },
+    CHECKIN_MISSED: {
+      label: 'Check-in Missed',
+      classes: 'bg-orange-50 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border-orange-500/50',
+      icon: AlertTriangle,
+    },
+    CHECKED_IN: {
+      label: 'Checked In',
+      classes: 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-500/40',
+      icon: CheckCircle2,
+    },
+    CHECKED_OUT: {
+      label: 'Checked Out',
+      classes: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-500/40',
+      icon: CheckCircle2,
+    },
+    COMPLETED: {
+      label: 'Completed',
+      classes: 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-500/40',
+      icon: CheckCircle2,
+    },
     FAILED: {
       label: 'Failed',
       classes: 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border-rose-400/40',

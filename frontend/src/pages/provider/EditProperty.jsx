@@ -48,7 +48,7 @@ const ROOM_TYPE_OPTIONS = [
   'Dormitory Bed',
 ];
 
-const EXPERIENCE_TYPE_OPTIONS = [
+const ADVENTURE_TYPE_OPTIONS = [
   'Campfire',
   'Guided Trek',
   'Sightseeing',
@@ -58,6 +58,7 @@ const EXPERIENCE_TYPE_OPTIONS = [
   'Adventure',
   'Event',
 ];
+const EXPERIENCE_TYPE_OPTIONS = ADVENTURE_TYPE_OPTIONS;
 
 const AVAILABLE_ROOM_AMENITIES = [
   'King Bed',
@@ -178,7 +179,7 @@ export const EditProperty = () => {
           setLatitude(prop.latitude !== undefined && prop.latitude !== null ? prop.latitude : null);
           setLongitude(prop.longitude !== undefined && prop.longitude !== null ? prop.longitude : null);
           setContactPhone(prop.contact_phone || '');
-          setContactEmail(prop.contact_email || '');
+          setContactEmail((prop.contact_email || '').toLowerCase());
           setCheckInTime(prop.check_in_time || '14:00');
           setCheckOutTime(prop.check_out_time || '11:00');
           setGuestInformationMessage(prop.guest_information_message || '');
@@ -220,8 +221,8 @@ export const EditProperty = () => {
           }));
           setRooms(roomList);
 
-          // Fetch experiences attached to this stay
-          fetchStayExperiences();
+          // Fetch adventures attached to this stay
+          fetchStayAdventures();
 
           // Fetch Property Home Rules
           try {
@@ -245,109 +246,107 @@ export const EditProperty = () => {
     }
   }, [id]);
 
-  // Experiences State & Operations
-  const [experiences, setExperiences] = useState([]);
-  const [expModalOpen, setExpModalOpen] = useState(false);
-  const [editingExpId, setEditingExpId] = useState(null);
-  const [expTitle, setExpTitle] = useState('');
-  const [expType, setExpType] = useState('Guided Trek');
-  const [expDesc, setExpDesc] = useState('');
-  const [expPrice, setExpPrice] = useState('');
-  const [expPricingModel, setExpPricingModel] = useState('per_person');
-  const [expCapacity, setExpCapacity] = useState('15');
-  const [expDuration, setExpDuration] = useState('3 Hours');
-  const [expImageUrl, setExpImageUrl] = useState('');
-  const [expIsActive, setExpIsActive] = useState(true);
-  const [expSaving, setExpSaving] = useState(false);
-  const [expSuccess, setExpSuccess] = useState('');
-  const [expError, setExpError] = useState('');
+  // Adventures State & Operations
+  const [adventures, setAdventures] = useState([]);
+  const [advModalOpen, setAdvModalOpen] = useState(false);
+  const [editingAdvId, setEditingAdvId] = useState(null);
+  const [advTitle, setAdvTitle] = useState('');
+  const [advType, setAdvType] = useState('Guided Trek');
+  const [advDesc, setAdvDesc] = useState('');
+  const [advPrice, setAdvPrice] = useState('');
+  const [advPricingModel, setAdvPricingModel] = useState('per_person');
+  const [advCapacity, setAdvCapacity] = useState('15');
+  const [advDuration, setAdvDuration] = useState('3 Hours');
+  const [advImageUrl, setAdvImageUrl] = useState('');
+  const [advIsActive, setAdvIsActive] = useState(true);
+  const [advSaving, setAdvSaving] = useState(false);
+  const [advSuccess, setAdvSuccess] = useState('');
+  const [advError, setAdvError] = useState('');
 
-  const fetchStayExperiences = async () => {
+  const fetchStayAdventures = async () => {
     try {
-      const expList = await providerApi.getExperiences(id);
-      setExperiences(Array.isArray(expList) ? expList : []);
+      const advList = await (providerApi.getAdventures ? providerApi.getAdventures(id) : providerApi.getExperiences(id));
+      setAdventures(Array.isArray(advList) ? advList : []);
     } catch (e) {
-      console.warn('Error fetching stay experiences:', e);
+      console.warn('Error fetching stay adventures:', e);
     }
   };
 
-  const handleOpenCreateExpModal = () => {
-    setEditingExpId(null);
-    setExpTitle('');
-    setExpType('Guided Trek');
-    setExpDesc('');
-    setExpPrice('');
-    setExpPricingModel('per_person');
-    setExpCapacity('15');
-    setExpDuration('3 Hours');
-    setExpImageUrl('https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1000&q=80');
-    setExpIsActive(true);
-    setExpError('');
-    setExpModalOpen(true);
+  const handleOpenCreateAdvModal = () => {
+    setEditingAdvId(null);
+    setAdvTitle('');
+    setAdvType('Guided Trek');
+    setAdvDesc('');
+    setAdvPrice('');
+    setAdvPricingModel('per_person');
+    setAdvCapacity('15');
+    setAdvDuration('3 Hours');
+    setAdvImageUrl('https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1000&q=80');
+    setAdvIsActive(true);
+    setAdvError('');
+    setAdvModalOpen(true);
   };
 
-  const handleOpenEditExpModal = (exp) => {
-    setEditingExpId(exp.id);
-    setExpTitle(exp.title || '');
-    setExpType(exp.experience_type || 'Guided Trek');
-    setExpDesc(exp.description || '');
-    setExpPrice(exp.price !== undefined && exp.price !== null ? String(exp.price) : '');
-    setExpPricingModel(exp.pricing_model || 'per_person');
-    setExpCapacity(exp.capacity !== undefined && exp.capacity !== null ? String(exp.capacity) : '15');
-    setExpDuration(exp.duration || '3 Hours');
-    setExpImageUrl(exp.image_url || 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1000&q=80');
-    setExpIsActive(exp.is_active !== undefined ? exp.is_active : true);
-    setExpError('');
-    setExpModalOpen(true);
+  const handleOpenEditAdvModal = (adv) => {
+    setEditingAdvId(adv.id);
+    setAdvTitle(adv.title || '');
+    setAdvType(adv.adventure_type || adv.experience_type || 'Guided Trek');
+    setAdvDesc(adv.description || '');
+    setAdvPrice(adv.price !== undefined && adv.price !== null ? String(adv.price) : '');
+    setAdvPricingModel(adv.pricing_model || 'per_person');
+    setAdvCapacity(adv.capacity !== undefined && adv.capacity !== null ? String(adv.capacity) : '15');
+    setAdvDuration(adv.duration || '3 Hours');
+    setAdvImageUrl(adv.image_url || 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=1000&q=80');
+    setAdvIsActive(adv.is_active !== undefined ? adv.is_active : true);
+    setAdvError('');
+    setAdvModalOpen(true);
   };
 
-  const handleSaveExpModal = async (e) => {
+  const handleSaveAdvModal = async (e) => {
     e.preventDefault();
-    setExpSaving(true);
-    setExpError('');
+    setAdvSaving(true);
+    setAdvError('');
     try {
       const payload = {
-        title: expTitle.trim(),
-        experience_type: expType,
-        description: expDesc.trim(),
-        price: parseFloat(expPrice),
-        pricing_model: expPricingModel,
-        capacity: parseInt(expCapacity, 10),
-        duration: expDuration.trim(),
-        image_url: expImageUrl,
-        is_active: expIsActive,
+        title: advTitle.trim(),
+        adventure_type: advType,
+        experience_type: advType,
+        description: advDesc.trim(),
+        price: parseFloat(advPrice),
+        pricing_model: advPricingModel,
+        capacity: parseInt(advCapacity, 10),
+        duration: advDuration.trim(),
+        image_url: advImageUrl,
+        is_active: advIsActive,
       };
 
-      if (editingExpId) {
-        await providerApi.updateExperience(editingExpId, payload);
-        setExpSuccess(`Experience '${expTitle}' updated successfully!`);
+      if (editingAdvId) {
+        await (providerApi.updateAdventure ? providerApi.updateAdventure(editingAdvId, payload) : providerApi.updateExperience(editingAdvId, payload));
+        setAdvSuccess(`Adventure '${advTitle}' updated successfully!`);
       } else {
-        await providerApi.createExperience(id, {
-          ...payload,
-          schedule_type: 'recurring',
-        });
-        setExpSuccess(`Experience '${expTitle}' created successfully!`);
+        await (providerApi.createAdventure ? providerApi.createAdventure(id, { ...payload, schedule_type: 'recurring' }) : providerApi.createExperience(id, { ...payload, schedule_type: 'recurring' }));
+        setAdvSuccess(`Adventure '${advTitle}' created successfully!`);
       }
 
-      setExpModalOpen(false);
-      fetchStayExperiences();
-      setTimeout(() => setExpSuccess(''), 4000);
+      setAdvModalOpen(false);
+      fetchStayAdventures();
+      setTimeout(() => setAdvSuccess(''), 4000);
     } catch (err) {
-      setExpError(err.response?.data?.detail || err.message || 'Failed to save experience.');
+      setAdvError(err.response?.data?.detail || err.message || 'Failed to save adventure.');
     } finally {
-      setExpSaving(false);
+      setAdvSaving(false);
     }
   };
 
-  const handleDeleteExp = async (expId, titleStr) => {
-    if (!window.confirm(`Are you sure you want to delete experience '${titleStr}'?`)) return;
+  const handleDeleteAdv = async (advId, titleStr) => {
+    if (!window.confirm(`Are you sure you want to delete adventure '${titleStr}'?`)) return;
     try {
-      await providerApi.deleteExperience(expId);
-      setExpSuccess(`Experience '${titleStr}' deleted.`);
-      fetchStayExperiences();
-      setTimeout(() => setExpSuccess(''), 3000);
+      await (providerApi.deleteAdventure ? providerApi.deleteAdventure(advId) : providerApi.deleteExperience(advId));
+      setAdvSuccess(`Adventure '${titleStr}' deleted.`);
+      fetchStayAdventures();
+      setTimeout(() => setAdvSuccess(''), 3000);
     } catch (err) {
-      alert(err.response?.data?.detail || err.message || 'Failed to delete experience.');
+      alert(err.response?.data?.detail || err.message || 'Failed to delete adventure.');
     }
   };
 
@@ -793,7 +792,7 @@ export const EditProperty = () => {
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
         contact_phone: phoneDigits,
-        contact_email: contactEmail.trim(),
+        contact_email: contactEmail.trim().toLowerCase(),
         check_in_time: checkInTime,
         check_out_time: checkOutTime,
         guest_information_message: guestInformationMessage.trim() || undefined,
@@ -1735,17 +1734,17 @@ export const EditProperty = () => {
             </div>
           </div>
 
-          {/* SECTION 7: EXPERIENCES & ACTIVITIES AT THIS STAY */}
+          {/* SECTION 7: ADVENTURES & ACTIVITIES AT THIS STAY */}
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
               <div className="flex items-center space-x-2">
                 <Flame className="w-4 h-4 text-orange-500" />
                 <h2 className="text-base font-bold text-[#091B29] dark:text-white">
-                  Experiences & Activities at this Stay
+                  Adventures & Activities at this Stay
                 </h2>
               </div>
               <span className="text-xs font-bold text-orange-700 dark:text-orange-300 bg-orange-500/15 px-2.5 py-0.5 rounded-full">
-                {experiences.length} Experience(s)
+                {adventures.length} Adventure(s)
               </span>
             </div>
 
@@ -1755,58 +1754,58 @@ export const EditProperty = () => {
               </p>
               <button
                 type="button"
-                onClick={handleOpenCreateExpModal}
+                onClick={handleOpenCreateAdvModal}
                 className="inline-flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer shrink-0 self-start sm:self-auto"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Add Experience</span>
+                <span>+ Add Adventure</span>
               </button>
             </div>
 
-            {expSuccess && (
+            {advSuccess && (
               <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 rounded-2xl text-emerald-800 dark:text-emerald-200 text-xs flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span className="font-semibold">{expSuccess}</span>
+                <span className="font-semibold">{advSuccess}</span>
               </div>
             )}
 
-            {experiences.length === 0 ? (
+            {adventures.length === 0 ? (
               <div className="p-8 rounded-3xl bg-[#FFF8F0]/40 dark:bg-slate-900/40 border border-orange-200/60 dark:border-slate-800 text-center space-y-2">
                 <Flame className="w-8 h-8 text-orange-400 mx-auto" />
                 <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  No experiences attached yet
+                  No adventures attached yet
                 </h4>
                 <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
                   Offer plantation walks, campfires, or river rafting to enhance guest bookings.
                 </p>
                 <button
                   type="button"
-                  onClick={handleOpenCreateExpModal}
+                  onClick={handleOpenCreateAdvModal}
                   className="inline-flex items-center space-x-1 px-4 py-2 bg-orange-500 text-white font-bold rounded-xl text-xs shadow-xs hover:bg-orange-600 transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Add First Experience</span>
+                  <span>Add First Adventure</span>
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {experiences.map((exp) => (
+                {adventures.map((adv) => (
                   <div
-                    key={exp.id}
+                    key={adv.id}
                     className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
                   >
                     <div>
                       <div className="relative aspect-16/9 bg-slate-100 dark:bg-slate-800 overflow-hidden">
                         <img
-                          src={exp.image_url || 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=800&q=80'}
-                          alt={exp.title}
+                          src={adv.image_url || 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=800&q=80'}
+                          alt={adv.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                         <div className="absolute top-2.5 left-2.5 flex items-center space-x-1.5">
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#091B29]/85 text-white backdrop-blur-xs">
-                            {exp.experience_type}
+                            {adv.adventure_type || adv.experience_type || 'Adventure'}
                           </span>
-                          {exp.is_active === false && (
+                          {adv.is_active === false && (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white">
                               Inactive
                             </span>
@@ -1817,19 +1816,19 @@ export const EditProperty = () => {
                       <div className="p-4 space-y-2">
                         <div className="flex items-start justify-between gap-1.5">
                           <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
-                            {exp.title}
+                            {adv.title}
                           </h4>
                           <span className="text-xs font-bold text-orange-600 dark:text-orange-400 shrink-0">
-                            ₹{exp.price?.toLocaleString('en-IN')}
+                            ₹{adv.price?.toLocaleString('en-IN')}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
-                          {exp.description}
+                          {adv.description}
                         </p>
                         <div className="text-[10px] text-slate-400 flex items-center space-x-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-                          <span>Max {exp.capacity} Guests</span>
+                          <span>Max {adv.capacity} Guests</span>
                           <span>•</span>
-                          <span>{exp.duration}</span>
+                          <span>{adv.duration}</span>
                         </div>
                       </div>
                     </div>
@@ -1837,18 +1836,18 @@ export const EditProperty = () => {
                     <div className="p-3 bg-slate-50/80 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end space-x-1.5">
                       <button
                         type="button"
-                        onClick={() => handleOpenEditExpModal(exp)}
+                        onClick={() => handleOpenEditAdvModal(adv)}
                         className="inline-flex items-center space-x-1 px-2.5 py-1 bg-[#087F8C]/10 hover:bg-[#087F8C]/20 text-[#087F8C] dark:text-[#27B7A8] font-bold rounded-lg transition-colors cursor-pointer text-xs"
-                        title="Edit Experience"
+                        title="Edit Adventure"
                       >
                         <Edit className="w-3 h-3" />
                         <span>Edit</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDeleteExp(exp.id, exp.title)}
+                        onClick={() => handleDeleteAdv(adv.id, adv.title)}
                         className="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
-                        title="Delete Experience"
+                        title="Delete Adventure"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1907,8 +1906,8 @@ export const EditProperty = () => {
         </form>
       </div>
 
-      {/* Embedded Experience Modal */}
-      {expModalOpen && (
+      {/* Embedded Adventure Modal */}
+      {advModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
           <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-5 shadow-2xl border border-slate-200 dark:border-slate-800 custom-scrollbar">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -1918,38 +1917,38 @@ export const EditProperty = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-serif font-bold text-[#091B29] dark:text-white">
-                    {editingExpId ? 'Edit Experience Details' : 'Add Experience to Stay'}
+                    {editingAdvId ? 'Edit Adventure Details' : 'Add Adventure to Stay'}
                   </h3>
                   <p className="text-[11px] text-slate-500">Attach adventure, cultural, or culinary activity</p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setExpModalOpen(false)}
+                onClick={() => setAdvModalOpen(false)}
                 className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {expError && (
+            {advError && (
               <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center space-x-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                <span>{expError}</span>
+                <span>{advError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSaveExpModal} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSaveAdvModal} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Experience Title *
+                  Adventure Title *
                 </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Starlit Campfire & Acoustic Night"
-                  value={expTitle}
-                  onChange={(e) => setExpTitle(e.target.value)}
+                  value={advTitle}
+                  onChange={(e) => setAdvTitle(e.target.value)}
                   className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden focus:border-orange-500 font-medium"
                 />
               </div>
@@ -1958,11 +1957,11 @@ export const EditProperty = () => {
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Type *</label>
                   <select
-                    value={expType}
-                    onChange={(e) => setExpType(e.target.value)}
+                    value={advType}
+                    onChange={(e) => setAdvType(e.target.value)}
                     className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden cursor-pointer"
                   >
-                    {EXPERIENCE_TYPE_OPTIONS.map((t) => (
+                    {ADVENTURE_TYPE_OPTIONS.map((t) => (
                       <option key={t} value={t} className="dark:bg-slate-900 text-slate-900 dark:text-white">
                         {t}
                       </option>
@@ -1973,8 +1972,8 @@ export const EditProperty = () => {
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Pricing Model</label>
                   <select
-                    value={expPricingModel}
-                    onChange={(e) => setExpPricingModel(e.target.value)}
+                    value={advPricingModel}
+                    onChange={(e) => setAdvPricingModel(e.target.value)}
                     className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden cursor-pointer"
                   >
                     <option value="per_person" className="dark:bg-slate-900 text-slate-900 dark:text-white">
@@ -1996,8 +1995,8 @@ export const EditProperty = () => {
                     min="0"
                     step="50"
                     placeholder="1200"
-                    value={expPrice}
-                    onChange={(e) => setExpPrice(e.target.value)}
+                    value={advPrice}
+                    onChange={(e) => setAdvPrice(e.target.value)}
                     className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden font-bold"
                   />
                 </div>
@@ -2007,8 +2006,8 @@ export const EditProperty = () => {
                     type="number"
                     min="1"
                     required
-                    value={expCapacity}
-                    onChange={(e) => setExpCapacity(e.target.value)}
+                    value={advCapacity}
+                    onChange={(e) => setAdvCapacity(e.target.value)}
                     className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                   />
                 </div>
@@ -2017,8 +2016,8 @@ export const EditProperty = () => {
                   <input
                     type="text"
                     required
-                    value={expDuration}
-                    onChange={(e) => setExpDuration(e.target.value)}
+                    value={advDuration}
+                    onChange={(e) => setAdvDuration(e.target.value)}
                     className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                   />
                 </div>
@@ -2030,30 +2029,30 @@ export const EditProperty = () => {
                   rows={2}
                   required
                   placeholder="Describe the activity itinerary, equipment provided, departure point..."
-                  value={expDesc}
-                  onChange={(e) => setExpDesc(e.target.value)}
+                  value={advDesc}
+                  onChange={(e) => setAdvDesc(e.target.value)}
                   className="w-full p-2.5 bg-[#FFF8F0]/60 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-hidden"
                 />
               </div>
 
               <ImageUploadPicker
-                label="Experience Photo Upload"
-                hint="Upload experience image directly to local storage"
-                value={expImageUrl}
-                onChange={(url) => setExpImageUrl(url)}
+                label="Adventure Photo Upload"
+                hint="Upload adventure image directly to local storage"
+                value={advImageUrl}
+                onChange={(url) => setAdvImageUrl(url)}
               />
 
-              {editingExpId && (
+              {editingAdvId && (
                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
                   <div>
                     <label className="font-bold text-slate-800 dark:text-slate-200 text-xs">Active Status</label>
-                    <p className="text-[10px] text-slate-500">Allow travelers to discover and book this experience</p>
+                    <p className="text-[10px] text-slate-500">Allow travelers to discover and book this adventure</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={expIsActive}
-                      onChange={(e) => setExpIsActive(e.target.checked)}
+                      checked={advIsActive}
+                      onChange={(e) => setAdvIsActive(e.target.checked)}
                       className="sr-only peer"
                     />
                     <div className="w-10 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
@@ -2064,17 +2063,17 @@ export const EditProperty = () => {
               <div className="flex gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setExpModalOpen(false)}
+                  onClick={() => setAdvModalOpen(false)}
                   className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={expSaving}
+                  disabled={advSaving}
                   className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-[#EA580C] hover:from-orange-600 hover:to-[#c2410c] text-white font-bold rounded-xl cursor-pointer disabled:opacity-50 shadow-md shadow-orange-500/20 transition-all text-xs"
                 >
-                  {expSaving ? 'Saving...' : editingExpId ? 'Save Changes' : 'Add Experience'}
+                  {advSaving ? 'Saving...' : editingAdvId ? 'Save Changes' : 'Add Adventure'}
                 </button>
               </div>
             </form>

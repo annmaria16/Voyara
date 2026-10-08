@@ -71,8 +71,13 @@ export const adminApi = {
     return response.data;
   },
 
+  getAdventures: async () => {
+    const response = await api.get('/admin/adventures');
+    return response.data;
+  },
+
   getExperiences: async () => {
-    const response = await api.get('/admin/experiences');
+    const response = await api.get('/admin/adventures');
     return response.data;
   },
 

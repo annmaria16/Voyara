@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../api/admin';
+import { formatDisplayName, formatEmail } from '../../utils/formatters';
 import {
   Users,
   UserCheck,
@@ -216,7 +217,7 @@ export const AdminUsers = () => {
                       </div>
                       <div>
                         <h3 className="text-base font-serif font-bold text-[#091B29] dark:text-white leading-tight group-hover:text-[#087F8C] transition-colors">
-                          {u.name}
+                          {formatDisplayName(u.name)}
                         </h3>
                         <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500 block">
                           Account #{u.id}
@@ -240,7 +241,7 @@ export const AdminUsers = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2 text-slate-600 dark:text-slate-300 truncate">
                         <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{u.email}</span>
+                        <span className="truncate">{formatEmail(u.email)}</span>
                       </div>
                       <span className={`text-[10px] font-bold ${u.email_verified ? 'text-emerald-500' : 'text-slate-400'}`}>
                         {u.email_verified ? '✓ Email' : 'Unverified'}
@@ -334,7 +335,7 @@ export const AdminUsers = () => {
                   {selectedUser.name?.charAt(0) || 'U'}
                 </div>
                 <h4 className="text-xl font-serif font-bold text-[#091B29] dark:text-white">
-                  {selectedUser.name}
+                  {formatDisplayName(selectedUser.name)}
                 </h4>
                 <p className="text-xs text-slate-500 font-mono">UID: {selectedUser.id}</p>
                 <div className="flex justify-center pt-1">{getStatusBadge(selectedUser)}</div>
@@ -425,7 +426,7 @@ export const AdminUsers = () => {
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200/50 dark:border-slate-800">
                   <span className="text-slate-500">Email:</span>
-                  <strong className="text-[#091B29] dark:text-white">{selectedUser.email}</strong>
+                  <strong className="text-[#091B29] dark:text-white">{formatEmail(selectedUser.email)}</strong>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200/50 dark:border-slate-800">
                   <span className="text-slate-500">Phone:</span>
@@ -490,17 +491,17 @@ export const AdminUsers = () => {
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               {actionModal.type === 'SUSPEND' && (
                 <>
-                  Suspending <strong>{actionModal.user?.name}</strong> will revoke all platform login access, block property management, and hide their properties from traveler searches. A reason is required for safety audit logging.
+                  Suspending <strong>{formatDisplayName(actionModal.user?.name)}</strong> will revoke all platform login access, block property management, and hide their properties from traveler searches. A reason is required for safety audit logging.
                 </>
               )}
               {actionModal.type === 'REACTIVATE' && (
                 <>
-                  Reactivating <strong>{actionModal.user?.name}</strong> will restore standard login and account permissions.
+                  Reactivating <strong>{formatDisplayName(actionModal.user?.name)}</strong> will restore standard login and account permissions.
                 </>
               )}
               {actionModal.type === 'DEACTIVATE' && (
                 <>
-                  Soft deactivating <strong>{actionModal.user?.name}</strong> marks the account inactive while preserving history and audit trails.
+                  Soft deactivating <strong>{formatDisplayName(actionModal.user?.name)}</strong> marks the account inactive while preserving history and audit trails.
                 </>
               )}
             </p>

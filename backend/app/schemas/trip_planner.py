@@ -59,8 +59,13 @@ class TripPlannerRequest(BaseModel):
     interests: List[str] = Field(default_factory=list, description="Traveler interests")
     travel_style: str = Field(default="BALANCED", description="Travel pacing / style")
     stay_type: str = Field(default="ANY", description="Preferred accommodation type")
-    experience_preferences: List[str] = Field(default_factory=list, description="Preferred experience categories")
+    adventure_preferences: List[str] = Field(default_factory=list, description="Preferred adventure categories")
+    experience_preferences: List[str] = Field(default_factory=list, description="Compatibility alias for adventure preferences")
     special_requests: Optional[str] = Field(default=None, max_length=1000, description="Additional notes or constraints")
+
+    def model_post_init(self, __context):
+        if self.experience_preferences and not self.adventure_preferences:
+            self.adventure_preferences = self.experience_preferences
 
     @field_validator("destination")
     @classmethod
@@ -108,6 +113,7 @@ class TripPlannerRoomOption(BaseModel):
     max_children: Optional[int] = None
     price_per_night: float
     total_nights: int
+    room_quantity: int = 1
     room_subtotal: float
     child_charge_subtotal: float = 0.0
     total_stay_cost: float
@@ -166,17 +172,18 @@ class TripPlannerStayCandidate(BaseModel):
     capacity: int
     price_per_night: float
     total_nights: int
+    room_quantity: int = 1
     room_subtotal: float
     child_charge_subtotal: float = 0.0
     total_stay_cost: float
     why_this_stay: str
 
-class TripPlannerExperienceCandidate(BaseModel):
-    experience_id: int
+class TripPlannerAdventureCandidate(BaseModel):
+    adventure_id: int
     property_id: int
     property_name: str
     title: str
-    experience_type: str
+    adventure_type: str
     description: str
     price: float
     pricing_model: str  # "per_person" or "fixed"
@@ -187,8 +194,24 @@ class TripPlannerExperienceCandidate(BaseModel):
     scheduled_date: str
     day_number: int
     participants: int
-    total_experience_cost: float
+    total_adventure_cost: float
+    total_experience_cost: Optional[float] = None
     capacity_available: int
+
+    # Compatibility aliases
+    @property
+    def experience_id(self) -> int:
+        return self.adventure_id
+
+    @property
+    def experience_type(self) -> str:
+        return self.adventure_type
+
+    def model_post_init(self, __context):
+        if self.total_experience_cost is None:
+            self.total_experience_cost = self.total_adventure_cost
+
+TripPlannerExperienceCandidate = TripPlannerAdventureCandidate
 
 class ExternalPlaceCandidate(BaseModel):
     source: str = "VERIFIED_CATALOG"  # "GOOGLE_PLACES", "OPENSTREETMAP", "VERIFIED_CATALOG"
@@ -219,7 +242,7 @@ class ItineraryItemResponse(BaseModel):
     start_time: str
     end_time: str
     title: str
-    item_type: str  # STAY_CHECKIN, STAY_CHECKOUT, VOYARA_EXPERIENCE, EXTERNAL_ATTRACTION, MEAL_RECOMMENDATION, LEISURE_NOTE
+    item_type: str  # STAY_CHECKIN, STAY_CHECKOUT, VOYARA_ADVENTURE, VOYARA_EXPERIENCE, EXTERNAL_ATTRACTION, MEAL_RECOMMENDATION, LEISURE_NOTE
     description: str
     category: Optional[str] = None
     photo_url: Optional[str] = None
@@ -236,7 +259,7 @@ class ItineraryItemResponse(BaseModel):
     pricing_note: Optional[str] = None
     travel_time_minutes: int = 0
     distance_km: float = 0.0
-    action_type: Optional[str] = None  # "VIEW_STAY", "BOOK_STAY", "VIEW_EXPERIENCE", "VIEW_MAP"
+    action_type: Optional[str] = None  # "VIEW_STAY", "BOOK_STAY", "VIEW_ADVENTURE", "VIEW_EXPERIENCE", "VIEW_MAP"
 
 class ItineraryDayResponse(BaseModel):
     day_number: int
@@ -246,13 +269,20 @@ class ItineraryDayResponse(BaseModel):
 
 class PricingSummaryResponse(BaseModel):
     accommodation_total: float
-    experiences_total: float
+    adventures_total: float = 0.0
+    experiences_total: float = 0.0
     known_cost: float
     currency: str = "INR"
-    disclaimer: str = "This estimate includes your selected Voyara stay and verified experiences. Food, local transport, and personal expenses are not included."
+    disclaimer: str = "This estimate includes your selected Voyara stay and verified adventures. Food, local transport, and personal expenses are not included."
     budget_status: str = "WITHIN_BUDGET"  # "WITHIN_BUDGET", "EXCEEDS_BUDGET", "FLEXIBLE", "NO_BUDGET_SET"
     budget_target: Optional[float] = None
     budget_difference: Optional[float] = None
+
+    def model_post_init(self, __context):
+        if self.adventures_total == 0.0 and self.experiences_total > 0.0:
+            self.adventures_total = self.experiences_total
+        elif self.experiences_total == 0.0 and self.adventures_total > 0.0:
+            self.experiences_total = self.adventures_total
 
 class TripPlanResponse(BaseModel):
     trip: Dict[str, Any]
@@ -260,13 +290,20 @@ class TripPlanResponse(BaseModel):
     available_stays: List[TripPlannerPropertyOption] = []
     nearby_stays: List[TripPlannerPropertyOption] = []
     destination_info: Optional[DestinationInfo] = None
-    experiences: List[TripPlannerExperienceCandidate] = []
+    adventures: List[TripPlannerAdventureCandidate] = []
+    experiences: List[TripPlannerAdventureCandidate] = []
     external_places: List[ExternalPlaceCandidate] = []
     days: List[ItineraryDayResponse] = []
     pricing_summary: PricingSummaryResponse
     explanation: str
     validation_status: str = "PASSED"
     validation_messages: List[str] = []
+
+    def model_post_init(self, __context):
+        if self.experiences and not self.adventures:
+            self.adventures = self.experiences
+        elif self.adventures and not self.experiences:
+            self.experiences = self.adventures
 
 class RegenerateDayRequest(BaseModel):
     trip_id: Optional[int] = None
@@ -286,6 +323,7 @@ class RevalidateTripResponse(BaseModel):
     has_changes: bool
     changes_summary: List[str] = []
     is_stay_available: bool = True
+    is_adventure_available: bool = True
     is_experience_available: bool = True
     updated_plan: TripPlanResponse
 
@@ -326,7 +364,8 @@ class SavedTripDetailResponse(BaseModel):
     travel_style: str
     stay_type: str
     interests: List[str]
-    experience_preferences: List[str]
+    adventure_preferences: List[str] = []
+    experience_preferences: List[str] = []
     special_requests: Optional[str]
     estimated_known_cost: float
     currency: str
@@ -334,6 +373,12 @@ class SavedTripDetailResponse(BaseModel):
     revalidation_status: Optional[Dict[str, Any]] = None
     created_at: str
     updated_at: str
+
+    def model_post_init(self, __context):
+        if self.experience_preferences and not self.adventure_preferences:
+            self.adventure_preferences = self.experience_preferences
+        elif self.adventure_preferences and not self.experience_preferences:
+            self.experience_preferences = self.adventure_preferences
 
 class TripChatContext(BaseModel):
     destination: Optional[str] = None
@@ -355,7 +400,14 @@ class TripChatContext(BaseModel):
     food_preferences: Optional[str] = None
     selected_property_id: Optional[int] = None
     selected_room_id: Optional[int] = None
+    selected_adventure_ids: List[int] = []
     selected_experience_ids: List[int] = []
+
+    def model_post_init(self, __context):
+        if self.selected_experience_ids and not self.selected_adventure_ids:
+            self.selected_adventure_ids = self.selected_experience_ids
+        elif self.selected_adventure_ids and not self.selected_experience_ids:
+            self.selected_experience_ids = self.selected_adventure_ids
 
 class BudgetAnalysis(BaseModel):
     requested_budget: Optional[float] = None
@@ -395,11 +447,23 @@ class TripChatResponse(BaseModel):
     selected_stay: Optional[TripPlannerStayCandidate] = None
     room_options: List[TripPlannerRoomOption] = []
     selected_rooms: List[Any] = []
-    experiences: List[TripPlannerExperienceCandidate] = []
+    adventures: List[TripPlannerAdventureCandidate] = []
+    experiences: List[TripPlannerAdventureCandidate] = []
+    selected_adventures: List[Any] = []
     selected_experiences: List[Any] = []
     places: List[ExternalPlaceCandidate] = []
     itinerary: List[ItineraryDayResponse] = []
     budget: Optional[PricingSummaryResponse] = None
+
+    def model_post_init(self, __context):
+        if self.experiences and not self.adventures:
+            self.adventures = self.experiences
+        elif self.adventures and not self.experiences:
+            self.experiences = self.adventures
+        if self.selected_experiences and not self.selected_adventures:
+            self.selected_adventures = self.selected_experiences
+        elif self.selected_adventures and not self.selected_experiences:
+            self.selected_experiences = self.selected_adventures
 
 
 # Chat Session History Schemas
@@ -437,4 +501,84 @@ class CreateChatSessionRequest(BaseModel):
     title: Optional[str] = "New Trip Plan"
     destination: Optional[str] = None
     initial_context: Optional[TripChatContext] = None
+
+class TripBookingHandoffRequest(BaseModel):
+    property_id: int
+    room_id: int
+    check_in: date
+    check_out: date
+    adults: int = 1
+    children: int = 0
+    child_ages: List[int] = []
+    cot_count: int = 0
+    extra_bed_count: int = 0
+    room_quantity: Optional[int] = None
+    adventure_id: Optional[int] = None
+    adventure_date: Optional[date] = None
+    adventure_participants: Optional[int] = None
+    experience_id: Optional[int] = None
+    experience_date: Optional[date] = None
+    experience_participants: Optional[int] = None
+    session_id: Optional[str] = None
+    saved_trip_id: Optional[int] = None
+
+    def model_post_init(self, __context):
+        if self.experience_id is not None and self.adventure_id is None:
+            self.adventure_id = self.experience_id
+        if self.experience_date is not None and self.adventure_date is None:
+            self.adventure_date = self.experience_date
+        if self.experience_participants is not None and self.adventure_participants is None:
+            self.adventure_participants = self.experience_participants
+
+class TripBookingHandoffResponse(BaseModel):
+    handoff_token: str
+    property_id: int
+    property_name: str
+    property_type: str
+    property_city: str
+    room_id: int
+    room_name: str
+    room_price: float
+    room_quantity: int
+    check_in: str
+    check_out: str
+    nights: int
+    guests: int
+    adults: int
+    children: int
+    child_ages: List[int] = []
+    cot_count: int = 0
+    extra_bed_count: int = 0
+    cots_subtotal: float = 0.0
+    extra_beds_subtotal: float = 0.0
+    children_subtotal: float = 0.0
+    room_subtotal: float
+    adventure_id: Optional[int] = None
+    adventure_title: Optional[str] = None
+    adventure_price: Optional[float] = None
+    adventure_pricing_model: Optional[str] = None
+    adventure_participants: Optional[int] = None
+    adventure_date: Optional[str] = None
+    adventure_subtotal: float = 0.0
+    experience_id: Optional[int] = None
+    experience_title: Optional[str] = None
+    experience_price: Optional[float] = None
+    experience_pricing_model: Optional[str] = None
+    experience_participants: Optional[int] = None
+    experience_date: Optional[str] = None
+    experience_subtotal: float = 0.0
+    total_amount: float
+    property_rules: Optional[Dict[str, Any]] = None
+    room_rules: Optional[Dict[str, Any]] = None
+
+    def model_post_init(self, __context):
+        if self.adventure_id is not None and self.experience_id is None:
+            self.experience_id = self.adventure_id
+            self.experience_title = self.adventure_title
+            self.experience_price = self.adventure_price
+            self.experience_pricing_model = self.adventure_pricing_model
+            self.experience_participants = self.adventure_participants
+            self.experience_date = self.adventure_date
+            self.experience_subtotal = self.adventure_subtotal
+
 

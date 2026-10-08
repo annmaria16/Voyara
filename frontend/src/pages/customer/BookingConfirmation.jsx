@@ -244,14 +244,14 @@ export const BookingConfirmation = () => {
             ))}
           </div>
 
-          {/* Connected Experience (if booked) */}
-          {booking.booking_experiences?.length > 0 && (
+          {/* Connected Adventure (if booked) */}
+          {((booking.booking_adventures && booking.booking_adventures.length > 0) || (booking.booking_experiences && booking.booking_experiences.length > 0)) && (
             <div className="space-y-2 pt-1">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8]">Connected Experience</h4>
-              {booking.booking_experiences.map((be) => (
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8]">Connected Adventure</h4>
+              {(booking.booking_adventures || booking.booking_experiences).map((be) => (
                 <div key={be.id} className="p-3.5 bg-[#DDF3E7] dark:bg-[#35A66F]/20 rounded-xl border border-[#35A66F]/30 flex justify-between items-center text-xs">
                   <div>
-                    <span className="font-bold text-[#17324D] dark:text-white block">{be.experience_title}</span>
+                    <span className="font-bold text-[#17324D] dark:text-white block">{be.adventure_title || be.experience_title}</span>
                     <span className="text-[#35A66F] block">{be.participants} Participant(s) • Scheduled: {be.scheduled_date}</span>
                   </div>
                   <span className="font-bold text-[#35A66F] text-sm">₹{be.subtotal?.toLocaleString('en-IN')}</span>

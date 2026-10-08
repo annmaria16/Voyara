@@ -247,8 +247,8 @@ export const LandingPage = () => {
     },
   ];
 
-  // Experience Highlights
-  const experienceHighlights = [
+  // Adventure Highlights
+  const adventureHighlights = [
     {
       title: 'Sunrise Tea Plucking & Tasting Tour',
       desc: 'Join local tea masters at dawn through heritage Nilgiri & Munnar plantations.',
@@ -256,7 +256,7 @@ export const LandingPage = () => {
       image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=800&q=80',
     },
     {
-      title: 'Bioluminescent Kayaking Experience',
+      title: 'Bioluminescent Kayaking Adventure',
       desc: 'Paddle through glowing backwaters under starlit midnight skies in Goa.',
       badge: 'Night Adventure',
       image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
@@ -293,7 +293,7 @@ export const LandingPage = () => {
     { step: '02', name: 'Property', desc: 'Verified location & host credentials' },
     { step: '03', name: 'Room', desc: 'Confirmed unit plan & inventory' },
     { step: '04', name: 'Availability', desc: 'Real-time blackout & schedule check' },
-    { step: '05', name: 'Experience', desc: 'Slot & capacity alignment' },
+    { step: '05', name: 'Adventure', desc: 'Slot & capacity alignment' },
     { step: '06', name: 'Price Lock', desc: 'Authoritative server rate guarantee' },
     { step: '07', name: 'Security Hash', desc: 'SHA-256 state seal generation' },
     { step: '08', name: 'Verification', desc: 'Cryptographically certified pass' },
@@ -533,52 +533,52 @@ export const LandingPage = () => {
       </section>
 
       {/* =========================================================================
-          SECTION 3: "STAY. EXPLORE. EXPERIENCE." (EDITORIAL EXPERIENCES)
+          SECTION 3: "STAY. EXPLORE. ADVENTURE." (EDITORIAL ADVENTURES)
       ========================================================================= */}
       <section className="bg-[#FFFDF7] dark:bg-[#0B1E2E]/60 py-20 border-y border-[#E0ECEF] dark:border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
             <h2 className="text-3xl sm:text-5xl font-black font-serif text-[#17324D] dark:text-white">
-              Stay. Explore. Experience.
+              Stay. Explore. Adventure.
             </h2>
             <p className="text-base text-[#607080] dark:text-slate-300 font-light leading-relaxed">
-              Voyara does not just book four walls. Pair your stay with authentic stay partner-led experiences that turn a standard trip into a lifelong memory.
+              Voyara does not just book four walls. Pair your stay with authentic stay partner-led adventures that turn a standard trip into a lifelong memory.
             </p>
           </div>
 
-          {/* 6 Experience Cards Grid */}
+          {/* 6 Adventure Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {experienceHighlights.map((exp, idx) => (
+            {adventureHighlights.map((adv, idx) => (
               <div
                 key={idx}
-                onClick={() => handleExploreClick('/experiences')}
+                onClick={() => handleExploreClick('/adventures')}
                 className="group cursor-pointer rounded-3xl overflow-hidden card-voyara card-lift border border-[#E0ECEF] dark:border-white/10 flex flex-col justify-between"
               >
                 <div className="relative h-56 overflow-hidden bg-slate-100 dark:bg-slate-800 img-zoom-container">
                   <img
-                    src={exp.image}
-                    alt={exp.title}
+                    src={adv.image}
+                    alt={adv.title}
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <span className="absolute top-4 left-4 px-3 py-1 rounded-full bg-white/95 dark:bg-[#091B29]/90 backdrop-blur-md text-[11px] font-bold text-[#F97316] uppercase tracking-wider">
-                    {exp.badge}
+                    {adv.badge}
                   </span>
                   <div className="absolute bottom-4 left-4 right-4">
                     <h3 className="text-lg font-bold font-serif text-white group-hover:text-[#F6C945] transition-colors">
-                      {exp.title}
+                      {adv.title}
                     </h3>
                   </div>
                 </div>
 
                 <div className="p-5 bg-white dark:bg-[#0F273D] space-y-3 flex-1 flex flex-col justify-between">
                   <p className="text-xs text-[#607080] dark:text-slate-300 leading-relaxed font-light">
-                    {exp.desc}
+                    {adv.desc}
                   </p>
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-[#087F8C] dark:text-[#27B7A8]">
-                    <span>Browse experience</span>
+                    <span>Browse adventure</span>
                     <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
@@ -589,10 +589,10 @@ export const LandingPage = () => {
           <div className="mt-12 text-center">
             <button
               type="button"
-              onClick={() => handleExploreClick('/experiences')}
+              onClick={() => handleExploreClick('/adventures')}
               className="inline-flex items-center space-x-2 px-8 py-3.5 bg-[#087F8C] hover:bg-[#0F9D9A] text-white text-xs font-bold rounded-2xl shadow-md transition-all cursor-pointer"
             >
-              <span>Explore All Curated Experiences</span>
+              <span>Explore All Curated Adventures</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -687,7 +687,7 @@ export const LandingPage = () => {
             </h2>
 
             <p className="text-base text-white/85 font-light leading-relaxed">
-              Turn your property into someone's next unforgettable stay. List your homestay, boutique resort, cottage, or villa. Manage room inventory, schedule local experiences, and welcome travelers from across India.
+              Turn your property into someone's next unforgettable stay. List your homestay, boutique resort, cottage, or villa. Manage room inventory, schedule local adventures, and welcome travelers from across India.
             </p>
 
             <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">

@@ -29,10 +29,10 @@ export const AboutPage = () => {
         {/* Hero */}
         <div className="text-center space-y-4">
           <h1 className="text-3xl sm:text-5xl font-black font-serif tracking-tight text-[#091B29] dark:text-white">
-            Stay. Explore. Experience.
+            Stay. Explore. Adventure.
           </h1>
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-light leading-relaxed">
-            Voyara is an authentic accommodation and experience marketplace connecting mindful travellers with passionate hosts across unforgettable hill stations, coastal retreats, and heritage villas.
+            Voyara is an authentic accommodation and adventure marketplace connecting mindful travellers with passionate hosts across unforgettable hill stations, coastal retreats, and heritage villas.
           </p>
         </div>
 
@@ -55,7 +55,7 @@ export const AboutPage = () => {
               <Flame className="w-6 h-6" />
             </div>
             <h3 className="text-base font-bold font-serif text-[#091B29] dark:text-white">
-              Local Experiences
+              Local Adventures
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Guided tea plantation treks, backwater kayaking, campfires, and authentic culinary journeys curated directly by your local hosts.

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { verinovaApi } from '../../api/verinova';
+import { aiBookingApi } from '../../api/aiBooking';
 import { PropertyReviewModal } from '../../components/admin/PropertyReviewModal';
+import { formatDisplayName, formatEmail, formatPropertyName, formatRoomName, formatAdventureName } from '../../utils/formatters';
 import {
   ShieldCheck,
   Filter,
@@ -26,7 +28,9 @@ import {
   Database,
   Lock,
   Activity,
-  History
+  History,
+  Play,
+  Check
 } from 'lucide-react';
 
 export const VerificationCenter = () => {
@@ -35,6 +39,11 @@ export const VerificationCenter = () => {
   const [properties, setProperties] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [aiMetrics, setAiMetrics] = useState(null);
+  const [aiResearchLogs, setAiResearchLogs] = useState([]);
+  const [simulationRunning, setSimulationRunning] = useState(false);
+  const [simulationResult, setSimulationResult] = useState(null);
+  const [selectedScenario, setSelectedScenario] = useState('simulate_price_mismatch');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -83,6 +92,38 @@ export const VerificationCenter = () => {
     }
   };
 
+  const fetchAIResearch = async () => {
+    try {
+      const [metrics, logs] = await Promise.all([
+        aiBookingApi.getResearchMetrics(),
+        aiBookingApi.getResearchLogs({ limit: 50, include_simulations: true })
+      ]);
+      setAiMetrics(metrics);
+      setAiResearchLogs(logs || []);
+    } catch (err) {
+      console.error('Error loading AI research data:', err);
+    }
+  };
+
+  const handleRunSimulation = async () => {
+    setSimulationRunning(true);
+    setSimulationResult(null);
+    try {
+      const result = await aiBookingApi.runSimulation({
+        scenario: selectedScenario,
+        destination: 'Munnar',
+        adults: 2,
+        children: 0
+      });
+      setSimulationResult(result);
+      await fetchAIResearch();
+    } catch (err) {
+      setError(err.message || 'Simulation execution failed.');
+    } finally {
+      setSimulationRunning(false);
+    }
+  };
+
   const reloadAll = async () => {
     setLoading(true);
     setError('');
@@ -91,7 +132,8 @@ export const VerificationCenter = () => {
         fetchOverview(),
         fetchProperties(),
         fetchTransactions(),
-        fetchAuditLogs()
+        fetchAuditLogs(),
+        fetchAIResearch()
       ]);
     } catch (err) {
       setError(err.message || 'Failed to load VeriNova verification data.');
@@ -211,6 +253,7 @@ export const VerificationCenter = () => {
       <div className="bg-white dark:bg-[#0F273D] rounded-2xl p-2 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center space-x-1 overflow-x-auto custom-scrollbar">
         {[
           { id: 'OVERVIEW', label: 'Overview & Metrics', icon: Activity },
+          { id: 'AI_AGENT_RESEARCH', label: 'AI Agent Verification & Research', icon: Sparkles },
           { id: 'PROPERTY_ASSESSMENTS', label: `Property Assessments (${properties.length})`, icon: Building },
           { id: 'TRANSACTIONS', label: `Transaction Verifications (${transactions.length})`, icon: CheckCheck },
           { id: 'NEEDS_REVIEW', label: `Needs Review (${needsReviewList.length})`, icon: AlertTriangle },
@@ -342,7 +385,7 @@ export const VerificationCenter = () => {
                   </strong>
                 </div>
                 <p className="leading-relaxed text-[11px]">
-                  Executes 27 database integrity verifications: real-time row-level locks preventing double-booking race conditions, stay window date logical validation, stay+experience schedule synchronization, authoritative backend rate recalculation, and unique <code>VN-TX-XXXXXXXX</code> verification tokens.
+                  Executes 27 database integrity verifications: real-time row-level locks preventing double-booking race conditions, stay window date logical validation, stay+adventure schedule synchronization, authoritative backend rate recalculation, and unique <code>VN-TX-XXXXXXXX</code> verification tokens.
                 </p>
                 <div className="text-[10px] text-slate-500 font-mono">
                   • Row-Level Concurrency Protection • Real-Time Re-Verification
@@ -406,7 +449,7 @@ export const VerificationCenter = () => {
                       <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
                         <td className="p-4">
                           <strong className="font-bold text-[#091B29] dark:text-white block text-sm">
-                            {p.property_name}
+                            {formatPropertyName(p.property_name)}
                           </strong>
                           <div className="flex items-center space-x-2 text-[10px] text-slate-400 mt-0.5">
                             <span className="font-mono text-[#087F8C] dark:text-[#27B7A8] font-bold">{p.assessment_id}</span>
@@ -416,8 +459,8 @@ export const VerificationCenter = () => {
                         </td>
 
                         <td className="p-4">
-                          <span className="font-semibold text-slate-800 dark:text-slate-200 block">{p.host_name}</span>
-                          <span className="text-[10px] text-slate-400 block">{p.host_email}</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 block">{formatDisplayName(p.host_name)}</span>
+                          <span className="text-[10px] text-slate-400 block">{formatEmail(p.host_email)}</span>
                         </td>
 
                         <td className="p-4">
@@ -524,7 +567,7 @@ export const VerificationCenter = () => {
                   <tr>
                     <th className="p-4">Verification ID & Booking</th>
                     <th className="p-4">Customer</th>
-                    <th className="p-4">Stay & Experience</th>
+                    <th className="p-4">Stay & Adventure</th>
                     <th className="p-4">Dates</th>
                     <th className="p-4">Amount & Status</th>
                     <th className="p-4">Integrity Checks</th>
@@ -544,16 +587,16 @@ export const VerificationCenter = () => {
                         </td>
 
                         <td className="p-4">
-                          <strong className="text-[#091B29] dark:text-white block">{tx.customer_name}</strong>
-                          <span className="text-[10px] text-slate-400 block">{tx.customer_email || 'N/A'}</span>
+                          <strong className="text-[#091B29] dark:text-white block">{formatDisplayName(tx.customer_name)}</strong>
+                          <span className="text-[10px] text-slate-400 block">{formatEmail(tx.customer_email || '') || 'N/A'}</span>
                         </td>
 
                         <td className="p-4">
-                          <strong className="text-[#091B29] dark:text-white block">{tx.property_name}</strong>
-                          <span className="text-[10px] text-slate-500 block">{tx.room_name || 'Room Stay'}</span>
-                          {tx.experience_name && (
+                          <strong className="text-[#091B29] dark:text-white block">{formatPropertyName(tx.property_name)}</strong>
+                          <span className="text-[10px] text-slate-500 block">{formatRoomName(tx.room_name || 'Room Stay')}</span>
+                          {(tx.adventure_name || tx.experience_name) && (
                             <span className="text-[10px] text-orange-500 font-semibold block">
-                              + {tx.experience_name}
+                              + {formatAdventureName(tx.adventure_name || tx.experience_name)}
                             </span>
                           )}
                         </td>
@@ -634,10 +677,10 @@ export const VerificationCenter = () => {
                     </div>
 
                     <h4 className="text-base font-bold text-[#091B29] dark:text-white">
-                      {p.property_name}
+                      {formatPropertyName(p.property_name)}
                     </h4>
                     <span className="text-xs text-slate-500 block mt-0.5">
-                      Stay Partner: {p.host_name} ({p.host_email})
+                      Stay Partner: {formatDisplayName(p.host_name)} ({formatEmail(p.host_email)})
                     </span>
 
                     <div className="p-3 bg-slate-50 dark:bg-[#091B29] rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 mt-3 leading-relaxed">
@@ -695,11 +738,11 @@ export const VerificationCenter = () => {
                           Duplicate Alert
                         </span>
                         <span className="text-xs font-bold text-[#091B29] dark:text-white">
-                          #{p.property_id} - {p.property_name}
+                          #{p.property_id} - {formatPropertyName(p.property_name)}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
-                        Stay Partner: {p.host_name} • Fingerprint: <code className="font-mono text-[#087F8C] dark:text-[#27B7A8]">{p.property_fingerprint}</code>
+                        Stay Partner: {formatDisplayName(p.host_name)} • Fingerprint: <code className="font-mono text-[#087F8C] dark:text-[#27B7A8]">{p.property_fingerprint}</code>
                       </p>
                     </div>
 
@@ -772,6 +815,252 @@ export const VerificationCenter = () => {
                   No audit log events recorded yet.
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 7: AI AGENT RESEARCH & VERIFICATION */}
+      {activeTab === 'AI_AGENT_RESEARCH' && (
+        <div className="space-y-8">
+          {/* Top Research Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 bg-white dark:bg-[#0F273D] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  Autonomous Sessions
+                </span>
+                <strong className="text-2xl font-black text-[#091B29] dark:text-white mt-1 block">
+                  {aiMetrics?.total_sessions ?? 0}
+                </strong>
+                <span className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold mt-0.5 block">
+                  {aiMetrics?.total_bookings_attempted ?? 0} bookings attempted
+                </span>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                <Sparkles className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="p-5 bg-white dark:bg-[#0F273D] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  VeriNova Verified Rate
+                </span>
+                <strong className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+                  {aiMetrics?.verification_accuracy ?? 100}%
+                </strong>
+                <span className="text-[11px] text-slate-500 font-semibold mt-0.5 block">
+                  {aiMetrics?.verified_count ?? 0} verified bookings
+                </span>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="p-5 bg-white dark:bg-[#0F273D] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  False Success Rate
+                </span>
+                <strong className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 block">
+                  {aiMetrics?.false_success_rate ?? 0}%
+                </strong>
+                <span className="text-[11px] text-slate-500 font-semibold mt-0.5 block">
+                  {aiMetrics?.false_success_detected_count ?? 0} false claims caught
+                </span>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <AlertOctagon className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="p-5 bg-white dark:bg-[#0F273D] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  Avg Latencies
+                </span>
+                <strong className="text-2xl font-black text-[#087F8C] dark:text-[#27B7A8] mt-1 block">
+                  {aiMetrics?.avg_verification_latency_ms ?? 0}ms
+                </strong>
+                <span className="text-[11px] text-slate-500 font-semibold mt-0.5 block">
+                  Agent Exec: {aiMetrics?.avg_execution_latency_ms ?? 0}ms
+                </span>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-[#087F8C]/10 text-[#087F8C] dark:text-[#27B7A8] flex items-center justify-center">
+                <Clock className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
+          {/* Research Failure Mode Simulation Runner */}
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-bold text-sm text-[#091B29] dark:text-white flex items-center space-x-2">
+                  <Play className="w-4 h-4 text-[#087F8C]" />
+                  <span>Controlled Research Failure Simulation Runner</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Inject synthetic discrepancy scenarios to validate VeriNova independent outcome detection.
+                </p>
+              </div>
+              <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg border border-amber-200 dark:border-amber-800/60 uppercase tracking-wider self-start sm:self-auto">
+                Admin Research Mode
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={selectedScenario}
+                onChange={(e) => setSelectedScenario(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-semibold text-[#091B29] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#087F8C]"
+              >
+                <option value="simulate_price_mismatch">Scenario 1: Price Discrepancy (₹850 mismatch)</option>
+                <option value="simulate_date_mismatch">Scenario 2: Date Desynchronization (Extra night)</option>
+                <option value="simulate_room_mismatch">Scenario 3: Room Inventory Substitution</option>
+                <option value="simulate_booking_failure">Scenario 4: Agent Claims Success on DB Failure</option>
+                <option value="simulate_inventory_overflow">Scenario 5: Double-Booking / Overflow Attempt</option>
+              </select>
+
+              <button
+                onClick={handleRunSimulation}
+                disabled={simulationRunning}
+                className="px-4 py-2 bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] hover:from-[#0F9D9A] hover:to-[#087F8C] text-white rounded-xl text-xs font-bold transition flex items-center space-x-2 shadow-xs disabled:opacity-50"
+              >
+                {simulationRunning ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Executing Simulation...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Run Research Experiment</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Simulation Result Box */}
+            {simulationResult && (
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-2 text-xs">
+                <div className="flex items-center justify-between font-bold">
+                  <span className="text-[#091B29] dark:text-white flex items-center space-x-2">
+                    <span>Experiment Result for: <code>{simulationResult.scenario}</code></span>
+                  </span>
+                  <span className={`px-2.5 py-0.5 rounded-full font-mono font-bold text-[11px] ${
+                    simulationResult.verinova_outcome === 'VERIFIED'
+                      ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200'
+                      : 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
+                  }`}>
+                    VeriNova: {simulationResult.verinova_outcome} (Score: {simulationResult.verinova_score}/100)
+                  </span>
+                </div>
+                <p className="text-slate-600 dark:text-slate-300">
+                  <strong>Agent Claimed:</strong> {simulationResult.agent_claimed_outcome} | <strong>False Success Detected:</strong> {simulationResult.false_success_detected ? 'YES (Neutralized)' : 'NO'}
+                </p>
+                {simulationResult.failure_reasons && (
+                  <p className="text-amber-700 dark:text-amber-400 font-semibold">
+                    Failure reasons: {simulationResult.failure_reasons}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* AI Research Logs Table */}
+          <div className="bg-white dark:bg-[#0F273D] rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="font-black text-xs uppercase tracking-wider text-[#091B29] dark:text-white flex items-center space-x-2">
+                <Layers className="w-4 h-4 text-[#087F8C] dark:text-[#27B7A8]" />
+                <span>AI Autonomous Booking Telemetry & VeriNova Audit Logs</span>
+              </h3>
+              <span className="text-[10px] text-slate-400">Showing last {aiResearchLogs.length} records</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800/50 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                  <tr>
+                    <th className="p-3.5">Timestamp</th>
+                    <th className="p-3.5">Task / User</th>
+                    <th className="p-3.5">Booking ID</th>
+                    <th className="p-3.5">Agent Claim</th>
+                    <th className="p-3.5">VeriNova Audit</th>
+                    <th className="p-3.5">Discrepancies / Checks</th>
+                    <th className="p-3.5 text-right">Latencies</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {aiResearchLogs.length > 0 ? (
+                    aiResearchLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
+                        <td className="p-3.5 font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </td>
+                        <td className="p-3.5">
+                          <div className="font-bold text-[#091B29] dark:text-white truncate max-w-[180px]">
+                            {log.task_type}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate max-w-[180px]">
+                            {log.traveler_email}
+                          </div>
+                          {log.is_simulation && (
+                            <span className="inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
+                              SIMULATION: {log.simulation_scenario}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5 font-mono font-semibold text-slate-600 dark:text-slate-300">
+                          {log.booking_id ? `#${log.booking_id}` : '—'}
+                        </td>
+                        <td className="p-3.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                            log.agent_claimed_outcome === 'SUCCESS'
+                              ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600'
+                          }`}>
+                            {log.agent_claimed_outcome}
+                          </span>
+                        </td>
+                        <td className="p-3.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                            log.verification_outcome === 'VERIFIED'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                              : log.verification_outcome === 'MISMATCH'
+                              ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                              : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                          }`}>
+                            {log.verification_outcome}
+                          </span>
+                        </td>
+                        <td className="p-3.5 text-slate-600 dark:text-slate-300 text-[11px] max-w-xs">
+                          {log.verification_failures ? (
+                            <span className="text-amber-600 dark:text-amber-400 font-semibold">{log.verification_failures}</span>
+                          ) : (
+                            <span className="text-emerald-600 dark:text-emerald-400 flex items-center space-x-1">
+                              <Check className="w-3 h-3" />
+                              <span>100% DB State Consistency</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5 text-right font-mono text-[10px] text-slate-400 whitespace-nowrap">
+                          <div>Exec: {log.execution_latency_ms}ms</div>
+                          <div>Ver: {log.verification_latency_ms}ms</div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-400 italic">
+                        No AI agent telemetry logs recorded yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

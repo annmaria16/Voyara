@@ -2,6 +2,14 @@ import api from './client';
 
 export const tripPlannerApi = {
   /**
+   * Authoritatively validates booking selection and generates booking handoff context
+   */
+  createBookingHandoff: async (data) => {
+    const response = await api.post('/ai/trip-planner/booking-handoff', data);
+    return response.data;
+  },
+
+  /**
    * Conversational trip planner chat endpoint
    */
   chatTripPlanner: async (data) => {
@@ -42,7 +50,7 @@ export const tripPlannerApi = {
   },
 
   /**
-   * Rechecks live room/experience inventory and price freshness for a saved trip
+   * Rechecks live room/adventure inventory and price freshness for a saved trip
    */
   revalidateTrip: async (tripId) => {
     const response = await api.post(`/ai/trip-planner/revalidate?trip_id=${tripId}`);

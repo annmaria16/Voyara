@@ -37,7 +37,7 @@ export const DashboardLayout = ({ role, title, children }) => {
               ? 'Search your properties, rooms, bookings...'
               : activeRole === 'ADMIN'
               ? 'Search users, properties, bookings...'
-              : 'Search destinations, stays, experiences...'
+              : 'Search destinations, stays, adventures...'
           }
         />
 

@@ -39,7 +39,7 @@ export const Navbar = () => {
       navigate('/login', {
         state: {
           from: targetPath,
-          message: 'Sign in to explore verified stays and host experiences.',
+          message: 'Sign in to explore verified stays and host adventures.',
         },
       });
     }
@@ -91,14 +91,14 @@ export const Navbar = () => {
 
             <button
               type="button"
-              onClick={() => handleAuthGuardedNav('/experiences')}
+              onClick={() => handleAuthGuardedNav('/adventures')}
               className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all cursor-pointer ${
-                location.pathname.startsWith('/experiences')
+                location.pathname.startsWith('/adventures') || location.pathname.startsWith('/experiences')
                   ? 'bg-white/20 text-white shadow-xs'
                   : 'text-white/90 hover:text-white hover:bg-white/10'
               }`}
             >
-              Experiences
+              Adventures
             </button>
 
             <Link
@@ -191,11 +191,11 @@ export const Navbar = () => {
               type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
-                handleAuthGuardedNav('/experiences');
+                handleAuthGuardedNav('/adventures');
               }}
               className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-white hover:bg-white/10"
             >
-              Experiences
+              Adventures
             </button>
             <Link
               to="/about"

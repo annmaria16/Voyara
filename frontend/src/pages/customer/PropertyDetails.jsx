@@ -9,6 +9,15 @@ import { VoyaraAIChat } from '../../components/ai/VoyaraAIChat';
 import { StayGuideChat } from '../../components/stayguide/StayGuideChat';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import {
+  formatDisplayName,
+  formatPropertyName,
+  formatRoomName,
+  formatAdventureName,
+  formatLocationName,
+  formatPropertyType,
+  formatAmenityName,
+} from '../../utils/formatters';
+import {
   MapPin,
   Star,
   ShieldCheck,
@@ -49,8 +58,8 @@ export const PropertyDetails = () => {
   const [roomQuantity, setRoomQuantity] = useState(1);
   const [roomAvailability, setRoomAvailability] = useState(null);
   const [availLoading, setAvailLoading] = useState(false);
-  const [selectedExperienceId, setSelectedExperienceId] = useState(null);
-  const [experienceParticipants, setExperienceParticipants] = useState('2');
+  const [selectedAdventureId, setSelectedAdventureId] = useState(null);
+  const [adventureParticipants, setAdventureParticipants] = useState('2');
   const [error, setError] = useState('');
   const [reviewsData, setReviewsData] = useState(null);
 
@@ -114,7 +123,8 @@ export const PropertyDetails = () => {
 
   // Derived variables (safely handling null property during initial load)
   const selectedRoom = property?.rooms?.find((r) => r.id === selectedRoomId) || property?.rooms?.[0];
-  const selectedExp = property?.experiences?.find((e) => e.id === selectedExperienceId);
+  const adventuresList = property?.adventures || property?.experiences || [];
+  const selectedAdv = adventuresList.find((e) => e.id === selectedAdventureId);
 
   const roomCapacity = roomAvailability?.max_guests || selectedRoom?.capacity || 2;
   const maxAllowedGuests = roomCapacity * roomQuantity;
@@ -168,13 +178,13 @@ export const PropertyDetails = () => {
   const extraBedsSubtotal = (roomRules.extra_bed_price || 0) * extraBedsCount * nights;
   const childrenSubtotal = (roomRules.child_price || 0) * childrenCount * nights;
 
-  let expSubtotal = 0;
-  if (selectedExp) {
-    const pCount = parseInt(experienceParticipants, 10) || 1;
-    expSubtotal = selectedExp.pricing_model === 'per_person' ? selectedExp.price * pCount : selectedExp.price;
+  let advSubtotal = 0;
+  if (selectedAdv) {
+    const pCount = parseInt(adventureParticipants, 10) || 1;
+    advSubtotal = selectedAdv.pricing_model === 'per_person' ? selectedAdv.price * pCount : selectedAdv.price;
   }
 
-  const grandTotal = roomSubtotal + expSubtotal + cotsSubtotal + extraBedsSubtotal + childrenSubtotal;
+  const grandTotal = roomSubtotal + advSubtotal + cotsSubtotal + extraBedsSubtotal + childrenSubtotal;
 
   const handleCheckInChange = (newCheckIn) => {
     setCheckIn(newCheckIn);
@@ -266,12 +276,19 @@ export const PropertyDetails = () => {
       extra_beds_subtotal: extraBedsSubtotal,
       children_subtotal: childrenSubtotal,
       room_subtotal: roomSubtotal,
-      experience_id: selectedExperienceId,
-      experience_title: selectedExp?.title,
-      experience_price: selectedExp?.price,
-      experience_pricing_model: selectedExp?.pricing_model,
-      experience_participants: selectedExp ? parseInt(experienceParticipants, 10) : 0,
-      experience_subtotal: expSubtotal,
+      adventure_id: selectedAdventureId,
+      adventure_title: selectedAdv?.title,
+      adventure_price: selectedAdv?.price,
+      adventure_pricing_model: selectedAdv?.pricing_model,
+      adventure_participants: selectedAdv ? parseInt(adventureParticipants, 10) : 0,
+      adventure_subtotal: advSubtotal,
+      // Backward compatibility aliases
+      experience_id: selectedAdventureId,
+      experience_title: selectedAdv?.title,
+      experience_price: selectedAdv?.price,
+      experience_pricing_model: selectedAdv?.pricing_model,
+      experience_participants: selectedAdv ? parseInt(adventureParticipants, 10) : 0,
+      experience_subtotal: advSubtotal,
       total_amount: grandTotal,
       property_rules: property.home_rules,
       room_rules: selectedRoom?.rules,
@@ -294,7 +311,7 @@ export const PropertyDetails = () => {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
             <span className="px-3 py-1 bg-gradient-to-r from-[#087F8C] to-[#0F9D9A] text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-xs">
-              {property.property_type}
+              {formatPropertyType(property.property_type)}
             </span>
             <VerificationBadge status="VERIFIED" />
           </div>
@@ -318,11 +335,11 @@ export const PropertyDetails = () => {
         </div>
 
         <h1 className="text-2xl sm:text-4xl font-black font-serif text-[#17324D] dark:text-white tracking-tight">
-          {property.name}
+          {formatPropertyName(property.name)}
         </h1>
         <div className="flex items-center text-xs text-[#607080] dark:text-slate-300 space-x-1">
           <MapPin className="w-4 h-4 text-[#F97316] shrink-0" />
-          <span>{property.address}, {property.city}, {property.state}, {property.country}</span>
+          <span>{[property.address, property.city, property.state, property.country].filter(Boolean).map(formatLocationName).join(', ')}</span>
         </div>
       </div>
 
@@ -400,7 +417,7 @@ export const PropertyDetails = () => {
               {property.amenities?.map((am, i) => (
                 <div key={i} className="flex items-center space-x-2.5 p-2.5 rounded-xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-100 dark:border-teal-900/40 text-xs font-semibold text-[#17324D] dark:text-slate-200">
                   <Check className="w-4 h-4 text-[#35A66F]" />
-                  <span>{am.amenity_name || am}</span>
+                  <span>{formatAmenityName(am.amenity_name || am)}</span>
                 </div>
               ))}
             </div>
@@ -410,7 +427,7 @@ export const PropertyDetails = () => {
           <PropertyHomeRules
             rules={property.home_rules}
             roomRules={selectedRoom?.rules}
-            propertyName={property.name}
+            propertyName={formatPropertyName(property.name)}
           />
 
           {/* Available Rooms Selection */}
@@ -449,7 +466,7 @@ export const PropertyDetails = () => {
                     <div className="sm:w-48 aspect-16/10 rounded-2xl overflow-hidden bg-gray-100 dark:bg-slate-800 shrink-0">
                       <img
                         src={resolveImageUrl(room.images?.[0]?.image_url || (typeof room.images?.[0] === 'string' ? room.images[0] : null)) || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80'}
-                        alt={room.name}
+                        alt={formatRoomName(room.name)}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.target.src = 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80';
@@ -462,9 +479,9 @@ export const PropertyDetails = () => {
                         <div className="flex items-start justify-between">
                           <div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8]">
-                              {room.room_type}
+                              {formatRoomName(room.room_type)}
                             </span>
-                            <h4 className="text-base font-bold font-serif text-[#17324D] dark:text-white">{room.name}</h4>
+                            <h4 className="text-base font-bold font-serif text-[#17324D] dark:text-white">{formatRoomName(room.name)}</h4>
                           </div>
                           <div className="text-right">
                             <span className="text-lg font-bold text-[#F97316] font-serif block">
@@ -504,7 +521,7 @@ export const PropertyDetails = () => {
                         <div className="flex flex-wrap gap-1">
                           {room.amenities?.map((a, i) => (
                             <span key={i} className="text-[10px] bg-[#087F8C]/10 dark:bg-[#087F8C]/20 px-2 py-0.5 rounded border border-[#087F8C]/20 text-[#087F8C] dark:text-[#27B7A8] font-semibold">
-                              {a.amenity_name || a}
+                              {formatAmenityName(a.amenity_name || a)}
                             </span>
                           ))}
                         </div>
@@ -619,11 +636,11 @@ export const PropertyDetails = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#087F8C] to-[#0F9D9A] text-white font-bold text-xs flex items-center justify-center">
-                            {authorName.charAt(0).toUpperCase()}
+                            {formatDisplayName(authorName).charAt(0).toUpperCase()}
                           </div>
                           <div>
                             <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                              {authorName}
+                              {formatDisplayName(authorName)}
                             </span>
                             <span className="text-[10px] text-slate-400 block">
                               Reviewed on {new Date(rev.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -653,12 +670,12 @@ export const PropertyDetails = () => {
             )}
           </div>
 
-          {/* Add-on Experiences Section */}
-          {property.experiences?.length > 0 && (
+          {/* Add-on Adventures Section */}
+          {adventuresList.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">Add Local Stay Partner Experiences</h2>
+                  <h2 className="text-lg sm:text-xl font-bold font-serif text-[#17324D] dark:text-white">Add Local Stay Partner Adventures</h2>
                   <p className="text-xs text-[#607080] dark:text-slate-400">Optionally bundle verified activities with your stay</p>
                 </div>
                 <span className="text-xs font-bold text-[#F97316] bg-[#F97316]/15 px-2.5 py-1 rounded-full">
@@ -667,12 +684,12 @@ export const PropertyDetails = () => {
               </div>
 
               <div className="space-y-3">
-                {property.experiences.map((exp) => {
-                  const isChecked = selectedExperienceId === exp.id;
+                {adventuresList.map((adv) => {
+                  const isChecked = selectedAdventureId === adv.id;
                   return (
                     <div
-                      key={exp.id}
-                      onClick={() => setSelectedExperienceId(isChecked ? null : exp.id)}
+                      key={adv.id}
+                      onClick={() => setSelectedAdventureId(isChecked ? null : adv.id)}
                       className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
                         isChecked
                           ? 'bg-[#FFFDF7] dark:bg-[#091B29] border-[#F97316] shadow-sm'
@@ -688,20 +705,20 @@ export const PropertyDetails = () => {
                         <div>
                           <div className="flex items-center space-x-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8] bg-[#087F8C]/10 px-2 py-0.5 rounded-full">
-                              {exp.experience_type}
+                              {adv.adventure_type || adv.experience_type}
                             </span>
-                            <span className="text-xs text-slate-400">Duration: {exp.duration}</span>
+                            <span className="text-xs text-slate-400">Duration: {adv.duration}</span>
                           </div>
-                          <h4 className="text-sm font-bold text-[#17324D] dark:text-white mt-0.5">{exp.title}</h4>
+                          <h4 className="text-sm font-bold text-[#17324D] dark:text-white mt-0.5">{adv.title}</h4>
                         </div>
                       </div>
 
                       <div className="text-right">
                         <span className="text-sm font-bold text-[#F97316] font-serif">
-                          +₹{exp.price?.toLocaleString('en-IN')}
+                          +₹{adv.price?.toLocaleString('en-IN')}
                         </span>
                         <span className="text-[10px] text-slate-400 block">
-                          / {exp.pricing_model === 'per_person' ? 'person' : 'session'}
+                          / {adv.pricing_model === 'per_person' ? 'person' : 'session'}
                         </span>
                       </div>
                     </div>
@@ -843,17 +860,17 @@ export const PropertyDetails = () => {
                 propertyRules={property.home_rules}
               />
 
-              {selectedExp && (
+              {selectedAdv && (
                 <div className="p-3 bg-[#FFFDF7] dark:bg-[#091B29] rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#087F8C] dark:text-[#27B7A8] block">
-                    Experience Participants ({selectedExp.title})
+                    Adventure Participants ({selectedAdv.title})
                   </span>
                   <input
                     type="number"
                     min="1"
-                    max={selectedExp.capacity}
-                    value={experienceParticipants}
-                    onChange={(e) => setExperienceParticipants(e.target.value)}
+                    max={selectedAdv.capacity}
+                    value={adventureParticipants}
+                    onChange={(e) => setAdventureParticipants(e.target.value)}
                     className="w-full px-3 py-1.5 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-[#17324D] dark:text-white"
                   />
                 </div>
@@ -892,10 +909,10 @@ export const PropertyDetails = () => {
                 </div>
               )}
 
-              {selectedExp && (
+              {selectedAdv && (
                 <div className="flex justify-between text-[#087F8C] dark:text-[#27B7A8]">
-                  <span>{selectedExp.title} ({experienceParticipants} pax)</span>
-                  <span className="font-semibold">₹{expSubtotal.toLocaleString('en-IN')}</span>
+                  <span>{selectedAdv.title} ({adventureParticipants} pax)</span>
+                  <span className="font-semibold">₹{advSubtotal.toLocaleString('en-IN')}</span>
                 </div>
               )}
 

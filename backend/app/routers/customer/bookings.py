@@ -26,7 +26,7 @@ def create_booking(
     db: Session = Depends(get_db)
 ):
     """
-    Create and confirm a combined accommodation + experience booking.
+    Create and confirm a combined accommodation + adventure booking.
     Calculates totals on the server and runs VeriNova transaction verification.
     """
     booking = BookingService.create_booking(db, user_id=current_user.id, data=data)

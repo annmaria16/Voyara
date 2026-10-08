@@ -3,6 +3,13 @@ import { adminApi } from '../../api/admin';
 import { PropertyReviewModal } from '../../components/admin/PropertyReviewModal';
 import { resolveImageUrl } from '../../utils/imageUrl';
 import {
+  formatDisplayName,
+  formatEmail,
+  formatPropertyName,
+  formatLocationName,
+  formatPropertyType,
+} from '../../utils/formatters';
+import {
   Home,
   MapPin,
   Star,
@@ -223,14 +230,14 @@ export const AdminProperties = () => {
                   <div className="relative w-full sm:w-44 h-32 rounded-2xl overflow-hidden bg-slate-900 shrink-0 border border-slate-200 dark:border-slate-800 shadow-xs">
                     <img
                       src={primaryImg}
-                      alt={p.name}
+                      alt={formatPropertyName(p.name)}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.src = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80';
                       }}
                     />
                     <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-slate-900/90 text-white backdrop-blur-xs">
-                      {p.property_type}
+                      {formatPropertyType(p.property_type)}
                     </span>
                     {p.images?.length > 1 && (
                       <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-black/75 text-white">
@@ -244,7 +251,7 @@ export const AdminProperties = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-[11px] font-bold text-slate-400 dark:text-slate-500">#{p.id}</span>
                       <h3 className="text-base font-bold font-serif text-[#091B29] dark:text-white truncate">
-                        {p.name}
+                        {formatPropertyName(p.name)}
                       </h3>
                       {getVerificationBadge(p.verification_status)}
                       {p.trust_score !== undefined && (
@@ -275,12 +282,12 @@ export const AdminProperties = () => {
                     <div className="flex items-center space-x-3 text-xs text-slate-600 dark:text-slate-300 flex-wrap gap-y-1">
                       <div className="flex items-center space-x-1">
                         <User className="w-3.5 h-3.5 text-[#087F8C]" />
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">{p.provider_name || `Stay Partner #${p.provider_id}`}</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{formatDisplayName(p.provider_name) || `Stay Partner #${p.provider_id}`}</span>
                       </div>
                       {p.provider_email && (
                         <div className="flex items-center space-x-1 text-slate-500 dark:text-slate-400 text-[11px]">
                           <Mail className="w-3 h-3 text-slate-400" />
-                          <span>{p.provider_email}</span>
+                          <span>{formatEmail(p.provider_email)}</span>
                         </div>
                       )}
                     </div>
@@ -289,7 +296,7 @@ export const AdminProperties = () => {
                     <div className="flex items-center space-x-2 text-xs text-slate-600 dark:text-slate-300 flex-wrap">
                       <div className="flex items-center space-x-1">
                         <MapPin className="w-3.5 h-3.5 text-[#087F8C]" />
-                        <span>{p.city}, {p.state}, {p.country || 'India'}</span>
+                        <span>{[p.city, p.state, p.country || 'India'].filter(Boolean).map(formatLocationName).join(', ')}</span>
                       </div>
                       {p.latitude && p.longitude && (
                         <span className="font-mono text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md">
@@ -426,7 +433,7 @@ export const AdminProperties = () => {
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Enter the reason for <strong>'{reasonModal.propertyName}'</strong>. This reason will be saved and sent as an in-app notification to the Stay Partner.
+              Enter the reason for <strong>'{formatPropertyName(reasonModal.propertyName)}'</strong>. This reason will be saved and sent as an in-app notification to the Stay Partner.
             </p>
 
             <textarea

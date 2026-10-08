@@ -3,6 +3,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from google.oauth2 import id_token
@@ -64,8 +65,8 @@ class AuthService:
         # Validate password complexity
         validate_password_strength(data.password)
 
-        # Check unique email
-        existing_email = db.query(User).filter(User.email == email_clean).first()
+        # Check unique email (case-insensitive)
+        existing_email = db.query(User).filter(func.lower(User.email) == email_clean).first()
         if existing_email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -184,7 +185,7 @@ class AuthService:
     @staticmethod
     def login(db: Session, data: LoginRequest) -> dict:
         email_clean = data.email.lower().strip()
-        user = db.query(User).filter(User.email == email_clean).first()
+        user = db.query(User).filter(func.lower(User.email) == email_clean).first()
         if not user or not verify_password(data.password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -250,7 +251,7 @@ class AuthService:
     @staticmethod
     def forgot_password(db: Session, email: str) -> dict:
         email_clean = email.lower().strip()
-        user = db.query(User).filter(User.email == email_clean).first()
+        user = db.query(User).filter(func.lower(User.email) == email_clean).first()
         
         # If user is not registered, return error
         if not user:
@@ -367,7 +368,7 @@ class AuthService:
         if google_sub:
             user = db.query(User).filter(User.google_sub == google_sub).first()
         if not user:
-            user = db.query(User).filter(User.email == email).first()
+            user = db.query(User).filter(func.lower(User.email) == email).first()
 
         # 2. Existing user found
         if user:

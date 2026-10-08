@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { customerApi } from '../../api/customer';
 import {
+  formatDisplayName,
+  formatEmail,
+  formatPropertyName,
+  formatRoomName,
+  formatAdventureName,
+  formatLocationName,
+} from '../../utils/formatters';
+import {
   X,
   Printer,
   ShieldCheck,
@@ -59,7 +67,7 @@ export const InvoiceModal = ({ booking, isOpen, onClose }) => {
     : '';
 
   const room = booking.booking_rooms?.[0];
-  const experience = booking.booking_experiences?.[0];
+  const adventure = booking.booking_adventures?.[0] || booking.booking_experiences?.[0];
   const grandTotal = booking.total_amount || 0;
 
   const paymentId = paymentDetails?.razorpay_payment_id || booking.payment?.razorpay_payment_id || 'pay_verified_razorpay';
@@ -113,7 +121,7 @@ export const InvoiceModal = ({ booking, isOpen, onClose }) => {
                   VeriNova™ Verified
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Find Your Place. Stay. Explore. Experience.</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Find Your Place. Stay. Explore. Adventure.</p>
               <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">
                 Voyara Travel Network Pvt. Ltd.<br />
                 GSTIN: 32AABCU9603R1ZM • support@voyara.com
@@ -134,21 +142,21 @@ export const InvoiceModal = ({ booking, isOpen, onClose }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4.5 rounded-2xl bg-[#FFFDF7] dark:bg-[#091B29] border border-slate-200/80 dark:border-slate-800">
             <div className="space-y-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Billed To (Guest)</span>
-              <strong className="text-sm text-[#091B29] dark:text-white block font-serif">{booking.user?.name || 'Primary Traveler'}</strong>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400">{booking.user?.email}</p>
+              <strong className="text-sm text-[#091B29] dark:text-white block font-serif">{formatDisplayName(booking.user?.name) || 'Primary Traveler'}</strong>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">{formatEmail(booking.user?.email)}</p>
               {booking.user?.phone && <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">Phone: {booking.user.phone}</p>}
             </div>
 
             <div className="space-y-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Stay Sanctuary</span>
-              <strong className="text-sm text-[#091B29] dark:text-white block font-serif">{booking.property?.name || 'Sanctuary Property'}</strong>
+              <strong className="text-sm text-[#091B29] dark:text-white block font-serif">{formatPropertyName(booking.property?.name || 'Sanctuary Property')}</strong>
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
                 {booking.property?.address ? `${booking.property.address}, ` : ''}
-                {booking.property?.city || 'Kerala'}, {booking.property?.state || 'India'}
+                {formatLocationName(booking.property?.city || 'Kerala')}, {formatLocationName(booking.property?.state || 'India')}
               </p>
               <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                 <Building className="w-3 h-3" />
-                Unit: {room?.room_name || 'Standard Unit'} ({room?.quantity || 1} Room)
+                Unit: {formatRoomName(room?.room_name) || 'Standard Unit'} ({room?.quantity || 1} Room)
               </p>
             </div>
           </div>
@@ -217,8 +225,8 @@ export const InvoiceModal = ({ booking, isOpen, onClose }) => {
                 {/* Room row */}
                 <tr>
                   <td className="py-3.5 px-4">
-                    <strong className="text-[#091B29] dark:text-white block font-sans">{room?.room_name || 'Accommodation Stay'}</strong>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400">{booking.property?.name}</span>
+                    <strong className="text-[#091B29] dark:text-white block font-sans">{formatRoomName(room?.room_name) || 'Accommodation Stay'}</strong>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">{formatPropertyName(booking.property?.name)}</span>
                   </td>
                   <td className="py-3.5 px-4 text-center">
                     {room?.quantity || 1} unit × {booking.total_nights}N
@@ -229,19 +237,19 @@ export const InvoiceModal = ({ booking, isOpen, onClose }) => {
                   </td>
                 </tr>
 
-                {/* Experience row */}
-                {experience && (
+                {/* Adventure row */}
+                {adventure && (
                   <tr className="bg-emerald-500/5">
                     <td className="py-3.5 px-4">
-                      <strong className="text-emerald-700 dark:text-emerald-400 block font-sans">{experience.experience_title}</strong>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Stay Partner curated adventure on {experience.scheduled_date}</span>
+                      <strong className="text-emerald-700 dark:text-emerald-400 block font-sans">{formatAdventureName(adventure.adventure_title || adventure.experience_title)}</strong>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Stay Partner curated adventure on {adventure.scheduled_date}</span>
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      {experience.participants} participant(s)
+                      {adventure.participants} participant(s)
                     </td>
-                    <td className="py-3.5 px-4 text-right font-mono">₹{experience.price?.toLocaleString('en-IN')}</td>
+                    <td className="py-3.5 px-4 text-right font-mono">₹{adventure.price?.toLocaleString('en-IN')}</td>
                     <td className="py-3.5 px-4 text-right font-bold font-mono text-emerald-600 dark:text-emerald-400">
-                      ₹{experience.subtotal?.toLocaleString('en-IN')}
+                      ₹{adventure.subtotal?.toLocaleString('en-IN')}
                     </td>
                   </tr>
                 )}
@@ -251,7 +259,7 @@ export const InvoiceModal = ({ booking, isOpen, onClose }) => {
             {/* Calculations Summary */}
             <div className="bg-[#FFFDF7] dark:bg-[#091B29] p-4.5 border-t border-slate-200 dark:border-slate-800 space-y-2 text-xs">
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                <span>Accommodation & Experiences Subtotal</span>
+                <span>Accommodation & Adventures Subtotal</span>
                 <span className="font-mono">₹{grandTotal.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between text-slate-500 dark:text-slate-400 text-[11px]">

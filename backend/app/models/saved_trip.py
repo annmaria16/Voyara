@@ -30,8 +30,16 @@ class SavedTrip(Base):
     travel_style = Column(String(50), default="BALANCED", nullable=False)  # "RELAXED", "BALANCED", "PACKED", "FAMILY_FRIENDLY", "ADVENTURE", "ROMANTIC"
     stay_type = Column(String(50), default="ANY", nullable=False)  # "ANY", "Hotel", "Homestay", "Resort", "Camp", "Cottage", "Villa"
     interests = Column(JSON, default=list, nullable=False)
-    experience_preferences = Column(JSON, default=list, nullable=False)
+    adventure_preferences = Column(JSON, default=list, nullable=False)
     special_requests = Column(Text, nullable=True)
+
+    @property
+    def experience_preferences(self):
+        return self.adventure_preferences
+
+    @experience_preferences.setter
+    def experience_preferences(self, val):
+        self.adventure_preferences = val
     
     # Generated plan details
     summary = Column(Text, nullable=True)
@@ -54,10 +62,10 @@ class SavedTripItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     trip_id = Column(Integer, ForeignKey("saved_trips.id", ondelete="CASCADE"), nullable=False, index=True)
     day_number = Column(Integer, nullable=False)
-    item_type = Column(String(50), nullable=False)  # "STAY_CHECKIN", "STAY_CHECKOUT", "VOYARA_EXPERIENCE", "EXTERNAL_ATTRACTION", "MEAL_RECOMMENDATION", "LEISURE_NOTE"
+    item_type = Column(String(50), nullable=False)  # "STAY_CHECKIN", "STAY_CHECKOUT", "VOYARA_ADVENTURE", "EXTERNAL_ATTRACTION", "MEAL_RECOMMENDATION", "LEISURE_NOTE"
     
     # Associations
-    internal_id = Column(Integer, nullable=True)  # property_id or experience_id or room_id
+    internal_id = Column(Integer, nullable=True)  # property_id or adventure_id or room_id
     external_provider = Column(String(50), nullable=True)  # "GOOGLE_PLACES", "OPENSTREETMAP", "VERIFIED_CATALOG"
     external_place_id = Column(String(255), nullable=True)
     

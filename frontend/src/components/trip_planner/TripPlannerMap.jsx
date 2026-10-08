@@ -2,9 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-export const TripPlannerMap = ({ stay, experiences = [], days = [] }) => {
+export const TripPlannerMap = ({ stay, adventures = [], experiences = [], days = [] }) => {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
+
+  const adventureList = (adventures && adventures.length > 0) ? adventures : experiences;
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -79,21 +81,21 @@ export const TripPlannerMap = ({ stay, experiences = [], days = [] }) => {
       latLngBounds.push([stay.latitude, stay.longitude]);
     }
 
-    // 2. Plot Experiences
-    experiences.forEach((exp) => {
-      // If experience property matches stay, use stay coordinates, or search itinerary items
+    // 2. Plot Adventures
+    adventureList.forEach((adv) => {
+      // If adventure property matches stay, use stay coordinates, or search itinerary items
       const lat = stay?.latitude;
       const lng = stay?.longitude;
       if (lat && lng) {
-        const expMarker = L.marker([lat + 0.003, lng + 0.003], {
-          icon: createCustomIcon('#9333EA', 'EXPERIENCE', '✨'),
+        const advMarker = L.marker([lat + 0.003, lng + 0.003], {
+          icon: createCustomIcon('#9333EA', 'ADVENTURE', '✨'),
         }).addTo(map);
 
-        expMarker.bindPopup(`
+        advMarker.bindPopup(`
           <div style="font-family: sans-serif; min-width: 180px;">
-            <h4 style="margin: 0 0 4px 0; font-size: 13px; font-weight: bold; color: #9333EA;">${exp.title}</h4>
-            <p style="margin: 0; font-size: 11px; color: #555;">${exp.duration} • ₹${exp.price.toLocaleString('en-IN')}</p>
-            <p style="margin: 4px 0 0 0; font-size: 11px; color: #333;">Time: ${exp.start_time} - ${exp.end_time}</p>
+            <h4 style="margin: 0 0 4px 0; font-size: 13px; font-weight: bold; color: #9333EA;">${adv.title}</h4>
+            <p style="margin: 0; font-size: 11px; color: #555;">${adv.duration} • ₹${adv.price.toLocaleString('en-IN')}</p>
+            <p style="margin: 4px 0 0 0; font-size: 11px; color: #333;">Time: ${adv.start_time} - ${adv.end_time}</p>
           </div>
         `);
       }
@@ -131,7 +133,7 @@ export const TripPlannerMap = ({ stay, experiences = [], days = [] }) => {
         mapInstanceRef.current = null;
       }
     };
-  }, [stay, experiences, days]);
+  }, [stay, adventureList, days]);
 
   return (
     <div className="w-full h-80 sm:h-96 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 relative shadow-sm">
@@ -143,7 +145,7 @@ export const TripPlannerMap = ({ stay, experiences = [], days = [] }) => {
         </div>
         <div className="flex items-center space-x-1">
           <span className="w-2.5 h-2.5 rounded-full bg-purple-600" />
-          <span className="font-semibold text-slate-700 dark:text-slate-300">Experience</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">Adventure</span>
         </div>
         <div className="flex items-center space-x-1">
           <span className="w-2.5 h-2.5 rounded-full bg-orange-600" />

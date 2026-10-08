@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
+import { formatDisplayName, formatEmail } from '../../utils/formatters';
 
 export const DashboardHeader = ({
   title = 'DASHBOARD',
@@ -48,10 +49,10 @@ export const DashboardHeader = ({
   const resolvedPlaceholder =
     placeholder ||
     (role === 'PROVIDER'
-      ? 'Search your properties, rooms, bookings...'
+      ? 'Search your properties, rooms, adventures, bookings...'
       : role === 'ADMIN'
       ? 'Search users, properties, bookings...'
-      : 'Search destinations, stays, experiences...');
+      : 'Search destinations, stays, adventures...');
 
   // Role-specific search header title inside dropdown
   const dropdownHeaderTitle =
@@ -164,6 +165,7 @@ export const DashboardHeader = ({
         return <Home className="w-3 h-3" />;
       case 'ROOM':
         return <BedDouble className="w-3 h-3" />;
+      case 'ADVENTURE':
       case 'EXPERIENCE':
         return <Flame className="w-3 h-3" />;
       case 'BOOKING':
@@ -188,6 +190,7 @@ export const DashboardHeader = ({
         return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
       case 'ROOM':
         return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+      case 'ADVENTURE':
       case 'EXPERIENCE':
         return 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20';
       case 'BOOKING':
@@ -426,19 +429,19 @@ export const DashboardHeader = ({
                 />
               ) : (
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#087F8C] to-[#35A66F] flex items-center justify-center text-white font-bold text-xs uppercase shadow-xs shrink-0">
-                  {user?.name?.charAt(0) || 'U'}
+                  {formatDisplayName(user?.name || 'U').charAt(0).toUpperCase()}
                 </div>
               )}
               <span className="hidden sm:inline text-xs font-bold text-[#17324D] dark:text-white max-w-[100px] truncate">
-                {user?.name?.split(' ')[0] || 'User'}
+                {formatDisplayName(user?.name?.split(' ')[0] || 'User')}
               </span>
             </button>
 
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#0F273D] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-2 z-50 text-xs space-y-1">
                 <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700/60">
-                  <p className="font-bold text-[#17324D] dark:text-white truncate">{user?.name}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
+                  <p className="font-bold text-[#17324D] dark:text-white truncate">{formatDisplayName(user?.name)}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{formatEmail(user?.email)}</p>
                 </div>
                 <Link
                   to={
