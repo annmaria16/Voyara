@@ -240,9 +240,8 @@ export const MultiImageUploadPicker = ({
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       const raw = typeof imgItem === 'string' ? imgItem : (imgItem.image_url || imgItem.url || '');
-                      if (raw && !raw.startsWith('http://') && !raw.startsWith('https://')) {
-                        const cleanPath = raw.startsWith('/') ? raw : `/${raw}`;
-                        e.target.src = `http://localhost:8000${cleanPath}`;
+                      if (raw) {
+                        e.target.src = resolveImageUrl(raw);
                       }
                     }}
                   />

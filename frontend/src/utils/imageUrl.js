@@ -1,6 +1,6 @@
 /**
  * Resolves local/relative backend upload URLs to fully qualified URLs.
- * Handles /uploads/... relative paths by checking VITE_API_BASE_URL or defaulting to backend origin.
+ * Handles /uploads/... relative paths by checking VITE_API_BASE_URL / VITE_API_URL or defaulting to backend origin.
  */
 export const resolveImageUrl = (url) => {
   if (!url) return '';
@@ -22,41 +22,30 @@ export const resolveImageUrl = (url) => {
 
   // Normalize Windows backslashes
   const normalized = url.replace(/\\/g, '/');
+  const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
 
-  // Handle /uploads/... or uploads/... paths
-  if (normalized.startsWith('/uploads/') || normalized.startsWith('uploads/')) {
-    const cleanPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
-    const rawApiUrl = import.meta.env.VITE_API_BASE_URL;
-    if (rawApiUrl) {
-      try {
-        const parsed = new URL(rawApiUrl, window.location.origin);
-        return `${parsed.origin}${cleanPath}`;
-      } catch (e) {
-        // continue to port fallback
-      }
+  const rawApiUrl = (
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    ''
+  ).trim();
+
+  if (rawApiUrl) {
+    try {
+      const parsed = new URL(rawApiUrl, window.location.origin);
+      return `${parsed.origin}${cleanPath}`;
+    } catch (e) {
+      // continue to port fallback
     }
-    if (typeof window !== 'undefined') {
-      const port = window.location.port;
-      if (port === '5173' || port === '3000' || port === '5174') {
-        return `http://localhost:8000${cleanPath}`;
-      }
-    }
-    return `http://localhost:8000${cleanPath}`;
   }
 
-  // Handle other relative paths starting with /
-  if (normalized.startsWith('/')) {
-    const rawApiUrl = import.meta.env.VITE_API_BASE_URL;
-    if (rawApiUrl) {
-      try {
-        const parsed = new URL(rawApiUrl, window.location.origin);
-        return `${parsed.origin}${normalized}`;
-      } catch (e) {}
+  if (typeof window !== 'undefined') {
+    const port = window.location.port;
+    if (port === '5173' || port === '3000' || port === '5174') {
+      return `http://localhost:8000${cleanPath}`;
     }
-    return `http://localhost:8000${normalized}`;
   }
-
-  return normalized;
+  return `http://localhost:8000${cleanPath}`;
 };
 
 export default resolveImageUrl;

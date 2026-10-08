@@ -32,6 +32,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { formatDisplayName, formatEmail } from '../../utils/formatters';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 export const DashboardSidebar = ({ role, isOpen = false, onClose = () => { } }) => {
   const location = useLocation();
@@ -192,7 +193,7 @@ export const DashboardSidebar = ({ role, isOpen = false, onClose = () => { } }) 
           <div className="flex items-center space-x-2.5 min-w-0">
             {user?.avatar_url ? (
               <img
-                src={user.avatar_url.startsWith('http') ? user.avatar_url : `http://localhost:8000${user.avatar_url}`}
+                src={resolveImageUrl(user.avatar_url)}
                 alt={user?.name || 'User'}
                 className="w-8 h-8 rounded-xl object-cover shadow-xs border border-[#087F8C]/40 shrink-0"
               />

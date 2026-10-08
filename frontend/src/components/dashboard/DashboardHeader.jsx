@@ -24,6 +24,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { formatDisplayName, formatEmail } from '../../utils/formatters';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 export const DashboardHeader = ({
   title = 'DASHBOARD',
@@ -419,11 +420,7 @@ export const DashboardHeader = ({
             >
               {user?.avatar_url ? (
                 <img
-                  src={
-                    user.avatar_url.startsWith('http')
-                      ? user.avatar_url
-                      : `http://localhost:8000${user.avatar_url}`
-                  }
+                  src={resolveImageUrl(user.avatar_url)}
                   alt={user?.name || 'User'}
                   className="w-8 h-8 rounded-xl object-cover shadow-xs border border-[#35A66F]/40 shrink-0"
                 />

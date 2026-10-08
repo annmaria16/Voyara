@@ -73,8 +73,7 @@ export const ImageUploadPicker = ({
             className="w-full h-full object-cover"
             onError={(e) => {
               if (value && !value.startsWith('http')) {
-                const clean = value.startsWith('/') ? value : `/${value}`;
-                e.target.src = `http://localhost:8000${clean}`;
+                e.target.src = resolveImageUrl(value);
               }
             }}
           />

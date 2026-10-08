@@ -28,6 +28,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { formatDisplayName, formatEmail, formatLocationName } from '../../utils/formatters';
+import { resolveImageUrl } from '../../utils/imageUrl';
 
 export const ProfilePage = () => {
   const { user, roleLabel, updateUserProfile } = useAuth();
@@ -277,11 +278,7 @@ export const ProfilePage = () => {
       })
     : 'September 2026';
 
-  const avatarFullUrl = avatarUrl
-    ? avatarUrl.startsWith('http')
-      ? avatarUrl
-      : `http://localhost:8000${avatarUrl}`
-    : null;
+  const avatarFullUrl = avatarUrl ? resolveImageUrl(avatarUrl) : null;
 
   const displayRoleBadge = isAdmin
     ? 'VOYARA CONTROL CENTER'

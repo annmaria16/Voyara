@@ -17,7 +17,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
-    CORS_ORIGINS: Union[List[str], str] = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]
+    CORS_ORIGINS: Union[List[str], str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "https://voyara-delta.vercel.app",
+        "https://voyara.vercel.app"
+    ]
     GOOGLE_CLIENT_ID: str = "616701780551-tkit9i6ig58m3fc2tt1trd1bgr6a4ak8.apps.googleusercontent.com"
     RAZORPAY_KEY_ID: str = "rzp_test_4GCxMOoqwqydp6"
     RAZORPAY_KEY_SECRET: str = "1mlfmOmQcstOlmTtCztPYXFB"
