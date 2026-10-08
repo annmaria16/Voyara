@@ -13,3 +13,4 @@ razorpay>=1.4.1
 google-auth
 httpx
 pymupdf
+pillow
