@@ -8,7 +8,7 @@ from app.models.room import Room, RoomImage, RoomAmenity, RoomRule
 from app.models.adventure import Adventure, Experience
 from app.models.availability import PropertyAvailability, RoomAvailability
 from app.models.provider import ProviderProfile
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.booking import Booking, BookingStatus, BookingRoom
 from app.schemas.property import PropertyCreate, PropertyUpdate
 from app.services.verinova.property_trust_service import PropertyTrustService
@@ -544,10 +544,13 @@ class PropertyService:
         experience: Optional[str] = None,
         experience_date: Optional[date] = None,
     ) -> List[dict]:
-        # Enforce that only verified and active Indian properties are visible to customers
-        query = db.query(Property).join(Property.provider).filter(
+        # Enforce that only verified and active properties added by verified Stay Partners are visible to customers
+        query = db.query(Property).join(Property.provider).join(ProviderProfile.user).filter(
             Property.is_active == True,
             Property.verification_status == "VERIFIED",
+            Property.provider_id.isnot(None),
+            User.role == UserRole.PROVIDER,
+            User.is_active == True,
             or_(Property.country.ilike("India"), Property.country == "India")
         )
 
@@ -558,7 +561,7 @@ class PropertyService:
         # Explicit Host filter
         if host and host.strip():
             clean_host = f"%{host.strip().lower()}%"
-            query = query.join(ProviderProfile.user).filter(
+            query = query.filter(
                 or_(
                     func.lower(ProviderProfile.business_name).like(clean_host),
                     func.lower(User.name).like(clean_host)
