@@ -30,7 +30,8 @@ export const GoogleAuthButton = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const hiddenBtnRef = useRef(null);
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const defaultClientId = '616701780551-tkit9i6ig58m3fc2tt1trd1bgr6a4ak8.apps.googleusercontent.com';
+  const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || defaultClientId).trim();
 
   useEffect(() => {
     if (!clientId) {
