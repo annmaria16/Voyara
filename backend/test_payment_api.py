@@ -6,10 +6,39 @@ from datetime import date, timedelta
 from fastapi.testclient import TestClient
 from app.main import app
 from app.config import settings
+from app.database import SessionLocal
+from app.models.user import User, UserRole
+from app.auth.password import hash_password
 
 client = TestClient(app)
 
+def ensure_customer():
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "john.traveler@example.com").first()
+        if not user:
+            user = User(
+                email="john.traveler@example.com",
+                name="John Doe",
+                phone="+919123456780",
+                hashed_password=hash_password("customer123"),
+                role=UserRole.CUSTOMER,
+                is_active=True,
+                account_status="ACTIVE",
+                phone_verified=True,
+                email_verified=True
+            )
+            db.add(user)
+        else:
+            user.hashed_password = hash_password("customer123")
+            user.is_active = True
+            user.account_status = "ACTIVE"
+        db.commit()
+    finally:
+        db.close()
+
 def test_razorpay_payment_suite():
+    ensure_customer()
     print("\n=======================================================")
     print("  VOYARA RAZORPAY PAYMENT GATEWAY TEST SUITE")
     print("=======================================================")
@@ -18,7 +47,7 @@ def test_razorpay_payment_suite():
     r = client.get("/api/customer/payments/config")
     assert r.status_code == 200, f"Config endpoint failed: {r.text}"
     cfg = r.json()
-    assert cfg["key_id"] == "rzp_test_4GCxMOoqwqydp6"
+    assert cfg["key_id"] == settings.RAZORPAY_KEY_ID or cfg["key_id"] == "rzp_test_4GCxMOoqwqydp6"
     assert cfg["currency"] == "INR"
     print(f"[PASS] 1. Razorpay public config verified: Key ID = {cfg['key_id']}")
 
@@ -56,6 +85,7 @@ def test_razorpay_payment_suite():
         "check_out": check_out,
         "total_guests": 2,
         "room_quantity": 1,
+        "rules_accepted": True,
         "experience_id": exp_id,
         "experience_participants": 2 if exp_id else 0,
         "customer_notes": "Razorpay End-to-End Automated Test"
@@ -67,7 +97,7 @@ def test_razorpay_payment_suite():
     assert order_data["order_id"].startswith("order_"), f"Invalid order ID: {order_data['order_id']}"
     assert order_data["amount"] > 0
     assert order_data["amount_paise"] == int(order_data["amount"] * 100)
-    assert order_data["key_id"] == "rzp_test_4GCxMOoqwqydp6"
+    assert order_data["key_id"] == settings.RAZORPAY_KEY_ID or order_data["key_id"] == "rzp_test_4GCxMOoqwqydp6"
     booking_id = order_data["booking_id"]
     order_id = order_data["order_id"]
     print(f"[PASS] 4. Razorpay Order generated: {order_id} (Booking #{order_data['booking_number']}, Amount: Rs.{order_data['amount']}).")

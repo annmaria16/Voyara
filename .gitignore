@@ -2,9 +2,14 @@
 __pycache__/
 *.py[cod]
 *$py.class
-*.env
 *.db
 .pytest_cache/
+
+# Environment and Secrets
+.env
+.env.*
+*.env
+!.env.example
 
 # Node
 node_modules/
@@ -12,6 +17,14 @@ dist/
 dist-ssr/
 *.local
 
+# Uploads and temporary files
+/backend/uploads/*
+!/backend/uploads/.gitkeep
+/backend/secure_documents/*
+!/backend/secure_documents/.gitkeep
+
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo

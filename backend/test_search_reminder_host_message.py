@@ -407,5 +407,8 @@ def run_tests():
     finally:
         db.close()
 
+def test_search_reminder_host_message():
+    run_tests()
+
 if __name__ == "__main__":
     run_tests()

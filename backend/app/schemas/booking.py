@@ -51,7 +51,7 @@ class BookingCreate(BaseModel):
     check_in: date
     check_out: date
     total_guests: int = 1
-    adults: Optional[int] = 1
+    adults: Optional[int] = None
     children: Optional[int] = 0
     child_ages: Optional[List[int]] = []
     cot_count: Optional[int] = 0
@@ -69,6 +69,11 @@ class BookingCreate(BaseModel):
     booking_source: Optional[str] = "self"
 
     def model_post_init(self, __context):
+        if self.adults is None:
+            if self.total_guests is not None and self.total_guests > 0:
+                self.adults = max(1, self.total_guests - (self.children or 0))
+            else:
+                self.adults = max(1, self.room_quantity)
         if self.experience_id is not None and self.adventure_id is None:
             self.adventure_id = self.experience_id
         if self.experience_participants is not None and self.adventure_participants == 0:

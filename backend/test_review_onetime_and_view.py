@@ -169,5 +169,8 @@ def run_tests():
     finally:
         db.close()
 
+def test_review_onetime_and_view():
+    run_tests()
+
 if __name__ == "__main__":
     run_tests()

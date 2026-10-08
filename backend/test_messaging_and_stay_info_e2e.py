@@ -441,5 +441,8 @@ def run_tests():
     finally:
         db.close()
 
+def test_messaging_and_stay_info_e2e():
+    run_tests()
+
 if __name__ == "__main__":
     run_tests()

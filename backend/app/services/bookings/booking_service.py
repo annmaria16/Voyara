@@ -54,8 +54,14 @@ class BookingService:
             nights = 1
 
         requested_quantity = max(1, getattr(data, 'room_quantity', 1) or 1)
-        adults = max(1, getattr(data, 'adults', 1) or 1)
         children = max(0, getattr(data, 'children', 0) or 0)
+        total_g = getattr(data, 'total_guests', 0) or 0
+        if getattr(data, 'adults', None) is not None and data.adults > 0:
+            adults = data.adults
+        elif total_g > 0:
+            adults = max(1, total_g - children)
+        else:
+            adults = max(1, requested_quantity)
         child_ages = getattr(data, 'child_ages', []) or []
         cot_count = max(0, getattr(data, 'cot_count', 0) or 0)
         extra_bed_count = max(0, getattr(data, 'extra_bed_count', 0) or 0)

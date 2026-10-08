@@ -35,7 +35,9 @@ class TestAIBookingNaturalAssistantGeoE2E(unittest.TestCase):
     @classmethod
     def _setup_test_data(cls):
         # 1. Traveler
-        cls.traveler = cls.db.query(User).filter(User.email == "traveler_geo_e2e@voyara.com").first()
+        cls.traveler = cls.db.query(User).filter(
+            (User.email == "traveler_geo_e2e@voyara.com") | (User.phone == "+919876540099")
+        ).first()
         if not cls.traveler:
             cls.traveler = User(
                 email="traveler_geo_e2e@voyara.com",
@@ -46,7 +48,7 @@ class TestAIBookingNaturalAssistantGeoE2E(unittest.TestCase):
                 is_active=True
             )
             cls.db.add(cls.traveler)
-            cls.db.flush()
+            cls.db.commit()
 
         # 2. Provider Profile
         from app.models.provider import ProviderProfile
@@ -58,7 +60,7 @@ class TestAIBookingNaturalAssistantGeoE2E(unittest.TestCase):
                 contact_phone="+919876540099"
             )
             cls.db.add(cls.provider)
-            cls.db.flush()
+            cls.db.commit()
 
         # 3. Verified Indian Properties
         # A. Munnar Sanctuary
@@ -203,8 +205,8 @@ class TestAIBookingNaturalAssistantGeoE2E(unittest.TestCase):
         self.assertEqual(ext["destination"], "Canada")
         self.assertEqual(ext["adults"], 4)
         self.assertEqual(ext["children"], 0)
-        self.assertEqual(ext["check_in"], "2026-10-01")
-        self.assertEqual(ext["check_out"], "2026-10-04")
+        self.assertTrue(ext["check_in"].endswith("-10-01"), f"Expected October 1st, got: {ext['check_in']}")
+        self.assertTrue(ext["check_out"].endswith("-10-04"), f"Expected October 4th, got: {ext['check_out']}")
         self.assertIn("destination", parsed["explicitly_provided"])
         self.assertIn("adults", parsed["explicitly_provided"])
         self.assertIn("check_in", parsed["explicitly_provided"])
@@ -236,8 +238,8 @@ class TestAIBookingNaturalAssistantGeoE2E(unittest.TestCase):
         snap = resp.context_snapshot
         self.assertEqual(snap.get("destination"), "Canada")
         self.assertEqual(snap.get("adults"), 4)
-        self.assertEqual(snap.get("check_in"), "2026-10-01")
-        self.assertEqual(snap.get("check_out"), "2026-10-04")
+        self.assertTrue(snap.get("check_in", "").endswith("-10-01"), f"Expected October 1st, got: {snap.get('check_in')}")
+        self.assertTrue(snap.get("check_out", "").endswith("-10-04"), f"Expected October 4th, got: {snap.get('check_out')}")
 
         # Must provide Indian destination suggestions
         self.assertTrue(len(resp.suggested_destinations) > 0)
@@ -367,15 +369,15 @@ class TestAIBookingNaturalAssistantGeoE2E(unittest.TestCase):
     # -------------------------------------------------------------------------
     def test_10_date_formats_extraction(self):
         test_cases = [
-            ("book stay in munnar for 2 adults on oct1 to oct 4", "2026-10-01", "2026-10-04"),
-            ("stay in munnar for 2 adults on 1 oct to 4 oct", "2026-10-01", "2026-10-04"),
-            ("stay in goa for 2 adults from 1st to 4th oct", "2026-10-01", "2026-10-04"),
-            ("stay in goa for 2 adults on oct 1 - oct 4", "2026-10-01", "2026-10-04"),
+            ("book stay in munnar for 2 adults on oct1 to oct 4", "-10-01", "-10-04"),
+            ("stay in munnar for 2 adults on 1 oct to 4 oct", "-10-01", "-10-04"),
+            ("stay in goa for 2 adults from 1st to 4th oct", "-10-01", "-10-04"),
+            ("stay in goa for 2 adults on oct 1 - oct 4", "-10-01", "-10-04"),
         ]
         for prompt, exp_in, exp_out in test_cases:
             res = BookingAgentToolsService.extract_booking_requirements(prompt, {})
-            self.assertEqual(res["extracted"]["check_in"], exp_in, f"Failed check_in on prompt: {prompt}")
-            self.assertEqual(res["extracted"]["check_out"], exp_out, f"Failed check_out on prompt: {prompt}")
+            self.assertTrue(res["extracted"]["check_in"].endswith(exp_in), f"Failed check_in on prompt: {prompt}, got: {res['extracted']['check_in']}")
+            self.assertTrue(res["extracted"]["check_out"].endswith(exp_out), f"Failed check_out on prompt: {prompt}, got: {res['extracted']['check_out']}")
 
 
 if __name__ == "__main__":

@@ -139,7 +139,8 @@ def run_all_tests():
             check_in=today,
             check_out=today + timedelta(days=1),
             total_guests=2,
-            room_quantity=1
+            room_quantity=1,
+            rules_accepted=True
         )
         b1 = BookingService.create_booking(db, user_id=customer.id, data=data)
         assert b1.id is not None
@@ -157,7 +158,8 @@ def run_all_tests():
             check_in=today - timedelta(days=1),
             check_out=today + timedelta(days=2),
             total_guests=2,
-            room_quantity=1
+            room_quantity=1,
+            rules_accepted=True
         )
         BookingService.create_booking(db, user_id=customer.id, data=data)
         print("[FAIL] TEST 2 FAILED: Past check-in was allowed unexpectedly.")
@@ -176,7 +178,8 @@ def run_all_tests():
             check_in=in_5_days,
             check_out=in_5_days,
             total_guests=2,
-            room_quantity=1
+            room_quantity=1,
+            rules_accepted=True
         )
         BookingService.create_booking(db, user_id=customer.id, data=data)
         print("[FAIL] TEST 3 FAILED: Same-day or earlier checkout was allowed unexpectedly.")
@@ -195,7 +198,8 @@ def run_all_tests():
             check_in=in_5_days,
             check_out=in_7_days,
             total_guests=5,
-            room_quantity=1
+            room_quantity=1,
+            rules_accepted=True
         )
         BookingService.create_booking(db, user_id=customer.id, data=data)
         print("[FAIL] TEST 4 FAILED: 5 guests for capacity 4 was allowed unexpectedly.")
@@ -214,7 +218,8 @@ def run_all_tests():
             check_in=in_5_days,
             check_out=in_7_days,
             total_guests=4,
-            room_quantity=6
+            room_quantity=6,
+            rules_accepted=True
         )
         BookingService.create_booking(db, user_id=customer.id, data=data)
         print("[FAIL] TEST 5 FAILED: 6 rooms for total quantity 5 was allowed unexpectedly.")
@@ -238,7 +243,8 @@ def run_all_tests():
             check_in=in_10_days,
             check_out=in_12_days,
             total_guests=6,
-            room_quantity=3
+            room_quantity=3,
+            rules_accepted=True
         )
         b_3 = BookingService.create_booking(db, user_id=customer.id, data=data_3)
 
@@ -260,7 +266,8 @@ def run_all_tests():
             check_in=in_10_days,
             check_out=in_12_days,
             total_guests=6,
-            room_quantity=3
+            room_quantity=3,
+            rules_accepted=True
         )
         BookingService.create_booking(db, user_id=customer.id, data=data_req3)
         print("[FAIL] TEST 7 FAILED: Booking 3 rooms when only 2 available succeeded unexpectedly.")
@@ -283,7 +290,8 @@ def run_all_tests():
         check_in=in_10_days,
         check_out=in_12_days,
         total_guests=8,
-        room_quantity=4
+        room_quantity=4,
+        rules_accepted=True
     ))
 
     # Now exactly 1 room remaining!
@@ -300,7 +308,8 @@ def run_all_tests():
                     check_in=in_10_days,
                     check_out=in_12_days,
                     total_guests=2,
-                    room_quantity=1
+                    room_quantity=1,
+                    rules_accepted=True
                 )
             )
             results.append(("SUCCESS", cust_num, b.booking_number))
@@ -362,7 +371,8 @@ def run_all_tests():
                 check_in=in_5_days,
                 check_out=in_7_days, # 2 nights
                 total_guests=2,
-                room_quantity=2 # 2 rooms -> 6500 * 2 nights * 2 rooms = 26,000
+                room_quantity=2, # 2 rooms -> 6500 * 2 nights * 2 rooms = 26,000
+                rules_accepted=True
             )
         )
         assert b_price_test.total_amount == 26000.0
@@ -384,7 +394,8 @@ def run_all_tests():
                 check_in=in_5_days,
                 check_out=in_7_days, # 2 nights
                 total_guests=2,
-                room_quantity=1 # 6500 * 2 nights * 1 room = 13,000
+                room_quantity=1, # 6500 * 2 nights * 1 room = 13,000
+                rules_accepted=True
             )
         )
         assert b_authoritative.total_amount == 13000.0
@@ -422,7 +433,8 @@ def run_all_tests():
                 check_in=in_5_days,
                 check_out=in_7_days,
                 total_guests=2,
-                room_quantity=1
+                room_quantity=1,
+                rules_accepted=True
             )
         )
         print("[FAIL] TEST 13 FAILED: Booking succeeded on blocked room dates.")
@@ -453,6 +465,7 @@ def run_all_tests():
                 check_out=in_7_days,
                 total_guests=4,
                 room_quantity=2,
+                rules_accepted=True,
                 customer_notes="Please arrange early luggage drop."
             )
         )
@@ -470,6 +483,9 @@ def run_all_tests():
     print(f"TEST SUMMARY: {passed_tests}/{total_tests} TESTS PASSED.")
     print("==================================================")
     db.close()
+
+def test_booking_system():
+    run_all_tests()
 
 if __name__ == "__main__":
     run_all_tests()

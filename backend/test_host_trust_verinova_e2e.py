@@ -464,5 +464,8 @@ def run_tests():
         settings.OTP_PROVIDER = original_otp_provider
         db.close()
 
+def test_host_trust_verinova_e2e():
+    run_tests()
+
 if __name__ == "__main__":
     run_tests()

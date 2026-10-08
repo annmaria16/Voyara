@@ -317,5 +317,8 @@ def run_tests():
     finally:
         db.close()
 
+def test_multi_property_discovery():
+    run_tests()
+
 if __name__ == "__main__":
     run_tests()

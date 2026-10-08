@@ -494,5 +494,8 @@ def run_tests():
     print("=" * 70)
     db.close()
 
+def test_cancellation_commission_payout_e2e():
+    run_tests()
+
 if __name__ == "__main__":
     run_tests()

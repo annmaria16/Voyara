@@ -137,5 +137,8 @@ def run_tests():
     print("ALL MULTI-STAY & CHAT HISTORY TESTS PASSED (100%)!")
     print("=======================================================")
 
+def test_trip_planner_multistay_and_history():
+    run_tests()
+
 if __name__ == "__main__":
     run_tests()

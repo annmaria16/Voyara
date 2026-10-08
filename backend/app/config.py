@@ -1,6 +1,6 @@
 import os
 from typing import List, Union
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 
 class Settings(BaseSettings):
@@ -10,10 +10,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     API_V1_STR: str = "/api"
 
-    DATABASE_URL: str = "postgresql+psycopg://postgres:Annmaria%4016@localhost:5432/voyara"
+    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/voyara"
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
 
-    JWT_SECRET: str = "voyara_super_secret_jwt_key_2026_sunset_coast_secure_token"
+    JWT_SECRET: str = "voyara_default_secret_key_change_in_production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
@@ -24,9 +24,9 @@ class Settings(BaseSettings):
         "https://voyara-delta.vercel.app",
         "https://voyara.vercel.app"
     ]
-    GOOGLE_CLIENT_ID: str = "616701780551-tkit9i6ig58m3fc2tt1trd1bgr6a4ak8.apps.googleusercontent.com"
-    RAZORPAY_KEY_ID: str = "rzp_test_4GCxMOoqwqydp6"
-    RAZORPAY_KEY_SECRET: str = "1mlfmOmQcstOlmTtCztPYXFB"
+    GOOGLE_CLIENT_ID: str = ""
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
 
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
@@ -52,22 +52,60 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_database_url(cls, v: str) -> str:
+        if not v:
+            return "postgresql+psycopg://postgres:postgres@localhost:5432/voyara"
+        val = str(v).strip()
+        # Automatically normalize Render PostgreSQL URLs for SQLAlchemy + Psycopg 3
+        if val.startswith("postgres://"):
+            val = "postgresql+psycopg://" + val[len("postgres://"):]
+        elif val.startswith("postgresql://") and not val.startswith("postgresql+"):
+            val = "postgresql+psycopg://" + val[len("postgresql://"):]
+        return val
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        default_origins = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "https://voyara-delta.vercel.app",
+            "https://voyara.vercel.app"
+        ]
         if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
+            origins = [i.strip() for i in v.split(",") if i.strip()]
+            for d in default_origins:
+                if d not in origins:
+                    origins.append(d)
+            return origins
         elif isinstance(v, str):
             import json
             try:
-                return json.loads(v)
+                origins = json.loads(v)
+                if isinstance(origins, list):
+                    for d in default_origins:
+                        if d not in origins:
+                            origins.append(d)
+                    return origins
+                return [v]
             except Exception:
                 return [v]
-        return v
+        elif isinstance(v, list):
+            origins = list(v)
+            for d in default_origins:
+                if d not in origins:
+                    origins.append(d)
+            return origins
+        return default_origins
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False
+    )
 
 settings = Settings()

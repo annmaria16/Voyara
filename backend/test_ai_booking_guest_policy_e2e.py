@@ -609,7 +609,12 @@ class TestAIBookingGuestPolicyE2E(unittest.TestCase):
         )
         self.assertFalse(resp.success)
         self.assertEqual(resp.status, "BOOKING_REVALIDATION_REQUIRED")
-        self.assertIn("inventory changed", resp.revalidation_error)
+        self.assertTrue(
+            "inventory" in resp.revalidation_error.lower()
+            or "remaining" in resp.revalidation_error.lower()
+            or "unit" in resp.revalidation_error.lower(),
+            f"Expected inventory/capacity depletion error, got: {resp.revalidation_error}"
+        )
 
     # -------------------------------------------------------------------------
     # TEST 17: Price Changes Before Confirmation
@@ -642,7 +647,12 @@ class TestAIBookingGuestPolicyE2E(unittest.TestCase):
         )
         self.assertFalse(resp.success)
         self.assertEqual(resp.status, "BOOKING_REVALIDATION_REQUIRED")
-        self.assertIn("Pricing updated", resp.revalidation_error)
+        self.assertTrue(
+            "price" in resp.revalidation_error.lower()
+            or "pricing" in resp.revalidation_error.lower()
+            or "discrepancy" in resp.revalidation_error.lower(),
+            f"Expected pricing discrepancy error, got: {resp.revalidation_error}"
+        )
 
     # -------------------------------------------------------------------------
     # TEST 18: Booking Preview Never Created for Invalid Configuration

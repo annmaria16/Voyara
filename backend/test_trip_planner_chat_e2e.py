@@ -109,5 +109,8 @@ def run_tests():
     print("ALL CONVERSATIONAL TRIP PLANNER E2E TESTS PASSED (100%)!")
     print("=======================================================")
 
+def test_trip_planner_chat_e2e():
+    run_tests()
+
 if __name__ == "__main__":
     run_tests()

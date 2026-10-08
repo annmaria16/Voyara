@@ -134,7 +134,8 @@ def seed_database():
         rating=0.0,
         review_count=0,
         featured=True,
-        is_active=True
+        is_active=True,
+        verification_status="VERIFIED"
     )
     db.add(p1)
     db.commit()
@@ -233,7 +234,8 @@ def seed_database():
         rating=0.0,
         review_count=0,
         featured=True,
-        is_active=True
+        is_active=True,
+        verification_status="VERIFIED"
     )
     db.add(p2)
     db.commit()
@@ -299,7 +301,8 @@ def seed_database():
         rating=0.0,
         review_count=0,
         featured=True,
-        is_active=True
+        is_active=True,
+        verification_status="VERIFIED"
     )
     db.add(p3)
     db.commit()
@@ -360,12 +363,13 @@ def seed_database():
         location_details="Direct beachfront access",
         contact_phone="+91 9822054321",
         contact_email="camp@serenityshores.in",
-        check_in_time="13:00",
-        check_out_time="11:00",
+        check_in_time="14:00",
+        check_out_time="10:00",
         rating=0.0,
         review_count=0,
-        featured=False,
-        is_active=True
+        featured=True,
+        is_active=True,
+        verification_status="VERIFIED"
     )
     db.add(p4)
     db.commit()

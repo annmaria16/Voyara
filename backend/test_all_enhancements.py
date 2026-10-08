@@ -1,6 +1,6 @@
 import sys
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 # Set up python path to include backend root
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -213,7 +213,8 @@ def run_tests():
             room_quantity=1,
             check_in=stay_in,
             check_out=stay_out,
-            total_guests=2
+            total_guests=2,
+            rules_accepted=True
         )
         booking1 = BookingService.create_booking(db, cust_user1.id, b1_data)
         print(f"  [OK] Booking 1 confirmed: {booking1.booking_number} for 1 unit (1 of 2 units remaining)")
@@ -225,7 +226,8 @@ def run_tests():
             room_quantity=1,
             check_in=stay_in,
             check_out=stay_out,
-            total_guests=2
+            total_guests=2,
+            rules_accepted=True
         )
         booking2 = BookingService.create_booking(db, cust_user2.id, b2_data)
         print(f"  [OK] Booking 2 confirmed: {booking2.booking_number} for 1 unit (0 of 2 units remaining - fully booked!)")
@@ -238,7 +240,8 @@ def run_tests():
                 room_quantity=1,
                 check_in=stay_in,
                 check_out=stay_out,
-                total_guests=2
+                total_guests=2,
+                rules_accepted=True
             )
             BookingService.create_booking(db, cust_user1.id, b3_data)
             assert False, "Overbooking should have been blocked!"
@@ -269,7 +272,8 @@ def run_tests():
             room_quantity=2,  # Both 2 units must be available again!
             check_in=future_in,
             check_out=future_out,
-            total_guests=4
+            total_guests=4,
+            rules_accepted=True
         )
         booking_future = BookingService.create_booking(db, cust_user1.id, b_future_data)
         print(f"  [OK] Units available immediately on checkout date: Booking {booking_future.booking_number} created for 2 units.")
@@ -286,7 +290,8 @@ def run_tests():
             room_total=9000.0,
             experience_total=0.0,
             total_amount=9000.0,
-            status=BookingStatus.CONFIRMED
+            status=BookingStatus.CHECKED_IN,
+            checked_in_at=datetime.utcnow() - timedelta(days=5)
         )
         db.add(past_booking)
         db.commit()
@@ -350,6 +355,9 @@ def run_tests():
 
     finally:
         db.close()
+
+def test_all_enhancements():
+    run_tests()
 
 if __name__ == "__main__":
     run_tests()
